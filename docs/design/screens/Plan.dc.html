@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8">
+<title>طرح درمان</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0B6E6E}a:hover{color:#084F4F}
+</style>
+</helmet>
+<div dir="rtl" style="width: 390px; height: 844px; box-sizing: border-box; background: #F4F6F7; font-family: Vazirmatn, Tahoma, sans-serif; color: #15212B; display: flex; flex-direction: column">
+  <div style="padding: 16px 16px 8px; display: flex; align-items: center; justify-content: space-between">
+    <a href="Age.dc.html" aria-label="بازگشت" style="width: 44px; height: 44px; border-radius: 12px; background: #FFFFFF; border: 1px solid #DCE2E6; box-sizing: border-box; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+    <h1 style="margin: 0; font-size: 18px; font-weight: 700">طرح درمان</h1>
+    <a href="MDCodes.dc.html" style="height: 40px; padding: 0 12px; border-radius: 12px; background: #15212B; color: #FFFFFF; font-size: 13px; font-weight: 600; display: flex; align-items: center; text-decoration: none">MD Codes</a>
+  </div>
+
+  <div role="tablist" aria-label="سطح طرح" style="margin: 0 16px; background: #E5EAED; border-radius: 12px; padding: 4px; display: flex; gap: 4px">
+    <button role="tab" aria-selected="false" style="flex: 1; height: 38px; border-radius: 9px; border: 0; background: transparent; font-family: inherit; font-size: 14px; color: #3B4851">حداقلی</button>
+    <button role="tab" aria-selected="true" style="flex: 1; height: 38px; border-radius: 9px; border: 0; background: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600; color: #15212B">پیشنهادی</button>
+    <button role="tab" aria-selected="false" style="flex: 1; height: 38px; border-radius: 9px; border: 0; background: transparent; font-family: inherit; font-size: 14px; color: #3B4851">جامع</button>
+  </div>
+
+  <div style="margin: 14px 16px 0; background: #FFFFFF; border: 1px solid #DCE2E6; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px">
+    <span style="font-size: 14px; font-weight: 600">ترتیب جلسات</span>
+    <sc-for list="{{sessions}}" as="s" hint-placeholder-count="3">
+      <div style="display: flex; gap: 10px; align-items: flex-start">
+        <span style="width: 28px; height: 28px; flex: none; border-radius: 14px; background: #E3F1F0; color: #0B5A5A; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{s.n}}</span>
+        <div style="display: flex; flex-direction: column; gap: 1px">
+          <span style="font-size: 14px; font-weight: 600">{{s.title}}</span>
+          <span style="font-size: 12px; color: #52616B">{{s.detail}}</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="margin: 14px 16px 6px; display: flex; justify-content: space-between; align-items: baseline">
+    <h2 style="margin: 0; font-size: 15px; font-weight: 600">گودی زیر چشم · درجهٔ 3</h2>
+    <a href="#" style="font-size: 13px">مشکل بعدی</a>
+  </div>
+  <fieldset style="margin: 0 16px; border: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+    <legend style="position: absolute; width: 1px; height: 1px; overflow: hidden">گزینهٔ درمان گودی زیر چشم</legend>
+    <sc-for list="{{options}}" as="o" hint-placeholder-count="3">
+      <label style="background: #FFFFFF; border: {{o.border}}; border-radius: 14px; padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start">
+        <input type="radio" name="tt" checked="{{o.checked}}" style="margin-top: 4px; accent-color: #0B6E6E; width: 18px; height: 18px">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 14px; font-weight: 600">{{o.title}}</span>
+          <span style="font-size: 12px; color: #52616B">{{o.detail}}</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap">
+            <sc-for list="{{o.tags}}" as="t" hint-placeholder-count="2">
+              <span style="font-size: 11px; padding: 2px 8px; border-radius: 6px; background: {{t.bg}}; color: {{t.fg}}">{{t.label}}</span>
+            </sc-for>
+          </div>
+        </div>
+      </label>
+    </sc-for>
+  </fieldset>
+
+  <div style="margin-top: auto; padding: 10px 16px 20px; display: flex; gap: 8px">
+    <a href="Age.dc.html" style="flex: 1; display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 14px; border: 1px solid #DCE2E6; background: #FFFFFF; color: #15212B; font-size: 15px; text-decoration: none">دیدن شبیه‌سازی</a>
+    <a href="Report.dc.html" style="flex: 1; display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 14px; background: #0B6E6E; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none">تأیید و گزارش</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ev = { bg: '#E3F1F0', fg: '#0B5A5A' };
+    const risk = { bg: '#FBEEDF', fg: '#7A3A06' };
+    const plain = { bg: '#EEF1F3', fg: '#3B4851' };
+    const opts = [
+      { title: 'فیلر HA نرم با کانولا، عمقی', detail: 'جلسهٔ 2 · پس از حمایت گونه', tags: [{ label: 'شواهد قوی', ...ev }, { label: 'ناحیهٔ پرخطر عروقی', ...risk }], on: true },
+      { title: 'پلی‌نوکلئوتید (PN)', detail: '3 جلسه با فاصلهٔ 2 تا 3 هفته', tags: [{ label: 'کیفیت پوست', ...plain }, { label: 'نقاهت کم', ...plain }], on: false },
+      { title: 'RF میکرونیدلینگ کم‌عمق', detail: 'ترکیبی با گزینهٔ اول', tags: [{ label: 'دقت در Fitzpatrick بالا', ...risk }], on: false }
+    ];
+    return {
+      sessions: [
+        { n: '1', title: 'توکسین: دور چشم و میان‌ابرو', detail: '1 تا 2 هفته پیش از فیلر' },
+        { n: '2', title: 'فیلر ساختاری: شقیقه، گونه، چانه', detail: 'سپس زیر چشم' },
+        { n: '3', title: 'بیواستیمولاتور: خط فک', detail: '4 تا 6 هفته بعد' }
+      ],
+      options: opts.map(o => ({ ...o, checked: o.on, border: o.on ? '2px solid #0B6E6E' : '1px solid #DCE2E6' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

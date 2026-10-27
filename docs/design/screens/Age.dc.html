@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8">
+<title>سن واقعی و سن هدف</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0B6E6E}a:hover{color:#084F4F}
+</style>
+</helmet>
+<div dir="rtl" style="width: 390px; height: 844px; box-sizing: border-box; background: #F4F6F7; font-family: Vazirmatn, Tahoma, sans-serif; color: #15212B; display: flex; flex-direction: column">
+  <div style="padding: 16px 16px 8px; display: flex; align-items: center; justify-content: space-between">
+    <a href="Analysis.dc.html" aria-label="بازگشت" style="width: 44px; height: 44px; border-radius: 12px; background: #FFFFFF; border: 1px solid #DCE2E6; box-sizing: border-box; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+    <h1 style="margin: 0; font-size: 18px; font-weight: 700">سن واقعی و سن هدف</h1>
+    <span style="font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px; background: #EEF1F3; color: #3B4851">دادهٔ نمونه</span>
+  </div>
+
+  <div style="margin: 0 16px; display: flex; gap: 8px">
+    <div style="flex: 1; background: #FFFFFF; border: 1px solid #DCE2E6; border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 12px; color: #52616B">سن واقعی (تأیید پزشک)</span>
+      <span style="font-size: 22px; font-weight: 700">[سن]</span>
+    </div>
+    <div style="flex: 1; background: #FBEEDF; border: 1px solid #F0D4B4; border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 12px; color: #7A3A06">سن ظاهری (تخمین مدل)</span>
+      <span style="font-size: 22px; font-weight: 700; color: #7A3A06">[سن] ±3</span>
+    </div>
+  </div>
+
+  <div style="margin: 12px 16px 0; height: 232px; border-radius: 18px; overflow: hidden; display: flex; border: 1px solid #DCE2E6; position: relative">
+    <div style="flex: 1; background: #E7EBEE; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 10px">
+      <span style="font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.9); padding: 3px 10px; border-radius: 999px">شبیه‌سازی سن هدف</span>
+    </div>
+    <div style="width: 3px; background: #FFFFFF; position: relative; display: flex; align-items: center; justify-content: center">
+      <span style="position: absolute; width: 32px; height: 32px; border-radius: 16px; background: #FFFFFF; border: 1px solid #DCE2E6; display: flex; align-items: center; justify-content: center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg>
+      </span>
+    </div>
+    <div style="flex: 1; background: #D9DFE3; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 10px">
+      <span style="font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.9); padding: 3px 10px; border-radius: 999px">قبل</span>
+    </div>
+    <span style="position: absolute; top: 10px; right: 10px; font-size: 11px; color: #3B4851; background: rgba(255,255,255,0.9); padding: 3px 8px; border-radius: 6px">[عکس بیمار]</span>
+  </div>
+  <div style="margin: 6px 16px 0; display: flex; gap: 6px; justify-content: center">
+    <button style="height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: #15212B; color: #FFFFFF; font-family: inherit; font-size: 12px">روبه‌رو</button>
+    <button style="height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid #DCE2E6; background: #FFFFFF; font-family: inherit; font-size: 12px; color: #15212B">45 درجه</button>
+    <button style="height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid #DCE2E6; background: #FFFFFF; font-family: inherit; font-size: 12px; color: #15212B">نیم‌رخ</button>
+    <button style="height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid #DCE2E6; background: #FFFFFF; font-family: inherit; font-size: 12px; color: #15212B">بعد از هر جلسه</button>
+  </div>
+
+  <div style="margin: 14px 16px 0; background: #FFFFFF; border: 1px solid #DCE2E6; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px">
+    <label for="target-age" style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 600">
+      <span>سن هدف</span>
+      <span style="color: #0B6E6E">۶ سال جوان‌تر از سن واقعی</span>
+    </label>
+    <input id="target-age" type="range" min="0" max="15" value="6" style="width: 100%; accent-color: #0B6E6E">
+    <div style="display: flex; gap: 6px">
+      <button style="flex: 1; height: 38px; border-radius: 10px; border: 1px solid #DCE2E6; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #15212B">طبیعی</button>
+      <button style="flex: 1; height: 38px; border-radius: 10px; border: 2px solid #0B6E6E; background: #E3F1F0; font-family: inherit; font-size: 13px; color: #0B5A5A; font-weight: 600">شاداب‌تر</button>
+      <button style="flex: 1; height: 38px; border-radius: 10px; border: 1px solid #DCE2E6; background: #FFFFFF; font-family: inherit; font-size: 13px; color: #15212B">حداکثر واقع‌بینانه</button>
+    </div>
+  </div>
+
+  <div style="margin: 10px 16px 0; display: flex; flex-direction: column; gap: 6px">
+    <span style="font-size: 13px; font-weight: 600">سن ظاهری هر ناحیه</span>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+      <sc-for list="{{regions}}" as="r" hint-placeholder-count="6">
+        <div style="background: #FFFFFF; border: 1px solid #DCE2E6; border-radius: 10px; padding: 6px 8px; display: flex; justify-content: space-between; font-size: 12px">
+          <span style="color: #52616B">{{r.name}}</span><span style="font-weight: 600">{{r.age}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <p style="margin: 10px 16px 0; font-size: 11px; color: #52616B; line-height: 1.6">شبیه‌سازی تقریبی است و فقط تغییراتی را نشان می‌دهد که با طرح درمان تأییدشده قابل دستیابی است.</p>
+
+  <div style="margin-top: auto; padding: 10px 16px 20px">
+    <a href="Plan.dc.html" style="display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 14px; background: #0B6E6E; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none">ساخت طرح درمان</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      regions: [
+        { name: 'پیشانی', age: '[—]' },
+        { name: 'زیر چشم', age: '[—]' },
+        { name: 'میانهٔ صورت', age: '[—]' },
+        { name: 'دور دهان', age: '[—]' },
+        { name: 'خط فک', age: '[—]' },
+        { name: 'گردن', age: '[—]' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

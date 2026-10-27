@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8">
+<title>تأیید پزشک و گزارش بیمار</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0B6E6E}a:hover{color:#084F4F}
+</style>
+</helmet>
+<div dir="rtl" style="width: 390px; height: 844px; box-sizing: border-box; background: #F4F6F7; font-family: Vazirmatn, Tahoma, sans-serif; color: #15212B; display: flex; flex-direction: column">
+  <div style="padding: 16px 16px 8px; display: flex; align-items: center; justify-content: space-between">
+    <a href="Plan.dc.html" aria-label="بازگشت به طرح درمان" style="width: 44px; height: 44px; border-radius: 12px; background: #FFFFFF; border: 1px solid #DCE2E6; box-sizing: border-box; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+    <h1 style="margin: 0; font-size: 18px; font-weight: 700">تأیید و گزارش</h1>
+    <span style="width: 44px"></span>
+  </div>
+
+  <div style="margin: 0 16px; background: #FFFFFF; border: 1px solid #DCE2E6; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px">
+    <span style="font-size: 14px; font-weight: 600">پیش از نمایش به بیمار</span>
+    <label style="display: flex; gap: 10px; align-items: center; font-size: 14px; min-height: 32px"><input type="checkbox" checked style="width: 20px; height: 20px; accent-color: #0B6E6E">یافته‌ها بازبینی و تأیید شد</label>
+    <label style="display: flex; gap: 10px; align-items: center; font-size: 14px; min-height: 32px"><input type="checkbox" checked style="width: 20px; height: 20px; accent-color: #0B6E6E">طرح درمان و ترتیب جلسات تأیید شد</label>
+    <label style="display: flex; gap: 10px; align-items: center; font-size: 14px; min-height: 32px"><input type="checkbox" checked style="width: 20px; height: 20px; accent-color: #0B6E6E">منع مصرف و سابقه بررسی شد</label>
+    <label style="display: flex; gap: 10px; align-items: center; font-size: 14px; min-height: 32px"><input type="checkbox" style="width: 20px; height: 20px; accent-color: #0B6E6E">غربالگری BDD بررسی شد</label>
+  </div>
+
+  <div style="margin: 12px 16px 0; background: #FFFFFF; border: 1px solid #DCE2E6; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+    <span style="font-size: 14px; font-weight: 600">پیش‌نمایش گزارش بیمار</span>
+    <div style="display: flex; gap: 10px">
+      <div style="width: 84px; height: 104px; border-radius: 10px; background: #E7EBEE; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #3B4851">قبل / بعد</div>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #3B4851">
+        <span>4 یافتهٔ اصلی، به زبان ساده</span>
+        <span>طرح پیشنهادی: 3 جلسه</span>
+        <span>شبیه‌سازی تقریبی سن هدف</span>
+        <span>مراقبت‌های بعد از درمان</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap">
+      <span style="font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #E3F1F0; color: #0B5A5A">فارسی</span>
+      <span style="font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #EEF1F3; color: #3B4851">English</span>
+      <span style="font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #EEF1F3; color: #3B4851">بدون MD Codes</span>
+    </div>
+  </div>
+
+  <div style="margin: 12px 16px 0; display: flex; flex-direction: column; gap: 6px">
+    <span style="font-size: 14px; font-weight: 600">امضای پزشک</span>
+    <div style="height: 96px; border-radius: 14px; border: 1.5px dashed #9AA7B0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #52616B">اینجا امضا کنید</div>
+    <span style="font-size: 12px; color: #52616B">دکتر [نام پزشک] · شمارهٔ نظام پزشکی [—]</span>
+  </div>
+
+  <div style="margin: 12px 16px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+    <button style="height: 64px; border-radius: 12px; border: 1px solid #DCE2E6; background: #FFFFFF; font-family: inherit; font-size: 12px; color: #15212B; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15212B" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13h6M9 17h4"/></svg>
+      PDF
+    </button>
+    <button style="height: 64px; border-radius: 12px; border: 1px solid #DCE2E6; background: #FFFFFF; font-family: inherit; font-size: 12px; color: #15212B; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15212B" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+      لینک خصوصی
+    </button>
+    <button style="height: 64px; border-radius: 12px; border: 1px solid #DCE2E6; background: #FFFFFF; font-family: inherit; font-size: 12px; color: #15212B; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15212B" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 17l2 2 4-4"/></svg>
+      رضایت‌نامه
+    </button>
+  </div>
+
+  <div style="margin-top: auto; padding: 10px 16px 20px">
+    <button disabled style="width: 100%; height: 52px; border-radius: 14px; border: 0; background: #9FB9B9; color: #FFFFFF; font-family: inherit; font-size: 16px; font-weight: 600">امضا و ارسال گزارش (1 مورد مانده)</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

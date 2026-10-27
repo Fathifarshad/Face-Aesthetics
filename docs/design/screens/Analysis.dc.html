@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fa">
+<head>
+<meta charset="utf-8">
+<title>نتیجهٔ آنالیز چهره</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#0B6E6E}a:hover{color:#084F4F}
+</style>
+</helmet>
+<div dir="rtl" style="width: 390px; height: 844px; box-sizing: border-box; background: #F4F6F7; font-family: Vazirmatn, Tahoma, sans-serif; color: #15212B; display: flex; flex-direction: column">
+  <div style="padding: 16px 16px 8px; display: flex; align-items: center; justify-content: space-between">
+    <a href="Capture.dc.html" aria-label="بازگشت" style="width: 44px; height: 44px; border-radius: 12px; background: #FFFFFF; border: 1px solid #DCE2E6; box-sizing: border-box; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15212B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </a>
+    <h1 style="margin: 0; font-size: 18px; font-weight: 700">آنالیز چهره</h1>
+    <span style="font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px; background: #EEF1F3; color: #3B4851">دادهٔ نمونه</span>
+  </div>
+
+  <div style="margin: 0 16px; height: 250px; border-radius: 18px; background: #FFFFFF; border: 1px solid #DCE2E6; display: flex; align-items: center; justify-content: center; gap: 10px; position: relative">
+    <svg width="190" height="236" viewBox="0 0 200 248" role="img" aria-label="نقشهٔ حرارتی نواحی مشکل‌دار روی چهره">
+      <ellipse cx="62" cy="122" rx="18" ry="10" fill="#E8590C" opacity="0.32"/>
+      <ellipse cx="138" cy="122" rx="18" ry="10" fill="#E8590C" opacity="0.32"/>
+      <ellipse cx="70" cy="168" rx="12" ry="22" fill="#E8590C" opacity="0.22"/>
+      <ellipse cx="130" cy="168" rx="12" ry="22" fill="#E8590C" opacity="0.22"/>
+      <ellipse cx="58" cy="202" rx="16" ry="12" fill="#0B6E6E" opacity="0.2"/>
+      <ellipse cx="142" cy="202" rx="16" ry="12" fill="#0B6E6E" opacity="0.2"/>
+      <path d="M100 18c-48 0-78 36-78 92 0 64 34 118 78 126 44-8 78-62 78-126 0-56-30-92-78-92z" fill="none" stroke="#8796A0" stroke-width="1.6"/>
+      <path d="M48 92c10-6 24-8 36-4M116 88c12-4 26-2 36 4" fill="none" stroke="#8796A0" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M54 110c8-5 20-5 28 0M118 110c8-5 20-5 28 0" fill="none" stroke="#8796A0" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M100 112c-3 20-8 36-12 46 5 4 19 4 24 0" fill="none" stroke="#8796A0" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M76 190c14 7 34 7 48 0M80 190c12-5 28-5 40 0" fill="none" stroke="#8796A0" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="100" y1="14" x2="100" y2="240" stroke="#B9C3CA" stroke-dasharray="3 4"/>
+      <line x1="20" y1="84" x2="180" y2="84" stroke="#B9C3CA" stroke-dasharray="3 4"/>
+      <line x1="20" y1="158" x2="180" y2="158" stroke="#B9C3CA" stroke-dasharray="3 4"/>
+    </svg>
+    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #3B4851">
+      <span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 6px; background: #E8590C; opacity: 0.6"></span>اولویت بالا</span>
+      <span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 6px; background: #0B6E6E; opacity: 0.5"></span>اولویت متوسط</span>
+      <span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; border-top: 1px dashed #8796A0"></span>یک‌سوم‌ها و خط میانی</span>
+    </div>
+  </div>
+
+  <div role="tablist" aria-label="لایه‌های آنالیز" style="margin: 12px 16px 0; display: flex; gap: 6px; overflow: hidden">
+    <button role="tab" aria-selected="true" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: #15212B; color: #FFFFFF; font-family: inherit; font-size: 13px; font-weight: 600">حجم و پیری</button>
+    <button role="tab" aria-selected="false" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCE2E6; background: #FFFFFF; color: #15212B; font-family: inherit; font-size: 13px">تناسبات</button>
+    <button role="tab" aria-selected="false" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCE2E6; background: #FFFFFF; color: #15212B; font-family: inherit; font-size: 13px">حرکت</button>
+    <button role="tab" aria-selected="false" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCE2E6; background: #FFFFFF; color: #15212B; font-family: inherit; font-size: 13px">پوست</button>
+    <button role="tab" aria-selected="false" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCE2E6; background: #FFFFFF; color: #15212B; font-family: inherit; font-size: 13px">لب</button>
+  </div>
+
+  <div style="flex: 1; margin: 12px 16px 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden">
+    <sc-for list="{{findings}}" as="f" hint-placeholder-count="4">
+      <div style="background: #FFFFFF; border: 1px solid #DCE2E6; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span style="font-size: 15px; font-weight: 600">{{f.name}}</span>
+          <span style="font-size: 12px; color: #52616B">{{f.scale}}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px">
+          <div style="display: flex; gap: 4px" aria-label="{{f.aria}}">
+            <sc-for list="{{f.dots}}" as="d" hint-placeholder-count="5">
+              <span style="width: 26px; height: 8px; border-radius: 4px; background: {{d.bg}}"></span>
+            </sc-for>
+          </div>
+          <span style="font-size: 13px; font-weight: 600">{{f.grade}}</span>
+          <span style="font-size: 12px; color: #52616B; margin-right: auto">اطمینان {{f.conf}}</span>
+        </div>
+        <div style="display: flex; gap: 6px">
+          <button style="height: 34px; padding: 0 12px; border-radius: 10px; border: 0; background: #E3F1F0; color: #0B5A5A; font-family: inherit; font-size: 13px; font-weight: 600">تأیید</button>
+          <button style="height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCE2E6; background: #FFFFFF; color: #15212B; font-family: inherit; font-size: 13px">ویرایش شدت</button>
+          <button style="height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCE2E6; background: #FFFFFF; color: #15212B; font-family: inherit; font-size: 13px">رد</button>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="padding: 12px 16px 20px; background: #F4F6F7">
+    <a href="Age.dc.html" style="display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 14px; background: #0B6E6E; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none">تعیین سن هدف</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dots = (g) => [0, 1, 2, 3, 4].map(i => ({ bg: i <= g ? (g >= 3 ? '#C2410C' : '#0B6E6E') : '#E2E7EA' }));
+    const rows = [
+      { name: 'گودی زیر چشم', scale: 'مقیاس زیر چشم Allergan', g: 3, conf: 'بالا' },
+      { name: 'افت میانهٔ صورت', scale: 'مقیاس MFVDS', g: 2, conf: 'بالا' },
+      { name: 'جول و خط فک', scale: 'مقیاس خط فک Merz', g: 2, conf: 'متوسط' },
+      { name: 'خط خنده', scale: 'مقیاس WSRS', g: 2, conf: 'بالا' }
+    ];
+    return {
+      findings: rows.map(r => ({
+        ...r,
+        dots: dots(r.g),
+        grade: 'درجهٔ ' + r.g + ' از 4',
+        aria: 'شدت ' + r.g + ' از 4'
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
