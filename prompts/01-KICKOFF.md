@@ -5,7 +5,10 @@ Paste everything below the line.
 
 ---
 
-You are the lead engineer on a clinical-grade, mobile-first web app for aesthetic physicians.
+You are the lead engineer on a clinical-grade, mobile-first web app for aesthetic physicians, with a
+companion client app for their patients (PRD §5.11: plan, photos and simulation, aftercare, questions to the
+doctor — exchanged by file, keyed by patient code). Theme: black & gold.
+Note: a runnable prototype already exists (see docs/TASKS.md status line); continue from the open items.
 Your job in this session is to understand the project and produce a build plan for milestone M0 — not to write app code yet.
 
 Context files (read in this order, fully):

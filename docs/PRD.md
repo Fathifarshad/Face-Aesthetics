@@ -11,8 +11,9 @@ Success for Phase 1 = a doctor can go from first photo to signed PDF report in u
 with every measurement traceable to a formula and every recommendation traceable to the knowledge base.
 
 ## 2. Users
-- Primary: licensed aesthetic physician / injector (only user in Phase 1, single device, single clinic)
-- Secondary (read-only): the patient, who receives the signed report
+- Primary: licensed aesthetic physician / injector (single device, single clinic)
+- Secondary: the client (patient), who receives the signed report and uses the client app (§5.11) to view their
+  plan, photos and simulation, read aftercare, take progress photos and send questions to the doctor
 - Not in scope: consumers using the app on themselves; anyone under 18
 
 ## 3. Phase 1 scope
@@ -27,10 +28,16 @@ In scope:
 8. MD Codes toggle: generic anatomical zone overlay + code table that stays empty until licensed data is added
 9. Doctor sign-off, patient report (fa/en) via print-to-PDF, consent summary
 10. Encryption at rest, auto-delete policy, export/delete patient
+11. **Approximate target-age simulation, on-device** (decided 2026-10-27): landmark-guided warp + shadow
+    softening + edge-preserving skin smoothing, scaled by target gap × graded severity; always labelled
+    "approximate"; saved with the case on the doctor's device and delivered to the client app
+12. **Client app** (same PWA, `/client` route) — see §5.11
+13. **Service-based photo protocol**: required views and counts follow the services chosen for the visit,
+    separate Before / After sections, a guide beside every view, confirm-or-retake right after capture — see §5.3
 
-Out of scope (Phase 2+): AI skin analysis, apparent-age estimation model, generative target-age simulation,
-3D reconstruction, backend/sync, multi-user clinics, doctor license verification, native iOS/Android, body analysis.
-The UI keeps clearly-labelled placeholders for these so the flow is complete.
+Out of scope (Phase 2+): AI skin analysis, apparent-age estimation model, *generative/AI* target-age simulation,
+3D reconstruction, backend/sync (real-time chat, push notifications), multi-user clinics, doctor license
+verification, native iOS/Android, body analysis. The UI keeps clearly-labelled placeholders for these.
 
 ## 4. Core flow
 Login (app PIN) → Patients list → New analysis → Intake & consent → Guided capture (11 views)
@@ -54,6 +61,17 @@ Mockups: docs/design/screens/ (Main, Capture, Analysis, Age, Plan, MDCodes, Repo
 - AC: blocked options never appear in the plan; flags appear as warnings on affected options
 
 ### 5.3 Guided capture
+- Services chosen at case creation (full analysis, lips, tear trough, upper-face toxin, cheek/mid-face filler or
+  threads, jawline & chin, neck, skin) determine the required views; the union is shown as "n of N required photos"
+  (`src/capture/services.ts`, `TODO(clinical)` confirm each set)
+- Two separate sections: **Before treatment** and **After treatment**, each with its own counter and progress bar;
+  the After section uses the matching Before photo as a 35 % ghost overlay
+- Every view shows a pose illustration and plain-language guide next to the capture buttons; general photography
+  rules (background, light, no makeup/filters, lens, same setup before/after) are one tap away
+- Immediately after capture or gallery upload: confirmation screen with the detected landmark mask and live QC
+  checklist (pass / fail + fix hint); actions: accept & save · use anyway (marked low quality) · retake
+- Photos are saved on the doctor's device and, after sign-off and with the "client app" consent, delivered to
+  the client app; client progress photos come back to the doctor's record as After photos (source = client)
 - 11 views per docs/ANALYSIS_SPEC.md §2 with on-screen instruction and target pose
 - Live FaceLandmarker mask; shutter enabled only when yaw/pitch/roll within ±3° of target (±5° for profile), face size within range, exposure OK, single face
 - Checklist with live pass/fail and a plain-language fix ("turn slightly toward the window")
@@ -103,6 +121,23 @@ Mockups: docs/design/screens/ (Main, Capture, Analysis, Age, Plan, MDCodes, Repo
 
 ### 5.10 Settings
 - Doctor profile, clinic branding (logo, primary color), prices, session caps, re-treatment intervals, data retention period, language, app PIN
+- Aftercare text per modality, written by the physician (shown in the report and the client app)
+
+### 5.11 Client app (clinic app installed by clients)
+Same PWA, opened at `/#/client` (the clinic shares the link / QR; "Add to home screen" installs it).
+- Identity = **patient code** (`TN-XXXX-XXXX-X`, Crockford base32 + check character). The doctor finds any
+  record by code on later visits; the client opens their record by code
+- Doctor → client: "send record to client app" builds a file (signed visits only) with plain-language findings,
+  chosen plan, session order, before/after photos, the saved simulation, aftercare and doctor replies.
+  It is shared via the phone share sheet (messenger, AirDrop) — nothing is uploaded to a server
+- Client app tabs: **My plan** · **Photos** (before vs simulation and before vs after sliders, progress-photo
+  capture with the same guide/QC/confirmation) · **Care** (aftercare + emergency warning + clinic phone) ·
+  **Ask the doctor** (questions queued offline)
+- Client → doctor: "send questions and photos to the clinic" builds a reply file; the doctor imports it on the
+  Patients screen; questions appear in the patient thread and photos join the latest case as After (low quality)
+- Never shown to the client: measurements, MD Codes, volumes, BDD result, unsigned visits
+- Phase 2: backend sync for real-time chat, push reminders (re-treatment, aftercare check-ins), clinic accounts
+- AC: package round-trip (doctor → client → doctor) preserves messages without duplicates; client app works offline
 
 ## 6. Non-functional requirements
 - Performance: first load < 3 s on 4G after first visit (PWA cache); analysis of 11 views < 5 s
@@ -121,6 +156,10 @@ Finding {id, caseId, key, value, unit, reference, severity, confidence, source, 
 Plan {id, caseId, tier, items[{findingKey, optionId, session}], totals, warnings}
 SignOff {caseId, checklist, signatureImage, signedAt, doctor}
 AuditLog {id, caseId, at, action, before, after}
+Patient += {code}; Case += {services[]}; Photo += {phase: before|after, source: doctor|patient}
+Simulation {id, caseId, photoId, targetAge, strength, blob, createdAt}
+Message {id, owner: doctor|patient, patientCode, from, text, at, sent}
+Client side: PtRecord {code, patientName, clinic, cases[PtCase], updatedAt} · PtPhoto {id, code, caseId, phase, view, blob, sent}
 
 ## 8. Risks and open questions
 - MD Codes licence, validated scale images licence, BDD instrument, FACE-Q licence → `TODO(clinical)`

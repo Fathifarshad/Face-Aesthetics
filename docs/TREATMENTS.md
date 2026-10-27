@@ -74,6 +74,14 @@ type TreatmentOption = {
 | skin.quality | skin.laser-peel-rfmn | laser | laser, peel or RF microneedling | comprehensive | fitzpatrick-caution |
 | skin.pigmentation | skin.peel-ipl-laser | peel | peels, IPL, lasers (care in high Fitzpatrick) | recommended | fitzpatrick-caution |
 
+### 2.1 Additions in the prototype (2026-10-27, `reviewed: false`)
+- `lines.perioral` (clinician-graded) maps to `lips.ha-soft`, `upper.ha-very-soft`, `upper.fractional-laser`, `skin.ha-booster`
+- Every option has a short `how` text (technique in general terms: product class, plane, tool, sequencing) — no
+  doses, volumes or units. Clinical lead to review wording before real use
+- Option `area` and `stage` fields drive contraindication-by-area and session sequencing
+- Soft flags also added for `isotretinoin_6m` (devices/lasers/peels), `neuromuscular_disease` (toxin) and
+  `allergy_lidocaine` (HA/boosters → lidocaine-free product) — `TODO(clinical)` confirm hard vs soft
+
 ## 3. Sequencing rules (engine)
 1. Structure before detail: temple, mid-face, chin, jaw in an earlier session than nasolabial, lips, tear trough
 2. Toxin 1–2 weeks before HA in dynamic areas (e.g., crow's feet before tear trough)

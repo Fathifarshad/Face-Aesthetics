@@ -1,9 +1,12 @@
 # Face Aesthetic Analysis — practitioner web app (Phase 1 prototype)
 
 Mobile-first PWA for licensed aesthetic physicians/injectors. The doctor captures standardized
-face+neck photos, sets actual and target age, gets a measured aesthetic analysis, a rule-based
-treatment plan (fillers, biostimulators, threads, toxin, devices, skin boosters, combinations),
-an optional MD Codes view, and a signed patient report.
+face+neck photos (required set per service, separate Before/After, guide + confirm per view), sets actual
+and target age, gets a measured aesthetic analysis, an on-device approximate target-age simulation, a
+rule-based treatment plan (fillers, biostimulators, threads, toxin, devices, skin boosters, combinations),
+an optional MD Codes view, and a signed patient report. A client app (`/#/client`, same PWA) receives the
+signed record by file, keyed by patient code, and sends questions/progress photos back (PRD §5.11).
+Theme: black & gold (docs/BRAND.md §3).
 
 Source of truth (read the relevant one before working on a feature; do not read all of them every time):
 - docs/PRD.md — scope, screens, acceptance criteria
@@ -15,9 +18,11 @@ Source of truth (read the relevant one before working on a feature; do not read 
 - docs/design/screens/*.dc.html — reference mockups (x-dc template syntax; visual reference only, never copy the syntax)
 
 ## Stack (decided — do not swap without asking)
-- Vite + React 18 + TypeScript (strict), React Router
-- Tailwind CSS with tokens from docs/BRAND.md; RTL-first (`dir="rtl"`, logical properties `ms-/me-/ps-/pe-`)
-- `@mediapipe/tasks-vision` FaceLandmarker, running in the browser (WASM/GPU). Model file served from `/public/models/`
+- Vite 6 + React 18 + TypeScript (strict), React Router 6 with HashRouter (static hosting friendly)
+- Tailwind CSS 3 with tokens from docs/BRAND.md; RTL-first (`dir="rtl"`, logical properties `ms-/me-/ps-/pe-`)
+- Icons: lucide-react. HTTPS dev: @vitejs/plugin-basic-ssl (`--mode https`)
+- `@mediapipe/tasks-vision` FaceLandmarker, running in the browser (WASM/GPU). Model in `/public/models/`
+  (`npm run fetch-model`), WASM copied to `/public/mediapipe/wasm/` (`scripts/copy-wasm.mjs`) — no CDN at runtime
 - State: Zustand. Storage: IndexedDB via Dexie. No backend in Phase 1
 - i18n: typed dictionaries `src/i18n/fa.ts` (default) and `src/i18n/en.ts`; no hard-coded UI strings
 - Font: Vazirmatn via `@fontsource-variable/vazirmatn` (self-hosted, works offline)
@@ -26,6 +31,7 @@ Source of truth (read the relevant one before working on a feature; do not read 
 - Tests: Vitest (unit), Playwright (e2e, mobile viewport 390x844)
 
 ## Commands
+- `npm install && npm run setup` — first time: copies MediaPipe WASM and downloads the face model
 - `npm run dev` — dev server (use `--host` to test on a phone on the same Wi-Fi; camera needs HTTPS → use `vite-plugin-mkcert` or `npm run dev:https`)
 - `npm run check` — typecheck + lint + unit tests. MUST pass before any milestone is marked done
 - `npm run test:e2e` — Playwright
@@ -33,10 +39,12 @@ Source of truth (read the relevant one before working on a feature; do not read 
 
 ## Code layout
 - `src/analysis/` — pure TypeScript geometry/metrics. No React, no DOM. 100% unit-tested with fixture landmarks
-- `src/capture/` — camera, pose gating, quality checks
+- `src/capture/` — views + guides, services → required views, quality checks, photo processing
 - `src/plan/` — treatment rules engine (pure functions) + data in `src/plan/data/`
-- `src/features/<screen>/` — UI per screen
-- `src/db/` — Dexie schema and repositories
+- `src/simulation/` — approximate target-age simulation (`warp.ts` pure + tested, `render.ts` canvas)
+- `src/share/` — doctor ↔ client package format (validated) and import/export
+- `src/features/doctor/`, `src/features/client/` — UI per screen; `src/components/` shared UI
+- `src/db/` — Dexie schema, repositories, patient code
 - `test-assets/` — local test photos, git-ignored. Never commit face photos
 
 ## Working rules

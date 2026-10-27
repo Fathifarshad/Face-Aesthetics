@@ -22,6 +22,11 @@ Review the plan (in VS Code it opens as a Markdown document; add inline comments
     Here are the reviewed values for [topic]: [paste]. Update src/plan/data/ or src/analysis/norms.ts only,
     set reviewedBy/reviewedAt, update tests, run npm run check, and list every TODO(clinical) still open.
 
+## Client app / photo protocol work
+    Read PRD §5.3 and §5.11 first. The client app lives in src/features/client/, the package format in
+    src/share/format.ts (keep it backwards-compatible: bump `version` and keep parsing v1). Never send
+    measurements, MD Codes, volumes or the BDD result to the client. Photos never go to a server in Phase 1.
+
 ## Context hygiene
 - One milestone per session; `/clear` between milestones; `/rename M4-analysis` before clearing so you can `/resume`
 - If you corrected Claude twice on the same issue: `/clear` and restate the task with what you learned
