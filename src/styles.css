@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    @apply bg-bg font-sans text-ink antialiased;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-gold;
+  }
+  input,
+  select,
+  textarea {
+    @apply rounded-md border border-border bg-surface-2 px-3 text-ink placeholder:text-ink-tertiary;
+    min-height: 44px;
+  }
+  textarea {
+    @apply py-2;
+  }
+  input[type='range'] {
+    @apply min-h-0 border-0 bg-transparent px-0;
+    accent-color: #d4af37;
+  }
+  input[type='checkbox'] {
+    @apply min-h-0;
+    accent-color: #d4af37;
+  }
+}
+
+@layer components {
+  .gold-text {
+    background: linear-gradient(135deg, #f1d98a 0%, #d4af37 45%, #a8862a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .gold-border {
+    border-image: linear-gradient(135deg, #f1d98a, #a8862a) 1;
+  }
+  .card {
+    @apply rounded-lg border border-border bg-surface p-3.5;
+  }
+  .label {
+    @apply mb-1 block text-[13px] text-ink-secondary;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  body {
+    background: #fff !important;
+    color: #15212b !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

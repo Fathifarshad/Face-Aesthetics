@@ -7,4 +7,7 @@ test-assets/
 .env
 .env.*
 public/models/*.task
+public/mediapipe/
+dev-dist/
+*.tsbuildinfo
 *.local
