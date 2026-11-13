@@ -16,6 +16,8 @@ import { cssToken, type Token } from '../../lib/tokens';
 const MAX_SIDE = 1280;
 /** PRD F1.3: a frontal photo may be turned by less than this many degrees. */
 const MAX_TURN_DEG = 8;
+/** A tilted head (roll) is compensated by the face frame, so only a strong tilt is flagged. */
+const MAX_ROLL_DEG = 15;
 /** Debug colour (1–8) per concern, in PRD table order, chosen so neighbouring regions differ. */
 const REGION_COLOUR = [1, 2, 3, 4, 5, 6, 7, 8, 3, 2, 1, 4, 5, 7, 6, 8] as const;
 
@@ -140,8 +142,9 @@ export function RegionsDebugPage() {
 
         {error && <Notice tone="danger">{error}</Notice>}
         {loaded && loaded.faces !== 1 && <Notice tone="danger">{loaded.faces === 0 ? t.regions.noFace : t.regions.manyFaces}</Notice>}
-        {loaded && set && (turned >= MAX_TURN_DEG || roll >= MAX_TURN_DEG) && (
-          <Notice tone="warn">{t.regions.notFrontal(num(Math.max(turned, roll)), num(MAX_TURN_DEG))}</Notice>
+        {loaded && set && turned >= MAX_TURN_DEG && <Notice tone="warn">{t.regions.notFrontal(num(turned), num(MAX_TURN_DEG))}</Notice>}
+        {loaded && set && turned < MAX_TURN_DEG && roll >= MAX_ROLL_DEG && (
+          <Notice tone="warn">{t.regions.notFrontal(num(roll), num(MAX_ROLL_DEG))}</Notice>
         )}
 
         {loaded && (
