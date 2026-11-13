@@ -7,6 +7,7 @@ import { db } from '../../db/db';
 import { formatDate, useBi, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { useApp } from '../../store/app';
+import { CaseSteps } from './CaseSteps';
 
 type Source = { key: string; label: string; blob: Blob };
 
@@ -52,6 +53,7 @@ export function ComparePage() {
     <>
       <Header title={t.compare.title} back />
       <Page>
+        <CaseSteps caseId={caseId} />
         <Section title={t.compare.view}>
           <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
             {views.map((v) => (

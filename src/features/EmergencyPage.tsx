@@ -9,7 +9,7 @@ function Markdown({ text }: { text: string }) {
   return (
     <div className="flex flex-col gap-2">
       {text.split(/\n{2,}/).map((block, i) => {
-        if (block.startsWith('# ')) return <h2 key={i} className="text-[18px] font-bold text-gold-ink">{block.slice(2)}</h2>;
+        if (block.startsWith('# ')) return <h2 key={i} className="text-[18px] font-bold text-primary-on-tint">{block.slice(2)}</h2>;
         if (block.startsWith('## ')) return <h3 key={i} className="text-[15px] font-semibold">{block.slice(3)}</h3>;
         if (/^[-*] /m.test(block))
           return (

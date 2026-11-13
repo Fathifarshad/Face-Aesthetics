@@ -93,7 +93,7 @@ export function NewCasePage() {
         {under18 && <Notice tone="danger">{t.patient.under18}</Notice>}
 
         <Section title={t.patient.services}>
-          <p className="mb-2 text-[13px] text-ink-secondary">{t.patient.servicesHint}</p>
+          <p className="mb-2 text-[13px] text-ink-2">{t.patient.servicesHint}</p>
           <div className="flex flex-wrap gap-2">
             {SERVICES.map((s) => (
               <Chip
@@ -106,12 +106,12 @@ export function NewCasePage() {
             ))}
           </div>
           <div className="mt-3">
-            <Notice tone="gold">{t.capture.required(num(0), num(views.length))}</Notice>
+            <Notice tone="primary">{t.capture.required(num(0), num(views.length))}</Notice>
           </div>
         </Section>
       </Page>
       <BottomBar>
-        <Button variant="gold" className="flex-1" disabled={!valid || busy} onClick={() => void submit()}>
+        <Button variant="primary" className="flex-1" disabled={!valid || busy} onClick={() => void submit()}>
           {t.patient.create}
         </Button>
       </BottomBar>

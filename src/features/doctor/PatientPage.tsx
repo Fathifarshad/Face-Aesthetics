@@ -46,9 +46,9 @@ export function PatientPage() {
       <Header title={p.displayName} back="/doctor" />
       <Page>
         <div className="card mb-4">
-          <div className="text-[12px] text-ink-secondary">{t.patients.code}</div>
+          <div className="text-[12px] text-ink-2">{t.patients.code}</div>
           <div className="flex items-center gap-2">
-            <span className="gold-text text-[22px] font-bold tracking-wider" dir="ltr">
+            <span className="brand-text text-[22px] font-bold tracking-wider" dir="ltr">
               {p.code}
             </span>
             <button
@@ -60,7 +60,7 @@ export function PatientPage() {
               <Copy size={16} />
             </button>
           </div>
-          <div className="mt-1 text-[13px] text-ink-secondary" dir="ltr">
+          <div className="mt-1 text-[13px] text-ink-2" dir="ltr">
             {p.fileNo} · {p.birthYear} · {t.patient.sexes[p.sex]}
           </div>
         </div>
@@ -76,10 +76,10 @@ export function PatientPage() {
           <ul className="flex flex-col gap-2">
             {cases.map((c) => (
               <li key={c.id}>
-                <Link to={`/doctor/case/${c.id}/${c.status === 'signed' ? 'report' : 'capture'}`} className="card flex items-center justify-between hover:border-gold/60">
+                <Link to={`/doctor/case/${c.id}/${c.status === 'signed' ? 'report' : 'capture'}`} className="card flex items-center justify-between hover:border-primary/60">
                   <span>
                     <span className="block font-semibold">{formatDate(c.createdAt, lang)}</span>
-                    <span className="text-[12px] text-ink-secondary">
+                    <span className="text-[12px] text-ink-2">
                       {t.age.actual} {c.actualAge} → {t.age.target} {c.targetAge}
                     </span>
                   </span>
@@ -92,9 +92,9 @@ export function PatientPage() {
 
         <Section title={t.patient.messages}>
           <div className="card flex flex-col gap-2">
-            {messages.length === 0 && <p className="text-[13px] text-ink-secondary">{t.patient.noMessages}</p>}
+            {messages.length === 0 && <p className="text-[13px] text-ink-2">{t.patient.noMessages}</p>}
             {messages.map((m) => (
-              <div key={m.id} className={`max-w-[85%] rounded-lg px-3 py-2 text-[14px] ${m.from === 'doctor' ? 'self-end bg-gold-tint text-gold-ink' : 'self-start bg-surface-2'}`}>
+              <div key={m.id} className={`max-w-[85%] rounded-lg px-3 py-2 text-[14px] ${m.from === 'doctor' ? 'self-end bg-primary-tint text-primary-on-tint' : 'self-start bg-surface-2'}`}>
                 <div className="mb-0.5 text-[11px] opacity-70">
                   {m.from === 'doctor' ? t.patient.fromDoctor : t.patient.fromPatient} · {formatDate(m.at, lang)}
                   {m.from === 'doctor' && !m.sent && ` · ${t.patient.pending}`}
@@ -110,13 +110,13 @@ export function PatientPage() {
         </Section>
 
         <Section title={t.patient.exportPkg}>
-          <p className="mb-2 text-[13px] text-ink-secondary">{t.patient.exportHint}</p>
-          <Button variant="gold" className="w-full" onClick={() => void exportPkg()}>
+          <p className="mb-2 text-[13px] text-ink-2">{t.patient.exportHint}</p>
+          <Button variant="primary" className="w-full" onClick={() => void exportPkg()}>
             <Share2 size={18} /> {t.patient.exportPkg}
           </Button>
           {note && (
             <div className="mt-2">
-              <Notice tone="gold">{note}</Notice>
+              <Notice tone="primary">{note}</Notice>
             </div>
           )}
         </Section>

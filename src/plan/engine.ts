@@ -145,7 +145,7 @@ export type PlanWarning = { code: 'high-risk-cap' | 'energy-before-ha' | 'no-dat
 const STAGE_ORDER: Record<Stage, number> = { toxin: 0, energy: 0, structure: 1, biostim: 1, detail: 2, booster: 3, lipolysis: 3 };
 
 export const INTERVALS = {
-  toxinToHa: { fa: '۱ تا ۲ هفته بعد', en: '1–2 weeks later' },
+  toxinToHa: { fa: '1 تا 2 هفته بعد', en: '1–2 weeks later' },
   /** TODO(clinical): interval after thermal devices before HA. */
   energyToHa: { fa: 'طبق دستور سازندهٔ دستگاه (تعیین پزشک)', en: 'per device manufacturer (clinician)' },
   /** TODO(clinical): structure → detail interval not specified in the knowledge base. */

@@ -1,4 +1,5 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { DoctorShell } from './app/DoctorShell';
 import { ClientHome } from './features/client/ClientHome';
 import { ClientRecord } from './features/client/ClientRecord';
 import { InspectorPage } from './features/dev/InspectorPage';
@@ -14,6 +15,7 @@ import { PatientsPage } from './features/doctor/PatientsPage';
 import { PlanPage } from './features/doctor/PlanPage';
 import { PrintPage } from './features/doctor/PrintPage';
 import { ReportPage } from './features/doctor/ReportPage';
+import { GalleryPage, NoCasePage, SimulatePage } from './features/doctor/SectionPlaceholders';
 import { EmergencyPage } from './features/EmergencyPage';
 import { HomePage } from './features/HomePage';
 import { SettingsPage } from './features/SettingsPage';
@@ -25,18 +27,24 @@ export function App() {
     <HashRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/doctor" element={<PatientsPage />} />
-        <Route path="/doctor/new" element={<NewCasePage />} />
-        <Route path="/doctor/patient/:patientId" element={<PatientPage />} />
-        <Route path="/doctor/case/:caseId/intake" element={<IntakePage />} />
-        <Route path="/doctor/case/:caseId/capture" element={<CapturePage />} />
-        <Route path="/doctor/case/:caseId/analysis" element={<AnalysisPage />} />
-        <Route path="/doctor/case/:caseId/age" element={<AgePage />} />
-        <Route path="/doctor/case/:caseId/plan" element={<PlanPage />} />
-        <Route path="/doctor/case/:caseId/mdcodes" element={<MdCodesPage />} />
-        <Route path="/doctor/case/:caseId/report" element={<ReportPage />} />
+        {/* Doctor app frame: five sections (cases, capture, simulate, plan, before/after) */}
+        <Route element={<DoctorShell />}>
+          <Route path="/doctor" element={<PatientsPage />} />
+          <Route path="/doctor/new" element={<NewCasePage />} />
+          <Route path="/doctor/patient/:patientId" element={<PatientPage />} />
+          <Route path="/doctor/no-case/:section" element={<NoCasePage />} />
+          <Route path="/doctor/case/:caseId/intake" element={<IntakePage />} />
+          <Route path="/doctor/case/:caseId/capture" element={<CapturePage />} />
+          <Route path="/doctor/case/:caseId/analysis" element={<AnalysisPage />} />
+          <Route path="/doctor/case/:caseId/age" element={<AgePage />} />
+          <Route path="/doctor/case/:caseId/simulate" element={<SimulatePage />} />
+          <Route path="/doctor/case/:caseId/plan" element={<PlanPage />} />
+          <Route path="/doctor/case/:caseId/mdcodes" element={<MdCodesPage />} />
+          <Route path="/doctor/case/:caseId/report" element={<ReportPage />} />
+          <Route path="/doctor/case/:caseId/gallery" element={<GalleryPage />} />
+          <Route path="/doctor/case/:caseId/compare" element={<ComparePage />} />
+        </Route>
         <Route path="/doctor/case/:caseId/print" element={<PrintPage />} />
-        <Route path="/doctor/case/:caseId/compare" element={<ComparePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/emergency" element={<EmergencyPage />} />
         <Route path="/dev/inspector" element={<InspectorPage />} />

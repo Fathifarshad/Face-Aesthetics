@@ -42,8 +42,8 @@ export function ClientHome() {
       <Header title={t.client.title} back="/" right={<LangToggle />} />
       <Page>
         <Section title={t.client.importPkg}>
-          <p className="mb-2 text-[13px] text-ink-secondary">{t.client.importHint}</p>
-          <Button variant="gold" className="w-full" onClick={() => file.current?.click()}>
+          <p className="mb-2 text-[13px] text-ink-2">{t.client.importHint}</p>
+          <Button variant="primary" className="w-full" onClick={() => file.current?.click()}>
             <FileDown size={18} /> {t.client.importPkg}
           </Button>
           <input
@@ -72,14 +72,14 @@ export function ClientHome() {
             <ul className="flex flex-col gap-2">
               {records.map((r) => (
                 <li key={r.code}>
-                  <Link to={`/client/${r.code}`} className="card flex items-center justify-between hover:border-gold/60">
+                  <Link to={`/client/${r.code}`} className="card flex items-center justify-between hover:border-primary/60">
                     <span>
                       <span className="block font-semibold">{r.clinic.name || r.patientName}</span>
-                      <span className="text-[12px] text-ink-secondary" dir="ltr">
+                      <span className="text-[12px] text-ink-2" dir="ltr">
                         {r.code}
                       </span>
                     </span>
-                    <span className="text-[12px] text-ink-tertiary">
+                    <span className="text-[12px] text-muted">
                       {t.client.updated}: {formatDate(r.updatedAt, lang).split(' (')[0]}
                     </span>
                   </Link>
@@ -88,7 +88,7 @@ export function ClientHome() {
             </ul>
           </Section>
         )}
-        <p className="mt-8 flex items-center justify-center gap-2 text-[12px] text-ink-tertiary">
+        <p className="mt-8 flex items-center justify-center gap-2 text-[12px] text-muted">
           <ShieldCheck size={16} /> {t.home.privacy}
         </p>
       </Page>

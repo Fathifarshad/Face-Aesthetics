@@ -79,13 +79,13 @@ export type TreatmentOption = {
 };
 
 const BIOSTIM_SERIES: Pick<TreatmentOption, 'sessions' | 'interval'> = {
-  sessions: { fa: '۲ تا ۳ جلسه', en: '2–3 sessions' },
-  interval: { fa: 'فاصلهٔ ۴ تا ۶ هفته', en: '4–6 weeks apart' },
+  sessions: { fa: '2 تا 3 جلسه', en: '2–3 sessions' },
+  interval: { fa: 'فاصلهٔ 4 تا 6 هفته', en: '4–6 weeks apart' },
 };
 /** TREATMENTS.md §3.5 — default series, flagged TODO(clinical) confirm. */
 const BOOSTER_SERIES: Pick<TreatmentOption, 'sessions' | 'interval'> = {
-  sessions: { fa: '۳ جلسه (تأیید پزشک ارشد)', en: '3 sessions (to confirm)' },
-  interval: { fa: 'فاصلهٔ ۲ تا ۳ هفته', en: '2–3 weeks apart' },
+  sessions: { fa: '3 جلسه (تأیید پزشک ارشد)', en: '3 sessions (to confirm)' },
+  interval: { fa: 'فاصلهٔ 2 تا 3 هفته', en: '2–3 weeks apart' },
 };
 
 export const TREATMENTS: readonly TreatmentOption[] = [
@@ -326,7 +326,7 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'mar.toxin-dao',
     findingKeys: ['marionette'],
     modality: 'toxin',
-    title: { fa: 'بوتاکس عضلهٔ DAO', en: 'DAO toxin' },
+    title: { fa: 'توکسین عضلهٔ DAO', en: 'DAO toxin' },
     how: {
       fa: 'شل کردن عضلهٔ پایین‌کشندهٔ گوشهٔ لب (DAO) تا گوشه‌های دهان کمتر رو به پایین کشیده شوند.',
       en: 'Relaxing the depressor anguli oris so the mouth corners are pulled down less.',
@@ -398,9 +398,9 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'jaw.toxin-nefertiti',
     findingKeys: ['jowl'],
     modality: 'toxin',
-    title: { fa: 'لیفت نفرتیتی (بوتاکس پلاتیسما)', en: 'Nefertiti lift (platysma toxin)' },
+    title: { fa: 'لیفت نفرتیتی (توکسین پلاتیسما)', en: 'Nefertiti lift (platysma toxin)' },
     how: {
-      fa: 'تزریق بوتاکس در امتداد لبهٔ فک و باندهای پلاتیسما برای کاهش کشش رو به پایین و وضوح بیشتر خط فک.',
+      fa: 'تزریق توکسین در امتداد لبهٔ فک و باندهای پلاتیسما برای کاهش کشش رو به پایین و وضوح بیشتر خط فک.',
       en: 'Toxin along the mandibular border and platysmal bands to reduce downward pull and sharpen the jawline.',
     },
     productClass: 'botulinum toxin',
@@ -415,9 +415,9 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'jaw.toxin-masseter',
     findingKeys: ['masseter.hypertrophy'],
     modality: 'toxin',
-    title: { fa: 'بوتاکس ماستر (باریک‌سازی فک)', en: 'Masseter toxin (jaw slimming)' },
+    title: { fa: 'توکسین ماستر (باریک‌سازی فک)', en: 'Masseter toxin (jaw slimming)' },
     how: {
-      fa: 'بوتاکس در بخش پایینی عضلهٔ ماستر برای کاهش حجم عضله و باریک‌شدن زاویهٔ فک؛ به دندان‌قروچه هم کمک می‌کند.',
+      fa: 'توکسین در بخش پایینی عضلهٔ ماستر برای کاهش حجم عضله و باریک‌شدن زاویهٔ فک؛ به دندان‌قروچه هم کمک می‌کند.',
       en: 'Toxin into the lower masseter to reduce muscle bulk and slim the jaw angle; may also help bruxism.',
     },
     productClass: 'botulinum toxin',
@@ -482,7 +482,7 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'chin.toxin-mentalis',
     findingKeys: ['chin.peaudorange'],
     modality: 'toxin',
-    title: { fa: 'بوتاکس منتالیس', en: 'Mentalis toxin' },
+    title: { fa: 'توکسین منتالیس', en: 'Mentalis toxin' },
     how: {
       fa: 'شل کردن عضلهٔ منتالیس برای صاف شدن پوست چانه و کاهش حالت پوست پرتقالی.',
       en: 'Relaxing mentalis to smooth chin skin and reduce dimpling.',
@@ -517,9 +517,9 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'lips.toxin-flip',
     findingKeys: ['lips.volume'],
     modality: 'toxin',
-    title: { fa: 'لیپ فلیپ با بوتاکس', en: 'Lip flip (toxin)' },
+    title: { fa: 'لیپ فلیپ با توکسین', en: 'Lip flip (toxin)' },
     how: {
-      fa: 'دوز کم بوتاکس در لبهٔ اربیکولاریس اوریس تا لب بالا کمی به بیرون بچرخد؛ اثر محدود و بدون حجم.',
+      fa: 'دوز کم توکسین در لبهٔ اربیکولاریس اوریس تا لب بالا کمی به بیرون بچرخد؛ اثر محدود و بدون حجم.',
       en: 'Low-dose toxin at the orbicularis oris border so the upper lip everts slightly; limited effect, no volume.',
     },
     productClass: 'botulinum toxin',
@@ -535,7 +535,7 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'upper.toxin',
     findingKeys: ['lines.forehead', 'lines.glabella', 'lines.crowsfeet'],
     modality: 'toxin',
-    title: { fa: 'بوتاکس بالای صورت (پیشانی، اخم، پنجه‌کلاغی)', en: "Upper-face toxin (forehead, glabella, crow's feet)" },
+    title: { fa: 'توکسین بالای صورت (پیشانی، اخم، پنجه‌کلاغی)', en: "Upper-face toxin (forehead, glabella, crow's feet)" },
     how: {
       fa: 'درمان خط اول برای خطوط دینامیک: شل کردن فرونتالیس، کوروگیتور/پروسروس و اربیکولاریس اوکولی با حفظ حرکت طبیعی؛ دقت در پیشانی برای جلوگیری از افتادگی ابرو.',
       en: 'First line for dynamic lines: relaxing frontalis, corrugator/procerus and orbicularis oculi while keeping natural movement; careful forehead dosing to avoid brow ptosis.',
@@ -554,7 +554,7 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     modality: 'HA',
     title: { fa: 'فیلر بسیار نرم برای خطوط ثابت', en: 'Very soft HA for static lines' },
     how: {
-      fa: 'HA بسیار نرم به‌صورت سطحی (بلانچینگ یا میکرودپو) فقط برای خطوطی که بعد از بوتاکس باقی مانده‌اند.',
+      fa: 'HA بسیار نرم به‌صورت سطحی (بلانچینگ یا میکرودپو) فقط برای خطوطی که بعد از توکسین باقی مانده‌اند.',
       en: 'Very soft HA placed superficially (blanching / micro-depots) only for lines remaining after toxin.',
     },
     productClass: 'HA, very soft',
@@ -587,7 +587,7 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'brow.toxin-lift',
     findingKeys: ['brow.ptosis'],
     modality: 'toxin',
-    title: { fa: 'لیفت شیمیایی ابرو با بوتاکس', en: 'Chemical brow lift (toxin)' },
+    title: { fa: 'لیفت شیمیایی ابرو با توکسین', en: 'Chemical brow lift (toxin)' },
     how: {
       fa: 'شل کردن عضلات پایین‌کشنده (اربیکولاریس لترال، کوروگیتور) تا دم ابرو کمی بالا بیاید.',
       en: 'Relaxing brow depressors (lateral orbicularis, corrugator) so the brow tail lifts slightly.',
@@ -666,7 +666,7 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'neck.toxin-bands',
     findingKeys: ['neck.platysmal-bands'],
     modality: 'toxin',
-    title: { fa: 'بوتاکس باندهای گردن', en: 'Platysmal band toxin' },
+    title: { fa: 'توکسین باندهای گردن', en: 'Platysmal band toxin' },
     how: { fa: 'تزریق در طول باندهای پلاتیسما برای کاهش برجستگی آن‌ها.', en: 'Injections along platysmal bands to reduce their prominence.' },
     productClass: 'botulinum toxin',
     tool: 'needle',
@@ -697,8 +697,8 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'neck.microtoxin',
     findingKeys: ['neck.horizontal-lines'],
     modality: 'toxin',
-    title: { fa: 'میکروبوتاکس گردن', en: 'Neck microtoxin' },
-    how: { fa: 'تزریق‌های بسیار سطحی و رقیق بوتاکس برای بافت و خطوط ریز گردن.', en: 'Very superficial diluted toxin for neck texture and fine lines.' },
+    title: { fa: 'میکروتوکسین گردن', en: 'Neck microtoxin' },
+    how: { fa: 'تزریق‌های بسیار سطحی و رقیق توکسین برای بافت و خطوط ریز گردن.', en: 'Very superficial diluted toxin for neck texture and fine lines.' },
     productClass: 'botulinum toxin (micro)',
     tool: 'needle',
     area: 'neck',
@@ -761,7 +761,7 @@ export const TREATMENTS: readonly TreatmentOption[] = [
     id: 'skin.microtoxin',
     findingKeys: ['skin.quality'],
     modality: 'toxin',
-    title: { fa: 'میکروبوتاکس پوست', en: 'Skin microtoxin' },
+    title: { fa: 'میکروتوکسین پوست', en: 'Skin microtoxin' },
     how: { fa: 'تزریق سطحی و رقیق برای کاهش منافذ، چربی و خطوط ریز.', en: 'Superficial diluted injections to reduce pores, oiliness and fine lines.' },
     productClass: 'botulinum toxin (micro)',
     tool: 'needle',

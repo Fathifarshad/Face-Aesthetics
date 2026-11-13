@@ -63,12 +63,12 @@ export function AnalysisPage() {
                 </Chip>
               ))}
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px] text-ink-secondary">
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px] text-ink-2">
               <span className="flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded-full bg-priority/70" /> {t.analysis.highPriority}
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-full bg-gold/60" /> {t.analysis.midPriority}
+                <span className="h-3 w-3 rounded-full bg-primary/60" /> {t.analysis.midPriority}
               </span>
               <span>
                 {t.analysis.norm}: {t.patient.norms[patient.ethnicityNorm as keyof typeof t.patient.norms] ?? patient.ethnicityNorm}
@@ -107,7 +107,7 @@ export function AnalysisPage() {
         </Button>
       </Page>
       <BottomBar>
-        <Button variant="gold" className="flex-1" onClick={() => nav(`/doctor/case/${caseId}/age`)}>
+        <Button variant="primary" className="flex-1" onClick={() => nav(`/doctor/case/${caseId}/age`)}>
           {t.analysis.toAge}
         </Button>
       </BottomBar>
@@ -131,14 +131,14 @@ function FindingCard({ f }: { f: FindingRow }) {
   const [reason, setReason] = useState('');
   const cat = CATALOG[f.key];
   const conf = f.confidence === 'manual' ? t.analysis.manual : `${num(Math.round(f.confidence * 100))}%`;
-  const statusTone = f.status === 'confirmed' ? 'ok' : f.status === 'rejected' ? 'danger' : f.status === 'edited' ? 'gold' : 'neutral';
+  const statusTone = f.status === 'confirmed' ? 'ok' : f.status === 'rejected' ? 'danger' : f.status === 'edited' ? 'primary' : 'neutral';
 
   return (
     <article className={`card flex flex-col gap-2 ${f.status === 'rejected' ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="text-[15px] font-semibold">{cat ? bi(cat.label) : f.key}</h3>
-          {f.scaleName && <div className="text-[12px] text-ink-secondary">{f.scaleName}</div>}
+          {f.scaleName && <div className="text-[12px] text-ink-2">{f.scaleName}</div>}
         </div>
         <Tag tone={statusTone}>{t.analysis.status[f.status]}</Tag>
       </div>
@@ -146,26 +146,26 @@ function FindingCard({ f }: { f: FindingRow }) {
       {f.source === 'auto' && (
         <div className="grid grid-cols-2 gap-2 text-[13px]">
           <div>
-            <span className="text-ink-tertiary">{t.analysis.value}: </span>
+            <span className="text-muted">{t.analysis.value}: </span>
             <span dir="ltr">{formatValue(f, num)}</span>
           </div>
           <div>
-            <span className="text-ink-tertiary">{t.analysis.reference}: </span>
+            <span className="text-muted">{t.analysis.reference}: </span>
             <span dir="ltr">{f.reference}</span>
           </div>
         </div>
       )}
-      {cat && <p className="text-[12px] text-ink-secondary">{bi(cat.about)}</p>}
+      {cat && <p className="text-[12px] text-ink-2">{bi(cat.about)}</p>}
 
       <div className="flex flex-wrap items-center gap-3">
         <SeverityDots value={f.severity} label={f.severity !== null ? t.analysis.of4(num(f.severity)) : '—'} />
         <span className="text-[13px] font-semibold">{f.severity !== null ? t.analysis.of4(num(f.severity)) : '—'}</span>
-        <span className="text-[12px] text-ink-secondary">
+        <span className="text-[12px] text-ink-2">
           {t.analysis.confidence} {conf}
         </span>
-        <span className="text-[12px] text-ink-tertiary">{f.source === 'auto' ? t.analysis.sourceAuto : t.analysis.sourceClinician}</span>
+        <span className="text-[12px] text-muted">{f.source === 'auto' ? t.analysis.sourceAuto : t.analysis.sourceClinician}</span>
       </div>
-      {f.source === 'clinician' && f.display && f.severitySuggested !== null && <p className="text-[11px] text-ink-tertiary">{t.analysis.proxyNote}</p>}
+      {f.source === 'clinician' && f.display && f.severitySuggested !== null && <p className="text-[11px] text-muted">{t.analysis.proxyNote}</p>}
       {f.status === 'rejected' && f.note && <p className="text-[12px] text-danger">{f.note}</p>}
 
       {mode === 'edit' && (

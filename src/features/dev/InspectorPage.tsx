@@ -35,9 +35,9 @@ export function InspectorPage() {
     <>
       <Header title={t.inspector.title} back />
       <Page>
-        <p className="mb-3 text-[13px] text-ink-secondary">{t.inspector.hint}</p>
+        <p className="mb-3 text-[13px] text-ink-2">{t.inspector.hint}</p>
         <div className="mb-3 flex gap-2">
-          <Button variant="gold" onClick={() => input.current?.click()}>
+          <Button variant="primary" onClick={() => input.current?.click()}>
             {t.inspector.load}
           </Button>
           <Chip active={!all} onClick={() => setAll(false)}>
@@ -56,8 +56,8 @@ export function InspectorPage() {
               {Object.entries(LM).map(([name, idx]) => (
                 <tr key={name} className="border-t border-border">
                   <td className="py-1">{name}</td>
-                  <td className="py-1 text-gold-ink">{Array.isArray(idx) ? idx.join(', ') : idx}</td>
-                  <td className="py-1 text-ink-tertiary">
+                  <td className="py-1 text-primary-on-tint">{Array.isArray(idx) ? idx.join(', ') : idx}</td>
+                  <td className="py-1 text-muted">
                     {(Array.isArray(idx) ? [idx[0]!] : [idx as number]).map((i) => `${lm[i]?.x.toFixed(0)}, ${lm[i]?.y.toFixed(0)}`)}
                   </td>
                 </tr>

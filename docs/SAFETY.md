@@ -1,5 +1,7 @@
 # Safety, privacy and wording rules (non-negotiable)
 
+> **Status 2026-11-13:** still in force. Where it differs, the 17 hard rules in prompts/SUPERPROMPT.md win. Consent moves to the three signed levels of PRD F8.3 in M8; wording and the fixed glossary follow docs/BRAND.md §2 («توکسین», Latin digits).
+
 The app is clinical decision support for licensed practitioners. It never diagnoses and never decides.
 
 ## 1. Clinical boundaries

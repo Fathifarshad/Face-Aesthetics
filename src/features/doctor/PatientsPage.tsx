@@ -16,7 +16,7 @@ export function PatientsPage() {
   const lang = useApp((s) => s.lang);
   const nav = useNavigate();
   const [q, setQ] = useState('');
-  const [msg, setMsg] = useState<{ tone: 'gold' | 'danger'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ tone: 'primary' | 'danger'; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
   const data = useLive(async () => {
@@ -53,7 +53,7 @@ export function PatientsPage() {
       const pkg = parseIncoming(await f.text());
       if (pkg.format !== 'tanasob/patient-reply') throw new Error('unknown-format');
       const r = await importIntoDoctor(pkg);
-      setMsg({ tone: 'gold', text: `${t.patients.imported}: ${t.patient.messages} ${num(r.messages)} · ${t.capture.title} ${num(r.photos)}` });
+      setMsg({ tone: 'primary', text: `${t.patients.imported}: ${t.patient.messages} ${num(r.messages)} · ${t.capture.title} ${num(r.photos)}` });
       nav(`/doctor/patient/${r.patientId}`);
     } catch (e) {
       setMsg({ tone: 'danger', text: `${t.app.error}: ${(e as Error).message}` });
@@ -77,19 +77,19 @@ export function PatientsPage() {
       <Page>
         <div className="mb-4 grid grid-cols-3 gap-2">
           {[
-            [t.patients.awaiting, awaiting, 'text-warn-ink'],
-            [t.patients.followUp, follow, 'text-gold-ink'],
+            [t.patients.awaiting, awaiting, 'text-risk-fg'],
+            [t.patients.followUp, follow, 'text-primary-on-tint'],
             [t.patients.total, data?.cases.length ?? 0, 'text-ink'],
           ].map(([label, n, cls]) => (
             <div key={String(label)} className="card text-center">
               <div className={`text-[22px] font-bold ${cls}`}>{num(Number(n))}</div>
-              <div className="text-[12px] text-ink-secondary">{label}</div>
+              <div className="text-[12px] text-ink-2">{label}</div>
             </div>
           ))}
         </div>
 
         <div className="relative mb-3">
-          <Search size={18} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-ink-tertiary" />
+          <Search size={18} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.patients.search} className="w-full ps-10" aria-label={t.patients.search} />
         </div>
 
@@ -118,26 +118,26 @@ export function PatientsPage() {
           </div>
         )}
 
-        {rows.length === 0 && <p className="py-10 text-center text-ink-secondary">{t.patients.empty}</p>}
+        {rows.length === 0 && <p className="py-10 text-center text-ink-2">{t.patients.empty}</p>}
         <ul className="flex flex-col gap-2">
           {rows.map(({ p, latest, count, questions }) => (
             <li key={p.id}>
-              <Link to={`/doctor/patient/${p.id}`} className="card flex items-center gap-3 hover:border-gold/60">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold-tint font-bold text-gold-ink">
+              <Link to={`/doctor/patient/${p.id}`} className="card flex items-center gap-3 hover:border-primary/60">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-tint font-bold text-primary-on-tint">
                   {p.displayName.slice(0, 1)}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{p.displayName}</span>
-                  <span className="block truncate text-[12px] text-ink-secondary" dir="ltr">
+                  <span className="block truncate text-[12px] text-ink-2" dir="ltr">
                     {p.code} · {p.fileNo}
                   </span>
-                  {latest && <span className="block text-[12px] text-ink-tertiary">{formatDate(latest.createdAt, lang)}</span>}
+                  {latest && <span className="block text-[12px] text-muted">{formatDate(latest.createdAt, lang)}</span>}
                 </span>
                 <span className="flex flex-col items-end gap-1">
-                  {latest && <Tag tone={latest.status === 'signed' ? 'ok' : latest.status === 'follow-up' ? 'gold' : 'warn'}>{t.patients.status[latest.status]}</Tag>}
-                  <span className="flex items-center gap-2 text-[12px] text-ink-tertiary">
+                  {latest && <Tag tone={latest.status === 'signed' ? 'ok' : latest.status === 'follow-up' ? 'primary' : 'warn'}>{t.patients.status[latest.status]}</Tag>}
+                  <span className="flex items-center gap-2 text-[12px] text-muted">
                     {questions > 0 && (
-                      <span className="flex items-center gap-1 text-gold-ink">
+                      <span className="flex items-center gap-1 text-primary-on-tint">
                         <MessageCircle size={13} />
                         {num(questions)}
                       </span>

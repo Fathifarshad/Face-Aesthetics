@@ -109,7 +109,7 @@ export function SettingsPage() {
         </Section>
 
         <Section title={t.settings.aftercare}>
-          <p className="mb-2 text-[13px] text-ink-secondary">{t.settings.aftercareHint}</p>
+          <p className="mb-2 text-[13px] text-ink-2">{t.settings.aftercareHint}</p>
           <div className="flex flex-col gap-3">
             {MODALITIES.map((m) => (
               <Field key={m} label={t.plan.modality[m] ?? m}>
@@ -143,13 +143,13 @@ export function SettingsPage() {
           </div>
         </Section>
 
-        <Link to="/dev/inspector" className="text-[13px] text-ink-tertiary underline">
+        <Link to="/dev/inspector" className="text-[13px] text-muted underline">
           {t.settings.dev}
         </Link>
       </Page>
       <BottomBar>
         <Button
-          variant="gold"
+          variant="primary"
           className="flex-1"
           onClick={async () => {
             await saveSettings(s);

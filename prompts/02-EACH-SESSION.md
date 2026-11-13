@@ -1,11 +1,8 @@
 # Prompts for every later session
 
 ## Start a milestone (new session or after /clear)
-Set model and effort from the milestone line in docs/TASKS.md, permission mode **Plan**, then type:
-
-    /next-milestone M1
-
-Review the plan (in VS Code it opens as a Markdown document; add inline comments), approve, let it build.
+Use the session prompt at the end of `prompts/SUPERPROMPT.md` (or `/next-milestone M1`). Claude gives a short plan and
+waits for «ادامه»; after approval it builds, verifies and reports in at most 10 lines.
 
 ## When something is broken
     The [screen/feature] does [symptom] when I [steps]. Expected: [what].
@@ -23,7 +20,7 @@ Review the plan (in VS Code it opens as a Markdown document; add inline comments
     set reviewedBy/reviewedAt, update tests, run npm run check, and list every TODO(clinical) still open.
 
 ## Client app / photo protocol work
-    Read PRD §5.3 and §5.11 first. The client app lives in src/features/client/, the package format in
+    Read PRD §5.10 (F10) and §8 first. The client app lives in src/features/client/, the package format in
     src/share/format.ts (keep it backwards-compatible: bump `version` and keep parsing v1). Never send
     measurements, MD Codes, volumes or the BDD result to the client. Photos never go to a server in Phase 1.
 

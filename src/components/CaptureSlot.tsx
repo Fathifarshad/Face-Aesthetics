@@ -97,12 +97,12 @@ export function CaptureSlot({
               <PoseGlyph view={view} size={64} />
             </div>
             <div>
-              <div className="text-[12px] font-semibold text-gold-ink">{t.capture.guide}</div>
-              <p className="text-[13px] text-ink-secondary">{bi(view.guide)}</p>
+              <div className="text-[12px] font-semibold text-primary-on-tint">{t.capture.guide}</div>
+              <p className="text-[13px] text-ink-2">{bi(view.guide)}</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="gold" className="flex-1" onClick={() => setCamera(true)} disabled={busy}>
+            <Button variant="primary" className="flex-1" onClick={() => setCamera(true)} disabled={busy}>
               <Camera size={18} /> {photo ? t.capture.retake : t.capture.camera}
             </Button>
             <Button className="flex-1" onClick={() => file.current?.click()} disabled={busy}>
@@ -120,7 +120,7 @@ export function CaptureSlot({
               }}
             />
           </div>
-          {busy && <Notice tone="gold">{t.app.loading}</Notice>}
+          {busy && <Notice tone="primary">{t.app.loading}</Notice>}
         </div>
       )}
 
@@ -164,7 +164,7 @@ function ConfirmDialog({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg/95 backdrop-blur" role="dialog" aria-modal="true" aria-label={t.capture.confirmTitle}>
       <div className="mx-auto max-w-lg p-4">
         <h2 className="mb-1 text-[18px] font-bold">{t.capture.confirmTitle}</h2>
-        <p className="mb-3 text-[13px] text-ink-secondary">{bi(view.label)}</p>
+        <p className="mb-3 text-[13px] text-ink-2">{bi(view.label)}</p>
         <FaceCanvas blob={processed.blob} landmarks={processed.landmarks} overlay={{ landmarks: 'named' }} alt={bi(view.label)} />
         {processed.detectorError && (
           <div className="mt-3">
@@ -176,19 +176,19 @@ function ConfirmDialog({
             <li key={c.id} className="flex items-start gap-2 text-[13px]">
               {c.pass === true && <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-ok" aria-label="pass" />}
               {c.pass === false && <XCircle size={18} className="mt-0.5 shrink-0 text-danger" aria-label="fail" />}
-              {c.pass === null && <CircleDashed size={18} className="mt-0.5 shrink-0 text-ink-tertiary" aria-label="n/a" />}
+              {c.pass === null && <CircleDashed size={18} className="mt-0.5 shrink-0 text-muted" aria-label="n/a" />}
               <div>
                 <span>{t.capture.checks[c.id]}</span>
-                {c.value && <span className="ms-2 text-ink-tertiary">{c.value}</span>}
-                {c.pass === false && c.hint && <div className="text-warn-ink">{t.capture.hints[c.hint]}</div>}
-                {c.pass === null && <div className="text-ink-tertiary">{t.capture.manual}</div>}
+                {c.value && <span className="ms-2 text-muted">{c.value}</span>}
+                {c.pass === false && c.hint && <div className="text-risk-fg">{t.capture.hints[c.hint]}</div>}
+                {c.pass === null && <div className="text-muted">{t.capture.manual}</div>}
               </div>
             </li>
           ))}
         </ul>
         <div className="mt-4 flex flex-col gap-2">
           {qc.pass ? (
-            <Button variant="gold" onClick={onAccept}>
+            <Button variant="primary" onClick={onAccept}>
               <CheckCircle2 size={18} /> {t.capture.accept}
             </Button>
           ) : (
@@ -201,7 +201,7 @@ function ConfirmDialog({
           </Button>
           <Button onClick={onCancel}>{t.app.cancel}</Button>
         </div>
-        <p className="mt-3 text-[12px] text-ink-tertiary">{t.capture.savedBoth}</p>
+        <p className="mt-3 text-[12px] text-muted">{t.capture.savedBoth}</p>
       </div>
     </div>
   );

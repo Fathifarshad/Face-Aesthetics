@@ -64,11 +64,11 @@ export function CapturePage() {
 
         <div className="card mb-4">
           <button type="button" className="flex w-full items-center justify-between" onClick={() => setRules((r) => !r)} aria-expanded={rules}>
-            <span className="font-semibold text-gold-ink">{t.capture.rules}</span>
+            <span className="font-semibold text-primary-on-tint">{t.capture.rules}</span>
             <ChevronDown size={18} className={rules ? 'rotate-180' : ''} />
           </button>
           {rules && (
-            <ul className="mt-2 list-disc ps-5 text-[13px] text-ink-secondary">
+            <ul className="mt-2 list-disc ps-5 text-[13px] text-ink-2">
               {PHOTO_RULES.map((r) => (
                 <li key={r.en}>{bi(r)}</li>
               ))}
@@ -84,12 +84,12 @@ export function CapturePage() {
               type="button"
               aria-selected={phase === ph}
               onClick={() => setPhase(ph)}
-              className={`min-h-touch rounded-lg border px-3 py-2 text-start ${phase === ph ? 'border-gold bg-gold-tint' : 'border-border bg-surface'}`}
+              className={`min-h-touch rounded-lg border px-3 py-2 text-start ${phase === ph ? 'border-primary bg-primary-tint' : 'border-border bg-surface'}`}
             >
-              <div className={`font-semibold ${phase === ph ? 'text-gold-ink' : ''}`}>{ph === 'before' ? t.capture.before : t.capture.after}</div>
-              <div className="text-[12px] text-ink-secondary">{t.capture.required(num(done(ph)), num(views.length))}</div>
+              <div className={`font-semibold ${phase === ph ? 'text-primary-on-tint' : ''}`}>{ph === 'before' ? t.capture.before : t.capture.after}</div>
+              <div className="text-[12px] text-ink-2">{t.capture.required(num(done(ph)), num(views.length))}</div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded bg-surface-2">
-                <div className="h-full rounded bg-gold" style={{ width: `${(done(ph) / views.length) * 100}%` }} />
+                <div className="h-full rounded bg-primary" style={{ width: `${(done(ph) / views.length) * 100}%` }} />
               </div>
             </button>
           ))}
@@ -121,7 +121,7 @@ export function CapturePage() {
         {done('after') > 0 && (
           <Button onClick={() => nav(`/doctor/case/${c.id}/compare`)}>{t.report.compare}</Button>
         )}
-        <Button variant="gold" className="flex-1" disabled={!hasFrontal} onClick={() => nav(`/doctor/case/${c.id}/analysis`)}>
+        <Button variant="primary" className="flex-1" disabled={!hasFrontal} onClick={() => nav(`/doctor/case/${c.id}/analysis`)}>
           {t.capture.toAnalysis}
         </Button>
       </BottomBar>

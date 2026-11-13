@@ -1,63 +1,68 @@
-# Face Aesthetic Analysis — practitioner web app (Phase 1 prototype)
+# NEVA (نوا) — aesthetic simulation and treatment planning for physicians
 
-Mobile-first PWA for licensed aesthetic physicians/injectors. The doctor captures standardized
-face+neck photos (required set per service, separate Before/After, guide + confirm per view), sets actual
-and target age, gets a measured aesthetic analysis, an on-device approximate target-age simulation, a
-rule-based treatment plan (fillers, biostimulators, threads, toxin, devices, skin boosters, combinations),
-an optional MD Codes view, and a signed patient report. A client app (`/#/client`, same PWA) receives the
-signed record by file, keyed by patient code, and sends questions/progress photos back (PRD §5.11).
-Theme: black & gold (docs/BRAND.md §3).
+Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets real age and a target age, and gets
+(1) a simulated image of the best age-appropriate result, (2) a list of changes, each with treatment options that
+apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
+before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Source of truth (read the relevant one before working on a feature; do not read all of them every time):
-- docs/PRD.md — scope, screens, acceptance criteria
-- docs/TASKS.md — milestones; work on ONE milestone at a time and tick items when verified
-- docs/ANALYSIS_SPEC.md — landmarks, metrics, formulas, reference ranges
-- docs/TREATMENTS.md — treatment knowledge base and sequencing rules
-- docs/SAFETY.md — clinical safety, privacy and wording rules (non-negotiable)
-- docs/BRAND.md — design tokens, typography, voice
-- docs/design/screens/*.dc.html — reference mockups (x-dc template syntax; visual reference only, never copy the syntax)
+Status: PRD 2.0 adopted on 2026-11-13; M0 done. The v1 kit code (analysis, capture, plan, old simulation, client app)
+is still in place and is replaced milestone by milestone — see docs/TASKS.md.
+
+## Read before working (only the one you need)
+- docs/PRD.md — requirements F1–F10, milestones M0–M11. **§0 (owner decisions) overrides everything else**
+- prompts/SUPERPROMPT.md — the 17 hard rules, image-engine design, working method
+- docs/BRAND.md — tokens, components, voice, fixed glossary
+- docs/TASKS.md — milestone status and what the v1 kit already provides
+- docs/SAFETY.md, docs/ANALYSIS_SPEC.md, docs/TREATMENTS.md — v1 specs, still valid where their status note says so
+- docs/design/screens/*.dc.html — layout reference only (their teal colours do not apply)
+
+## Owner decisions (PRD §0)
+- Name: نوا / NEVA, written only in `src/app/config.ts`
+- Theme: black & gold. BRAND 2.0 structure, sizes and wording apply; only the colour values differ
+- The client app stays and is completed in M11; it must keep working in every milestone
+- One milestone at a time: short plan, wait for «ادامه», build, verify, report in ≤ 10 lines, commit, no push
+
+## Hard rules (full list in prompts/SUPERPROMPT.md)
+- Never invent a clinical number. Volumes, doses, durations and grade thresholds come only from docs/PRD.md §6–7.
+  Clinical data carries `status: 'verified' | 'draft'` and `source`; drafts get `// TODO(clinical)` and the «تأییدنشده» badge
+- Estimates are ranges with a unit. Label doses are for OnabotulinumtoxinA only
+- Nothing enters a report or the client package without doctor approval
+- Not an injection guide: no depth, angle or step-by-step technique
+- Every simulated image carries the burned-in label «شبیه‌سازی؛ نتیجهٔ واقعی متفاوت است»
+- Photos never go to the network except through `RenderProvider` with a recorded `cloudRender` consent
+- No analytics, trackers, CDN fonts or scripts. No patient data in logs, errors or tests; test data is synthetic
+- No non-commercial models or weights (PRD §10.3). Ask before adding any dependency and state its licence
+- TypeScript strict, no `any` without a comment. Colours only from tokens. Logical CSS properties; numbers and units in `<bdi>`
 
 ## Stack (decided — do not swap without asking)
-- Vite 6 + React 18 + TypeScript (strict), React Router 6 with HashRouter (static hosting friendly)
-- Tailwind CSS 3 with tokens from docs/BRAND.md; RTL-first (`dir="rtl"`, logical properties `ms-/me-/ps-/pe-`)
-- Icons: lucide-react. HTTPS dev: @vitejs/plugin-basic-ssl (`--mode https`)
-- `@mediapipe/tasks-vision` FaceLandmarker, running in the browser (WASM/GPU). Model in `/public/models/`
-  (`npm run fetch-model`), WASM copied to `/public/mediapipe/wasm/` (`scripts/copy-wasm.mjs`) — no CDN at runtime
-- State: Zustand. Storage: IndexedDB via Dexie. No backend in Phase 1
-- i18n: typed dictionaries `src/i18n/fa.ts` (default) and `src/i18n/en.ts`; no hard-coded UI strings
-- Font: Vazirmatn via `@fontsource-variable/vazirmatn` (self-hosted, works offline)
-- PDF: print-optimized report route + `window.print()` (keeps Persian shaping correct). Do not use jsPDF
-- PWA: `vite-plugin-pwa`
-- Tests: Vitest (unit), Playwright (e2e, mobile viewport 390x844)
+Vite 6, React 18, TypeScript strict, React Router 6 (HashRouter), Tailwind 3, Zustand, Dexie (IndexedDB),
+`@mediapipe/tasks-vision` FaceLandmarker (model in `public/models/`, WASM in `public/mediapipe/wasm/`, never a CDN),
+Vazirmatn via `@fontsource-variable/vazirmatn`, lucide-react, vite-plugin-pwa, Vitest, Playwright.
+Report = print route + `window.print()` (keeps Persian shaping correct; do not use jsPDF).
 
 ## Commands
-- `npm install && npm run setup` — first time: copies MediaPipe WASM and downloads the face model
-- `npm run dev` — dev server (use `--host` to test on a phone on the same Wi-Fi; camera needs HTTPS → use `vite-plugin-mkcert` or `npm run dev:https`)
-- `npm run check` — typecheck + lint + unit tests. MUST pass before any milestone is marked done
-- `npm run test:e2e` — Playwright
-- `npm run build && npm run preview`
+- `npm install && npm run setup` — first time: copies MediaPipe WASM, downloads the face model
+- `npm run dev` · `npm run dev:https` (phone camera needs HTTPS)
+- `npm run check` — typecheck + lint + unit tests. Must be green before a milestone is marked done
+- `npm run test:e2e` — Playwright; the flow test needs `test-assets/portrait.jpg` (git-ignored)
 
 ## Code layout
-- `src/analysis/` — pure TypeScript geometry/metrics. No React, no DOM. 100% unit-tested with fixture landmarks
-- `src/capture/` — views + guides, services → required views, quality checks, photo processing
-- `src/plan/` — treatment rules engine (pure functions) + data in `src/plan/data/`
-- `src/simulation/` — approximate target-age simulation (`warp.ts` pure + tested, `render.ts` canvas)
-- `src/share/` — doctor ↔ client package format (validated) and import/export
-- `src/features/doctor/`, `src/features/client/` — UI per screen; `src/components/` shared UI
-- `src/db/` — Dexie schema, repositories, patient code
-- `test-assets/` — local test photos, git-ignored. Never commit face photos
+- `src/app/` — app name, the five sections and their routes, doctor shell with the tab bar, source guard tests
+- `src/engine/` — image engine: pure TypeScript, no React, no DOM outside the worker (lint-enforced). Grows in M1, M3, M4
+- `src/data/` — clinical data and domain types of PRD §9 (lint-enforced: no React or UI imports). Grows in M5–M7
+- `src/features/doctor/`, `src/features/client/` — screens; `src/components/` — shared UI
+- `src/db/` — Dexie schema and repositories; `src/i18n/` — `fa.ts` (default) and `en.ts`, no hard-coded UI strings
+- v1 folders kept until replaced: `src/analysis/` (landmarks, proportions), `src/capture/`, `src/plan/`, `src/simulation/`, `src/share/`
 
-## Working rules
-- Start each milestone in plan mode; list files to change and how you will verify, then implement
-- Verification = `npm run check` green + e2e for the touched flow + a screenshot at 390x844 compared to the matching mockup. Show the evidence (command output / screenshot), don't just claim success
-- IMPORTANT: every number shown to the doctor comes from a function in `src/analysis/` with a unit test that pins its expected value on a fixture
-- IMPORTANT: landmark indices live only in `src/analysis/landmarks.ts`, each with a comment; verify any new index with the Landmark Inspector page before using it
-- Clinical reference ranges and treatment data come only from docs/ANALYSIS_SPEC.md and docs/TREATMENTS.md. Never invent doses, volumes, units or ranges. If something is missing, add `TODO(clinical)` and ask
-- MD Codes coordinates/volumes are licensed content: ship `src/plan/data/mdcodes.json` empty; the UI must work without it
-- Patient-facing text follows docs/SAFETY.md wording rules (no "defect", no beauty score)
-- No analytics, trackers, or third-party scripts. Photos never leave the device in Phase 1
-- Small commits, conventional messages (`feat(capture): pose gating for 45° views`). Never commit secrets or photos
-- Ask before adding a dependency not listed above
+## Conventions that are easy to get wrong
+- Colour values live only in `src/styles.css` as RGB channels. In canvas or SVG use `cssToken()` / `svgToken()` from
+  `src/lib/tokens.ts`. `src/app/guards.test.ts` fails on a hex or `rgb()` literal, a remote URL, or a network call in `src/`
+- The doctor shell sets `--tabbar-h`; `Page` and `BottomBar` in `src/components/ui.tsx` already account for it
+- A new case step must be added to `src/app/sections.ts`, to `t.nav.steps` in both dictionaries, and to the routes in `src/App.tsx`
+- UI text says «توکسین», never «بوتاکس». Digits are Latin in both languages (`useNum()`)
+- Landmark indices live only in `src/analysis/landmarks.ts` (moving to `src/engine/landmarks.ts` in M1); verify on the debug page before use
+- The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
+- Never commit photos; `test-assets/` and `test-results/` are git-ignored
 
 ## Compact instructions
-When compacting, keep: current milestone ID, files changed, failing tests, open TODO(clinical) items, and the verification commands.
+When compacting, keep: current milestone id, files changed, failing tests, open TODO(clinical) items, the verification commands.

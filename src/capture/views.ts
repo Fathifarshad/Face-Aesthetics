@@ -44,20 +44,20 @@ export const VIEWS: readonly ViewDef[] = [
   },
   {
     id: 'oblique-r',
-    label: { fa: '۴۵ درجه — سمت راست', en: '45° — right side' },
+    label: { fa: '45 درجه — سمت راست', en: '45° — right side' },
     expression: 'neutral',
     yaw: 45,
     tolerance: 5,
     frontal: false,
     manualAllowed: false,
     guide: {
-      fa: 'سر را ۴۵ درجه بچرخانید تا سمت راست صورت به دوربین باشد؛ نوک بینی تقریباً روی خط گونهٔ مقابل قرار گیرد. شانه‌ها هم‌راستای سر.',
+      fa: 'سر را 45 درجه بچرخانید تا سمت راست صورت به دوربین باشد؛ نوک بینی تقریباً روی خط گونهٔ مقابل قرار گیرد. شانه‌ها هم‌راستای سر.',
       en: 'Turn the head 45° so the right side faces the camera; the nose tip should almost touch the far cheek line. Shoulders follow the head.',
     },
   },
   {
     id: 'oblique-l',
-    label: { fa: '۴۵ درجه — سمت چپ', en: '45° — left side' },
+    label: { fa: '45 درجه — سمت چپ', en: '45° — left side' },
     expression: 'neutral',
     yaw: 45,
     tolerance: 5,
@@ -169,6 +169,6 @@ export const PHOTO_RULES: readonly Bi[] = [
   { fa: 'پس‌زمینهٔ ساده و یکدست (ترجیحاً تیره یا خاکستری)', en: 'Plain, even background (dark or grey preferred)' },
   { fa: 'نور نرم و یکنواخت از روبه‌رو (پنجره یا رینگ‌لایت)؛ بدون نور پشت سر', en: 'Soft even light from the front (window or ring light); no light behind' },
   { fa: 'بدون آرایش، عینک، گوشواره و فیلتر زیبایی؛ موها پشت گوش', en: 'No makeup, glasses, earrings or beauty filters; hair behind the ears' },
-  { fa: 'دوربین هم‌سطح چشم، لنز اصلی (۱x یا ۲x)، بدون واید', en: 'Camera at eye level, main lens (1x or 2x), no wide-angle' },
+  { fa: 'دوربین هم‌سطح چشم، لنز اصلی (1x یا 2x)، بدون واید', en: 'Camera at eye level, main lens (1x or 2x), no wide-angle' },
   { fa: 'عکس‌های قبل و بعد با همان فاصله، نور و پس‌زمینه', en: 'Before and after with the same distance, light and background' },
 ];

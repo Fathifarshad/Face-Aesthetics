@@ -7,6 +7,7 @@ import { frontalPhoto } from '../../db/repo';
 import { useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import mdcodes from '../../plan/data/mdcodes.json';
+import { CaseSteps } from './CaseSteps';
 
 /** Licensed MD Codes rows; the file ships empty and the UI must work without it. */
 type MdCodeRow = { code: string; zone: string; note?: string };
@@ -24,6 +25,7 @@ export function MdCodesPage() {
     <>
       <Header title={t.md.title} back={`/doctor/case/${caseId}/plan`} />
       <Page>
+        <CaseSteps caseId={caseId} />
         {photo?.landmarks ? (
           <>
             <FaceCanvas blob={photo.blob} landmarks={photo.landmarks} overlay={overlay} alt={t.md.title} />
@@ -47,11 +49,11 @@ export function MdCodesPage() {
 
         <Section title={t.md.table}>
           {CODES.length === 0 ? (
-            <Notice tone="gold">{t.md.notInstalled}</Notice>
+            <Notice tone="primary">{t.md.notInstalled}</Notice>
           ) : (
             <table className="w-full text-[13px]">
               <thead>
-                <tr className="text-ink-secondary">
+                <tr className="text-ink-2">
                   <th className="py-1 text-start">{t.md.code}</th>
                   <th className="py-1 text-start">{t.md.zone}</th>
                 </tr>
@@ -59,7 +61,7 @@ export function MdCodesPage() {
               <tbody>
                 {CODES.map((r) => (
                   <tr key={r.code} className="border-t border-border">
-                    <td className="py-1.5 font-semibold text-gold-ink">{r.code}</td>
+                    <td className="py-1.5 font-semibold text-primary-on-tint">{r.code}</td>
                     <td className="py-1.5">{r.zone}</td>
                   </tr>
                 ))}

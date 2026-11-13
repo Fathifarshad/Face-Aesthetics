@@ -1,9 +1,10 @@
 import type { ViewDef } from '../capture/views';
+import { svgToken } from '../lib/tokens';
 
 /** Line-art illustration of the target head pose and expression for a capture view. */
 export function PoseGlyph({ view, size = 72 }: { view: ViewDef; size?: number }) {
-  const stroke = '#D4AF37';
-  const soft = '#8C8577';
+  const stroke = svgToken('primary');
+  const soft = svgToken('muted');
   const common = { fill: 'none', stroke, strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   const id = view.id;
 

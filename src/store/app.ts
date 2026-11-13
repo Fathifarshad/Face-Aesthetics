@@ -10,7 +10,14 @@ const readLang = (): Lang => {
   }
 };
 
-type AppState = { lang: Lang; setLang: (l: Lang) => void; toggleLang: () => void };
+type AppState = {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  toggleLang: () => void;
+  /** Case the doctor last opened; the section tabs lead into it. In memory only. */
+  activeCaseId: string | null;
+  setActiveCase: (id: string | null) => void;
+};
 
 export const useApp = create<AppState>((set, get) => ({
   lang: readLang(),
@@ -23,4 +30,6 @@ export const useApp = create<AppState>((set, get) => ({
     set({ lang });
   },
   toggleLang: () => get().setLang(get().lang === 'fa' ? 'en' : 'fa'),
+  activeCaseId: null,
+  setActiveCase: (activeCaseId) => set({ activeCaseId }),
 }));

@@ -94,7 +94,7 @@ export function PlanPage() {
             </Chip>
           ))}
         </div>
-        <LinkButton to={`/doctor/case/${caseId}/mdcodes`} variant="ghost" className="mb-4 w-full border-gold/50 text-gold-ink">
+        <LinkButton to={`/doctor/case/${caseId}/mdcodes`} variant="ghost" className="mb-4 w-full border-primary/50 text-primary-on-tint">
           {t.plan.mdcodes}
         </LinkButton>
 
@@ -118,16 +118,16 @@ export function PlanPage() {
 
         {sessions.length > 0 && (
           <Section title={t.plan.sessions}>
-            <ol className="relative flex flex-col gap-3 border-s border-gold/40 ps-4">
+            <ol className="relative flex flex-col gap-3 border-s border-primary/40 ps-4">
               {sessions.map((s) => (
                 <li key={s.index} className="relative">
-                  <span className="absolute -start-[23px] top-1 h-3 w-3 rounded-full bg-gold" />
+                  <span className="absolute -start-[23px] top-1 h-3 w-3 rounded-full bg-primary" />
                   <div className="card">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">{t.plan.session(num(s.index + 1))}</span>
-                      <Tag tone="gold">{t.plan.kinds[s.kind]}</Tag>
+                      <Tag tone="primary">{t.plan.kinds[s.kind]}</Tag>
                     </div>
-                    {s.after && <div className="text-[12px] text-ink-secondary">{t.plan.interval}: {bi(s.after)}</div>}
+                    {s.after && <div className="text-[12px] text-ink-2">{t.plan.interval}: {bi(s.after)}</div>}
                     <SessionItems ids={s.optionIds} />
                   </div>
                 </li>
@@ -149,14 +149,14 @@ export function PlanPage() {
         {selectedIds.length > 0 && (
           <Section title={t.plan.cost}>
             <div className="card">
-              <div className="gold-text text-[22px] font-bold">{num(cost.total)}</div>
-              {cost.missing.length > 0 && <p className="text-[12px] text-ink-secondary">{t.plan.missingPrice}</p>}
+              <div className="brand-text text-[22px] font-bold">{num(cost.total)}</div>
+              {cost.missing.length > 0 && <p className="text-[12px] text-ink-2">{t.plan.missingPrice}</p>}
             </div>
           </Section>
         )}
       </Page>
       <BottomBar>
-        <Button variant="gold" className="flex-1" onClick={() => nav(`/doctor/case/${caseId}/report`)}>
+        <Button variant="primary" className="flex-1" onClick={() => nav(`/doctor/case/${caseId}/report`)}>
           {t.plan.toReport}
         </Button>
       </BottomBar>
@@ -200,10 +200,10 @@ function FindingPlanCard({
     <article className="card">
       <button type="button" className="flex w-full items-center gap-3 text-start" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[16px] font-bold text-gold-ink">{cat ? bi(cat.label) : plan.findingKey}</h3>
+          <h3 className="text-[16px] font-bold text-primary-on-tint">{cat ? bi(cat.label) : plan.findingKey}</h3>
           <div className="mt-1 flex items-center gap-2">
             <SeverityDots value={plan.severity} label={t.analysis.of4(num(plan.severity))} />
-            <span className="text-[12px] text-ink-secondary">
+            <span className="text-[12px] text-ink-2">
               {t.plan.priority} {num(plan.priority, 2)}
             </span>
           </div>
@@ -216,11 +216,11 @@ function FindingPlanCard({
           {cat && (
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-md bg-surface-2 p-2.5">
-                <div className="text-[12px] font-semibold text-ink-secondary">{t.plan.about}</div>
+                <div className="text-[12px] font-semibold text-ink-2">{t.plan.about}</div>
                 <p className="text-[13px]">{bi(cat.about)}</p>
               </div>
               <div className="rounded-md bg-surface-2 p-2.5">
-                <div className="text-[12px] font-semibold text-ink-secondary">{t.plan.patientWording}</div>
+                <div className="text-[12px] font-semibold text-ink-2">{t.plan.patientWording}</div>
                 <p className="text-[13px]">{bi(cat.patient)}</p>
               </div>
             </div>
@@ -230,13 +230,13 @@ function FindingPlanCard({
           {plan.options.map(({ option: o, flags }) => {
             const on = selected.includes(o.id);
             return (
-              <div key={o.id} className={`rounded-lg border p-3 ${on ? 'border-gold bg-gold-tint/40' : 'border-border'}`}>
+              <div key={o.id} className={`rounded-lg border p-3 ${on ? 'border-primary bg-primary-tint/40' : 'border-border'}`}>
                 <button type="button" className="flex w-full items-start gap-2 text-start" onClick={() => onToggle(o.id)} aria-pressed={on}>
-                  {on ? <CheckSquare size={20} className="mt-0.5 shrink-0 text-gold" /> : <Square size={20} className="mt-0.5 shrink-0 text-ink-tertiary" />}
+                  {on ? <CheckSquare size={20} className="mt-0.5 shrink-0 text-primary" /> : <Square size={20} className="mt-0.5 shrink-0 text-muted" />}
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold">{bi(o.title)}</span>
                     <span className="mt-1 flex flex-wrap gap-1">
-                      <Tag tone="gold">{t.plan.modality[o.modality]}</Tag>
+                      <Tag tone="primary">{t.plan.modality[o.modality]}</Tag>
                       <Tag>{t.plan.tiers[o.minTier]}</Tag>
                       {o.riskTags.map((r) => (
                         <Tag key={r} tone={r === 'high-risk-vascular' ? 'danger' : 'warn'}>
@@ -247,7 +247,7 @@ function FindingPlanCard({
                   </span>
                 </button>
                 <div className="mt-2 text-[13px]">
-                  <span className="text-ink-tertiary">{t.plan.how}: </span>
+                  <span className="text-muted">{t.plan.how}: </span>
                   {bi(o.how)}
                 </div>
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
@@ -260,7 +260,7 @@ function FindingPlanCard({
                   <Detail k={t.plan.evidence} v={o.evidence ?? 'TODO(clinical)'} />
                   <Detail k={t.plan.sources} v={o.sources.length ? o.sources.join(', ') : o.id} />
                 </dl>
-                {!o.reviewedBy && <p className="mt-1 text-[11px] text-ink-tertiary">{t.app.notReviewed}</p>}
+                {!o.reviewedBy && <p className="mt-1 text-[11px] text-muted">{t.app.notReviewed}</p>}
                 {flags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {flags.map((f) => (
@@ -275,14 +275,14 @@ function FindingPlanCard({
           })}
 
           {combo.length > 1 && (
-            <div className="rounded-md border border-gold/40 p-3">
-              <div className="text-[13px] font-semibold text-gold-ink">{t.plan.combo}</div>
+            <div className="rounded-md border border-primary/40 p-3">
+              <div className="text-[13px] font-semibold text-primary-on-tint">{t.plan.combo}</div>
               <ol className="mt-1 list-decimal ps-5 text-[13px]">
                 {combo.map(({ option }) => (
                   <li key={option.id}>{bi(option.title)}</li>
                 ))}
               </ol>
-              <p className="mt-1 text-[11px] text-ink-tertiary">{t.plan.comboNote}</p>
+              <p className="mt-1 text-[11px] text-muted">{t.plan.comboNote}</p>
             </div>
           )}
 
@@ -292,7 +292,7 @@ function FindingPlanCard({
                 {t.plan.blocked} ({num(plan.blocked.length)})
               </button>
               {showBlocked && (
-                <ul className="mt-1 text-[12px] text-ink-secondary">
+                <ul className="mt-1 text-[12px] text-ink-2">
                   {plan.blocked.map((b) => (
                     <li key={b.option.id}>
                       {bi(b.option.title)} — {b.reasons.map((r) => t.plan.blocks[r]).join('، ')}
@@ -311,8 +311,8 @@ function FindingPlanCard({
 function Detail({ k, v }: { k: string; v: string }) {
   return (
     <>
-      <dt className="text-ink-tertiary">{k}</dt>
-      <dd className="text-ink-secondary">{v}</dd>
+      <dt className="text-muted">{k}</dt>
+      <dd className="text-ink-2">{v}</dd>
     </>
   );
 }

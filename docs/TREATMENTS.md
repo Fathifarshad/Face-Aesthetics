@@ -1,5 +1,7 @@
 # Treatment knowledge base (Phase 1 seed)
 
+> **Status 2026-11-13:** PRD 2.0 is the source of truth. Clinical numbers (volumes, doses, onset, duration, downtime) come only from docs/PRD.md §6-7; the 16 concerns and their options move to `src/data/` in M6. §4 (tier and age logic) is replaced by PRD §5.3. §3 (sequencing) and §5 (contraindications) below stay in force.
+
 Convert this file into typed data in `src/plan/data/treatments.ts`. Every option keeps its `id`.
 Volumes, units and product names are deliberately NOT filled: they come from the clinical lead
 (`TODO(clinical)`). The engine must work with those fields empty (show "per clinician").

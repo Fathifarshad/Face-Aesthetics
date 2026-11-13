@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { existsSync } from 'node:fs';
 
 const shots = 'test-results/screens';
@@ -6,11 +6,32 @@ const shots = 'test-results/screens';
 test('home opens in Persian RTL with the black & gold theme', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await expect(page.getByRole('heading', { name: 'تناسب' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'نوا' })).toBeVisible();
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(bg).toBe('rgb(10, 10, 11)');
   await page.screenshot({ path: `${shots}/01-home.png` });
 });
+
+const SECTION_TABS = ['پرونده‌ها', 'عکاسی', 'شبیه‌سازی', 'طرح درمان', 'قبل و بعد'];
+const tabs = (page: Page) => page.getByRole('navigation', { name: 'بخش‌های اپ' });
+
+for (const width of [360, 390, 430]) {
+  test(`doctor frame shows the five sections at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/#/doctor');
+    await expect(tabs(page).getByRole('link')).toHaveText(SECTION_TABS);
+    await expect(tabs(page).getByRole('link', { name: 'پرونده‌ها' })).toHaveAttribute('aria-current', 'page');
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: `${shots}/m0-cases-${width}.png` });
+
+    // no case is open yet: a section tab explains what to do instead of failing
+    await tabs(page).getByRole('link', { name: 'طرح درمان' }).click();
+    await expect(page.getByRole('heading', { name: 'پرونده‌ای باز نیست', level: 2 })).toBeVisible();
+    await expect(tabs(page).getByRole('link', { name: 'طرح درمان' })).toHaveAttribute('aria-current', 'page');
+    await page.screenshot({ path: `${shots}/m0-no-case-${width}.png` });
+  });
+}
 
 const PHOTO = 'test-assets/portrait.jpg';
 
@@ -32,7 +53,7 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.getByRole('button', { name: 'عکس‌های مراجع' }).last().click();
 
   await expect(page).toHaveURL(/capture/);
-  await expect(page.getByText(/از ۷ عکس لازم/).first()).toBeVisible();
+  await expect(page.getByText(/از 7 عکس لازم/).first()).toBeVisible();
   await page.screenshot({ path: `${shots}/03-capture.png` });
   const frontal = page.locator('.card', { hasText: 'روبه‌رو — بی‌حالت' }).first();
   await frontal.locator('input[type=file]').setInputFiles(PHOTO);
@@ -40,7 +61,7 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.screenshot({ path: `${shots}/04-confirm.png`, fullPage: true });
   const accept = page.getByRole('button', { name: /تأیید و ذخیره|استفاده با وجود ایراد/ });
   await accept.click();
-  await expect(page.getByText(/۱ از ۷ عکس لازم/).first()).toBeVisible();
+  await expect(page.getByText(/1 از 7 عکس لازم/).first()).toBeVisible();
 
   await page.getByRole('button', { name: 'آنالیز چهره' }).last().click();
   await expect(page).toHaveURL(/analysis/);
@@ -49,12 +70,12 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   // grade two volume findings
   for (const name of ['افت حجم میانهٔ صورت', 'افتادگی کنار فک (جول)']) {
     const card = page.locator('article', { hasText: name }).first();
-    await card.getByRole('button', { name: '۳' }).click();
+    await card.getByRole('button', { name: '3' }).click();
   }
   await page.getByRole('button', { name: 'لب', exact: true }).click();
   const lip = page.locator('article', { hasText: 'حجم و تعریف لب' }).first();
   await lip.getByRole('button', { name: 'ویرایش شدت' }).click();
-  await lip.getByRole('button', { name: '۲' }).click();
+  await lip.getByRole('button', { name: '2' }).click();
 
   await page.getByRole('button', { name: 'تعیین سن هدف' }).click();
   await expect(page).toHaveURL(/age/);
@@ -66,13 +87,29 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.getByRole('button', { name: 'طرح درمان' }).last().click();
   await expect(page).toHaveURL(/plan/);
   await expect(page.getByText('زمان‌بندی جلسات')).toBeVisible();
+  // Only the two highest-priority findings start expanded; open the lip finding to see its flags.
+  const lipPlan = page.getByRole('button', { name: /حجم و تعریف لب/ });
+  if ((await lipPlan.getAttribute('aria-expanded')) !== 'true') await lipPlan.click();
   await expect(page.getByText('سابقهٔ تبخال (دور دهان)').first()).toBeVisible();
   await page.screenshot({ path: `${shots}/07-plan.png`, fullPage: true });
 
-  await page.getByRole('link', { name: 'MD Codes' }).click();
+  await page.getByRole('link', { name: 'MD Codes', exact: true }).click();
   await expect(page.getByText('دادهٔ دارای مجوز MD Codes نصب نشده است', { exact: false })).toBeVisible();
   await page.screenshot({ path: `${shots}/08-mdcodes.png`, fullPage: true });
   await page.goBack();
+
+  // section tabs lead into the open case
+  await tabs(page).getByRole('link', { name: 'قبل و بعد' }).click();
+  await expect(page).toHaveURL(/gallery/);
+  await expect(page.getByRole('heading', { name: 'گالری قبل و بعد هنوز ساخته نشده است' })).toBeVisible();
+  await page.screenshot({ path: `${shots}/m0-gallery.png` });
+  await tabs(page).getByRole('link', { name: 'شبیه‌سازی' }).click();
+  await expect(page).toHaveURL(/analysis/);
+  await page.getByRole('navigation', { name: 'گام‌های این بخش' }).getByRole('link', { name: 'شبیه‌سازی' }).click();
+  await expect(page).toHaveURL(/simulate/);
+  await page.screenshot({ path: `${shots}/m0-simulate.png` });
+  await tabs(page).getByRole('link', { name: 'طرح درمان' }).click();
+  await expect(page).toHaveURL(/plan/);
 
   // settings needed for sign-off
   await page.goto('/#/settings');

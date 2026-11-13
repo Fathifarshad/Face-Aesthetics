@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
+import { cssToken } from '../lib/tokens';
 import { Button } from './ui';
 
 export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
@@ -17,7 +18,7 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
     ctx.scale(ratio, ratio);
     ctx.lineWidth = 2.2;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#15212B';
+    ctx.strokeStyle = cssToken('paper-ink');
   }, []);
 
   const pos = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -29,7 +30,7 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
     <div>
       <canvas
         ref={ref}
-        className="h-36 w-full touch-none rounded-md bg-white"
+        className="h-36 w-full touch-none rounded-md bg-paper"
         aria-label={t.report.signature}
         onPointerDown={(e) => {
           drawing.current = true;

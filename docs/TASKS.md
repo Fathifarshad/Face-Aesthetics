@@ -1,98 +1,97 @@
-# Milestones — Phase 1
+# Milestones — PRD 2.0
 
-Rules: one milestone per session (`/clear` between). Plan first, then build. Tick an item only after its
-verification passed and the evidence was shown. Suggested model/effort per milestone is for the human operator.
+Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at a time: short plan → wait for
+«ادامه» → build → verify → report in ≤ 10 lines → commit `feat(Mx): ...` (no push).
 
-Legend: [ ] todo · [x] done · [~] built, verification step still open · (V) = verification step
+Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-10-27: a runnable prototype covering M0–M8 + M11–M12 was built in one session at the owner's request
-(evidence: `npm run check` green — 81 unit tests; Playwright e2e of the full doctor flow at 390×844 with
-screenshots in `test-results/screens/`). Items needing a human, a real phone or the clinical lead stay open.
+Status 2026-11-13: **M0 done.** Next: **M1**.
 
-## M0 — Scaffold
-- [x] Vite + React + TS strict, React Router (HashRouter), Tailwind with BRAND tokens (black & gold), Vazirmatn self-hosted, RTL root
-- [x] i18n dictionaries fa/en + typed `useT()`; language switch in Settings and headers
-- [x] ESLint + Prettier; Vitest; Playwright (390x844 mobile project)
-- [x] `npm run check` (tsc -b + eslint + vitest run); `npm run dev:https` (basic-ssl) for phone camera testing
-- [x] vite-plugin-pwa with offline cache of app shell, fonts, MediaPipe WASM and `/models/face_landmarker.task`
-- [x] `.gitignore` includes `test-assets/`, model, copied WASM; `scripts/fetch-model.mjs`, `scripts/copy-wasm.mjs`
-- [x] (V) `npm run check` green; Playwright smoke test opens app in fa RTL; screenshot attached
+## What the v1 kit already provides (built 2026-10-27, kept until replaced)
 
-## M1 — Landmark engine + Inspector
-- [x] `src/analysis/landmarker.ts`: FaceLandmarker (IMAGE + VIDEO), GPU with CPU fallback, local WASM
-- [x] `src/analysis/pose.ts`: yaw/pitch/roll from the transformation matrix; decomposition unit-tested (round trip)
-- [x] `src/analysis/landmarks.ts`: named indices from ANALYSIS_SPEC §1.1
-- [x] Dev page `/dev/inspector`: load photo → draw all 478 / named points + coordinates table
-- [ ] (V) Human check: confirm each named landmark on 2 test photos → `docs/LANDMARKS_VERIFIED.md`; confirm yaw sign (45° R/L currently checks |yaw| only)
+| v1 milestone | State | Goes into |
+|---|---|---|
+| Landmark engine + Inspector page | built; human check of indices never done | M1 |
+| Guided capture, QC, ghost overlay, per-service photo sets | built; thresholds uncalibrated | stays; reviewed in M8 |
+| Dexie schema, patients, intake, simple consent toggles | built; no encryption, no app lock | M2, M8 |
+| Proportion metrics (thirds, fifths, symmetry, iris calibration) | built, 40 unit tests | stays as a secondary analysis tab |
+| Approximate simulation (one global slider, main thread) | built | replaced by M3–M4 |
+| Target-age slider (actual → actual − 15) | built | replaced by M5 |
+| Treatment options without numbers, tiers, sequencing, contraindications | built, 19 unit tests | rebuilt on `src/data` in M6–M7 |
+| MD Codes zones page, emergency page | built | M7 |
+| Sign-off, print report, compare page | built | M9, M8 |
+| Client app (`/#/client`) and file exchange | built | M11 |
 
-## M2 — Guided capture
-- [x] In-app camera (getUserMedia, front/rear switch), face-oval guide, live pose readout, shutter gated by pose (manual for profiles/submental or if detector fails)
-- [x] QC checks from ANALYSIS_SPEC §2 with pass/fail and fix hints (fa/en) on a confirmation screen
-- [x] Per-view stepper with retake, gallery upload with the same QC, "use anyway" → low quality
-- [x] Ghost overlay (35 %) of the Before photo in the After section
-- [~] Blur/backlight thresholds are placeholders — calibrate on real photos
-- [ ] (V) Manual phone test (Android Chrome + iOS Safari) over `npm run dev:https`
+## M0 — Setup and alignment
+- [x] PRD 2.0, BRAND 2.0 and SUPERPROMPT copied into `docs/` and `prompts/`; owner decisions recorded in PRD §0
+- [x] Old docs aligned: status notes on ANALYSIS_SPEC, TREATMENTS, SAFETY; prompts, `/next-milestone` skill and reviewer agent updated
+- [x] App name نوا (NEVA) from one constant (`src/app/config.ts`): UI, report, `index.html`, PWA manifest
+- [x] Colour tokens as CSS variables in `src/styles.css`, read by `tailwind.config.ts`; class names follow BRAND 2.0 (`primary`, `ink-2`, `muted`, `risk`, `draft`, …); no colour literals left in components
+- [x] Doctor app frame with five sections (پرونده‌ها، عکاسی، شبیه‌سازی، طرح درمان، قبل و بعد): tab bar, steps per section, placeholders for the two sections not built yet
+- [x] `src/engine` and `src/data` created with the PRD §9 types; lint rule keeps them free of React and UI imports
+- [x] Wording: «توکسین» instead of «بوتاکس»; Latin digits in the Persian UI
+- [x] Guard test for hard rules 9 and 16 and a static check for rule 8 (`src/app/guards.test.ts`)
+- [x] (V) `npm run check` green (89 unit tests); Playwright green (5 tests) at 360, 390 and 430 px; screenshots in `test-results/screens/`
 
-## M3 — Data, intake, consent
-- [x] Dexie schema per PRD §7 (+ code, services, phase, simulations, messages, client tables); repositories; audit log
-- [x] Patients list with search (name / file no / patient code), status chips, counters; new case flow
-- [x] Intake questionnaire (SAFETY §2), consent toggles, age < 18 stop, BDD placeholder (doctor-only)
-- [x] (V) e2e: create patient → intake → consent → capture
+## M1 — Regions and debug overlay
+- [ ] `src/engine/faceFrame.ts`, `landmarks.ts` (PRD appendix A sets), `regions.ts` (16 regions, built geometrically)
+- [ ] Debug page: every region drawn with colour and name over the photo, anchor indices written out
+- [ ] Unit tests: frame is invariant to image rotation and scale; regions mirror left/right
+- [ ] (V) On 5 test photos all 16 regions confirmed by eye by the owner; screenshots recorded. **M3 does not start before this**
 
-## M4 — Analysis engine
-- [x] Calibration (iris → mm), roll correction, midline fit
-- [x] All frontal metrics ANALYSIS_SPEC §4 with exact, roll-corrected and missing-iris tests
-- [x] `norms.ts` with defaults, tolerances `reviewed:false`; severity suggestion; proxy pre-selection (tear trough, nasolabial, marionette, lips) with low confidence
-- [ ] Profile metrics §5 (doctor-placed points) — not built yet
-- [ ] (V) coverage ≥ 95 % for `src/analysis/`; golden test on local photos ±2 %
+## M2 — Records, encryption, app lock
+- [~] Patient record and Dexie schema (reconcile with PRD §9: internal id, Fitzpatrick optional)
+- [ ] Photos encrypted in IndexedDB (AES-GCM, key derived from the doctor's passphrase); EXIF stripped on import; working copy ≤ 1280 px
+- [ ] App lock; auto-lock after 5 minutes idle; "delete record completely"
+- [ ] (V) Photo bytes in IndexedDB are ciphertext; deleting a record leaves nothing behind
 
-## M5 — Analysis UI
-- [x] Image panel with toggles (landmarks, thirds/fifths, midline, heat zones)
-- [x] Tabs and finding cards (confirm / edit severity / reject with reason), persisted + audit-logged
-- [x] Clinician grading for ANALYSIS_SPEC §6 (scale name, 0–4), Fitzpatrick, Glogau
-- [ ] Draggable landmarks with undo; profile point-placement tool
-- [x] (V) e2e: grade findings → persists across reload
+## M3 — Band smoothing
+- [ ] Three-pass separable box blur, band split, per-region masks, protection mask (eyes, brows, nostrils, lips), Web Worker
+- [ ] (V) Three effect types work; eyes and lips stay sharp; skin texture remains; unit test: synthetic dark line loses ≥ 60 % contrast, no pixel changes outside the mask
 
-## M6 — Age
-- [x] Age-band buttons, actual age, apparent age (doctor), target slider (actual → actual − 15) + quick picks
-- [x] On-device approximate simulation (warp + shadow softening + skin smoothing) with strength slider and before/after slider; saved per case
-- [x] (V) Unit tests: target gap → default tier; simulation plan scales with severity, zero at no gap
+## M4 — Warp and before/after slider
+- [ ] Inflate and vector operators summed into one displacement field; per-change toggle, slider, mirror, "match sides"; vertical before/after slider
+- [ ] (V) Re-render < 50 ms on a mid-range phone; no tearing at the face edge; zero strength returns the input
 
-## M7 — Treatment plan + MD Codes view
-- [x] `treatments.ts` from TREATMENTS.md; rules engine (tiers, priority × age factor, sequencing, high-risk cap, contraindications) as pure functions
-- [x] Plan UI: tier switch, per-finding regional analysis + client wording, options with technique, tags, flags, source ids, combined approach, session timeline, cost estimate
-- [x] MD Codes screen: generic zones, empty-safe code table, approximate vessel overlay, emergency link
-- [x] Emergency page renders `content/emergency.{fa,en}.md` when the clinical lead provides it
-- [x] (V) Engine unit tests: hard block, soft flag, sequencing, cap warning, tier filter
+## M5 — Grading and target age
+- [ ] Automatic 0–4 grade with confidence for the 16 concerns; doctor confirms, edits or rejects
+- [ ] Target age: same age / ~5 / ~10 years younger; `allowed()` and `intensity` from PRD §5.3; 85 % ceiling
+- [ ] (V) Unit tests for `allowed` and `intensity`; changing the target updates the sliders
 
-## M8 — Sign-off and report
-- [x] Sign-off checklist + signature pad; settings for doctor/clinic branding, aftercare texts, prices
-- [x] Print route (A4), fa/en, Jalali + Gregorian, technical appendix toggle, accent contrast fallback
-- [x] Follow-up compare (side-by-side + slider) across visits and the simulation
-- [ ] Consent summary page; metric deltas; GAIS
-- [ ] (V) Playwright PDF render fa/en without overflow
+## M6 — Knowledge base and sorting
+- [~] 16 concerns × options in `src/data` with every field of PRD §6, `status` and `source`
+- [ ] Sort by result, cost, onset, durability, downtime; choosing an option updates the image (`fx`)
+- [ ] (V) Each option changes the image; `draft` items carry the «تأییدنشده» badge
 
-## M9 — Security, privacy, polish
-- [ ] App PIN, PBKDF2 key, AES-GCM encryption of photos and records; lock on background/timeout
-- [ ] Retention auto-delete (setting exists; job not yet)
-- [x] Export (client package) / hard delete patient
-- [ ] Network-blocked test after load; Lighthouse PWA ≥ 90
-- [ ] (V) Security unit tests
+## M7 — MD Codes, estimates, cost
+- [~] MD Codes layer for selected filler options only; warning codes; fixed disclaimer
+- [ ] Volume and dose ranges (PRD §5.7), plan totals in syringes and vials, clinic tariff, doctor override
+- [ ] (V) Unit tests for estimates and totals; high-risk zone warnings visible
 
-## M10 — Independent review
-- [ ] `clinical-safety-reviewer` on the whole app; `/code-review`; README limitations
-- [ ] (V) reports in `docs/reviews/`
+## M8 — Before/after gallery and consent
+- [~] Photo sets per procedure (PRD §8), ghost overlay from the before photo
+- [ ] Three consent levels with name, date and touch signature; revocation
+- [ ] Compare: side by side, slider, simulation vs real result
+- [ ] (V) No photo in any shareable output without level-3 consent; revocation works
 
-## M11 — Client app (added 2026-10-27, PRD §5.11)
-- [x] `/client`: open by patient code or import clinic file; offline record per code
-- [x] Tabs: My plan · Photos (simulation & before/after sliders, progress capture with guide + QC + confirm) · Care · Ask the doctor
-- [x] Doctor → client package (signed visits only, consent-gated); client → doctor reply package; import on both sides with de-duplication
-- [x] (V) Unit tests: patient code check char, package validation (rejects non-image data URLs), message merge
-- [ ] (V) e2e round trip doctor → client → doctor
-- [ ] Phase 2: backend sync, real-time chat, push reminders
+## M9 — Report
+- [~] PDF report with clinic branding, simulation with burned-in label, line items, sessions, disclaimer
+- [ ] (V) No report without doctor approval; the simulation label is on the image
 
-## M12 — Service-based photo protocol (added 2026-10-27, PRD §5.3)
-- [x] Required views per service; union with "n of N" counters; separate Before / After sections with progress bars
-- [x] Pose illustration + guide beside every view; general photography rules
-- [x] Confirmation right after capture/upload (mask + QC) → accept / use anyway / retake; saved on doctor device and delivered to client app
-- [ ] `TODO(clinical)`: clinical lead confirms each service's view set
+## M10 — Cloud render stub, PWA, privacy review
+- [ ] `RenderProvider` interface with `MockRenderProvider` only; gated by the cloud-render consent
+- [~] PWA offline
+- [ ] (V) No network request containing a photo without level-2 consent (runtime test); main-flow Playwright green; accessibility pass
+
+## M11 — Client app completion (PRD §5.10)
+- [~] Client app and file exchange from the v1 kit
+- [ ] New simulation, chosen options and consent-gated before/after photos in the package; package version bump, v1 still parsed
+- [ ] (V) Round trip doctor → client → doctor without duplicate messages; nothing from F10.6 in the package
+
+## Open items that need a person
+- `TODO(clinical)`: every filler volume range, off-label toxin dose, onset/duration/downtime figure and the `allowed()` age table are drafts (PRD §7.2) until a senior physician confirms them
+- Licence review: MD Codes™ name and content, grading-scale names (WSRS, MFVDS, Merz, Allergan), MediaPipe model card
+- Legal review of the decision-support status before any real patient use
+- Trademark and domain check for the name نوا (NEVA)
+- Test photos for M1: 4–5 synthetic or own frontal photos in `test-assets/` (git-ignored); only one is there now
+- Known gap in the v1 code: the file-exchange format id is still `tanasob/…` (kept for compatibility; revisit in M11)

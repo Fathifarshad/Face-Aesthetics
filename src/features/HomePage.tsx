@@ -15,28 +15,28 @@ export function HomePage() {
         <LangToggle />
       </div>
       <div className="mt-10 flex flex-col items-center text-center">
-        <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" className="h-20 w-20 rounded-2xl shadow-[0_0_60px_-10px_rgba(212,175,55,.6)]" />
-        <h1 className="gold-text mt-5 text-[34px] font-bold leading-tight">{t.app.name}</h1>
-        <p className="mt-2 text-ink-secondary">{t.app.tagline}</p>
+        <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" className="h-20 w-20 rounded-2xl shadow-[0_0_60px_-10px_rgb(var(--primary)/.6)]" />
+        <h1 className="brand-text mt-5 text-[34px] font-bold leading-tight">{t.app.name}</h1>
+        <p className="mt-2 text-ink-2">{t.app.tagline}</p>
       </div>
       <div className="mt-10 flex flex-col gap-3">
         {cards.map(({ to, icon: Icon, title, desc }) => (
           <Link
             key={to}
             to={to}
-            className="group flex items-center gap-4 rounded-xl border border-border bg-gradient-to-br from-surface to-bg p-5 transition hover:border-gold/70"
+            className="group flex items-center gap-4 rounded-xl border border-border bg-gradient-to-br from-surface to-bg p-5 transition hover:border-primary/70"
           >
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gold-tint text-gold">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary-tint text-primary">
               <Icon size={26} aria-hidden />
             </span>
             <span className="min-w-0">
-              <span className="block text-[17px] font-bold group-hover:text-gold-ink">{title}</span>
-              <span className="block text-[13px] text-ink-secondary">{desc}</span>
+              <span className="block text-[17px] font-bold group-hover:text-primary-on-tint">{title}</span>
+              <span className="block text-[13px] text-ink-2">{desc}</span>
             </span>
           </Link>
         ))}
       </div>
-      <p className="mt-auto flex items-center justify-center gap-2 pt-10 text-center text-[12px] text-ink-tertiary">
+      <p className="mt-auto flex items-center justify-center gap-2 pt-10 text-center text-[12px] text-muted">
         <ShieldCheck size={16} aria-hidden /> {t.home.privacy}
       </p>
     </main>

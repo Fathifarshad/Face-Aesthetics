@@ -92,7 +92,7 @@ export function IntakePage() {
         </Section>
 
         <Section title={t.intake.bdd}>
-          <p className="mb-2 text-[13px] text-ink-secondary">{t.intake.bddNote}</p>
+          <p className="mb-2 text-[13px] text-ink-2">{t.intake.bddNote}</p>
           <div className="flex gap-2">
             <Chip active={c.screening.bddPositive === false} onClick={() => set((cur) => ({ screening: { ...cur.screening, bddPositive: false } }))}>
               {t.intake.bddNegative}
@@ -109,7 +109,7 @@ export function IntakePage() {
         </Section>
       </Page>
       <BottomBar>
-        <Button variant="gold" className="flex-1" disabled={!consentOk || under18} onClick={() => nav(`/doctor/case/${c.id}/capture`)}>
+        <Button variant="primary" className="flex-1" disabled={!consentOk || under18} onClick={() => nav(`/doctor/case/${c.id}/capture`)}>
           {t.capture.title}
         </Button>
       </BottomBar>

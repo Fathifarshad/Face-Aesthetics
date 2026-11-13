@@ -5,6 +5,7 @@ import type { Pose } from '../analysis/types';
 import type { ViewDef } from '../capture/views';
 import { useBi, useT } from '../i18n';
 import { useObjectUrl } from '../lib/hooks';
+import { svgToken } from '../lib/tokens';
 import { Button, Notice } from './ui';
 
 type Status = { faces: number; pose: Pose | null } | null;
@@ -94,14 +95,14 @@ export function LiveCamera({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#050505]" role="dialog" aria-modal="true" aria-label={bi(view.label)}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-photo" role="dialog" aria-modal="true" aria-label={bi(view.label)}>
       <div className="flex items-center gap-2 px-4 py-3">
         <button type="button" onClick={onClose} aria-label={t.app.close} className="flex h-11 w-11 items-center justify-center rounded-md border border-border">
           <X size={20} />
         </button>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold text-gold-ink">{bi(view.label)}</div>
-          <div className="truncate text-[12px] text-ink-secondary">{bi(view.guide)}</div>
+          <div className="truncate font-semibold text-primary-on-tint">{bi(view.label)}</div>
+          <div className="truncate text-[12px] text-ink-2">{bi(view.guide)}</div>
         </div>
         <button
           type="button"
@@ -136,13 +137,13 @@ export function LiveCamera({
                 rx={view.frontal ? 25 : 22}
                 ry="29"
                 fill="none"
-                stroke={ok ? '#7FD6A0' : '#D4AF37'}
+                stroke={svgToken(ok ? 'ok' : 'primary')}
                 strokeWidth="0.6"
                 strokeDasharray={ok ? undefined : '2 1.5'}
               />
             </svg>
             <div className="absolute inset-x-0 bottom-3 flex justify-center">
-              <span className={`rounded-full px-3 py-1 text-[12px] ${ok ? 'bg-ok/20 text-ok' : 'bg-bg/80 text-ink-secondary'}`}>
+              <span className={`rounded-full px-3 py-1 text-[12px] ${ok ? 'bg-ok/20 text-ok' : 'bg-bg/80 text-ink-2'}`}>
                 {status?.pose
                   ? `yaw ${status.pose.yaw.toFixed(0)}° · pitch ${status.pose.pitch.toFixed(0)}° · roll ${status.pose.roll.toFixed(0)}°`
                   : detectorDown
@@ -156,7 +157,7 @@ export function LiveCamera({
 
       <div className="flex items-center justify-center gap-4 px-4 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
         <Button
-          variant="gold"
+          variant="primary"
           disabled={!canShoot || error}
           onClick={shoot}
           aria-label={t.capture.shutter}
@@ -165,7 +166,7 @@ export function LiveCamera({
           <Camera size={26} />
         </Button>
       </div>
-      {!ok && view.manualAllowed && <p className="px-4 pb-3 text-center text-[12px] text-ink-secondary">{t.capture.manual}</p>}
+      {!ok && view.manualAllowed && <p className="px-4 pb-3 text-center text-[12px] text-ink-2">{t.capture.manual}</p>}
     </div>
   );
 }

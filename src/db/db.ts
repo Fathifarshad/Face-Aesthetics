@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { REPORT_ACCENT_FALLBACK } from '../lib/color';
 import type {
   AuditEntry,
   Case,
@@ -60,7 +61,7 @@ export const DEFAULT_SETTINGS: ClinicSettings = {
   clinicPhone: '',
   footer: '',
   logo: '',
-  accent: '#7A5F12',
+  accent: REPORT_ACCENT_FALLBACK,
   prices: {},
   maxHighRiskPerSession: 1,
   retentionMonths: 24,

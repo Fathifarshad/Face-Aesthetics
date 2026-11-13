@@ -44,9 +44,9 @@ export function PrintPage() {
   if (!signoff || !pt) return <div className="p-6 text-ink">{t.report.notSigned}</div>;
 
   return (
-    <div dir={dir} lang={lang} className="min-h-screen bg-white text-[#15212B]">
+    <div dir={dir} lang={lang} className="min-h-screen bg-paper text-paper-ink">
       <div className="no-print sticky top-0 flex justify-center gap-2 bg-bg p-3">
-        <Button variant="gold" onClick={() => window.print()}>
+        <Button variant="primary" onClick={() => window.print()}>
           <Printer size={18} /> {t.report.print}
         </Button>
         <Button onClick={() => history.back()}>{t.app.back}</Button>
@@ -57,7 +57,7 @@ export function PrintPage() {
             <h1 className="text-[20px] font-bold" style={{ color: accent }}>
               {settings.clinicName || t.report.patientReport}
             </h1>
-            <div className="text-[12px] text-[#52616B]">
+            <div className="text-[12px] text-paper-muted">
               {[settings.clinicAddress, settings.clinicPhone].filter(Boolean).join(' · ')}
             </div>
           </div>
@@ -107,7 +107,7 @@ export function PrintPage() {
           {pt.sessions.map((s) => (
             <li key={s.index}>
               <b>{t.plan.session(num(s.index + 1))}</b> ({t.plan.kinds[s.kind as keyof typeof t.plan.kinds]})
-              {s.after && <span className="text-[#52616B]"> — {s.after[lang]}</span>}: {s.items.map((i) => i[lang]).join('، ')}
+              {s.after && <span className="text-paper-muted"> — {s.after[lang]}</span>}: {s.items.map((i) => i[lang]).join('، ')}
             </li>
           ))}
         </ol>
@@ -127,10 +127,10 @@ export function PrintPage() {
 
         {appendix && <Appendix findings={findings} lang={lang} />}
 
-        <p className="mt-5 rounded border border-[#DCE2E6] bg-[#F4F6F7] p-2 text-[11px] text-[#52616B]">{t.report.disclaimer}</p>
+        <p className="mt-5 rounded border border-paper-border bg-paper-2 p-2 text-[11px] text-paper-muted">{t.report.disclaimer}</p>
 
         <footer className="mt-4 flex items-end justify-between">
-          <div className="text-[11px] text-[#52616B]">
+          <div className="text-[11px] text-paper-muted">
             {settings.footer}
             <div>{t.report.preparedWith}</div>
           </div>
@@ -149,7 +149,7 @@ function PrintPhoto({ photo, label }: { photo: Photo; label: string }) {
   return (
     <figure>
       {url && <img src={url} alt={label} className="aspect-[3/4] w-full rounded object-cover" />}
-      <figcaption className="text-center text-[10px] text-[#52616B]">{label}</figcaption>
+      <figcaption className="text-center text-[10px] text-paper-muted">{label}</figcaption>
     </figure>
   );
 }
@@ -159,7 +159,7 @@ function PrintSim({ sim, label }: { sim: Simulation; label: string }) {
   return (
     <figure>
       {url && <img src={url} alt={label} className="aspect-[3/4] w-full rounded object-cover" />}
-      <figcaption className="text-center text-[10px] text-[#52616B]">{label}</figcaption>
+      <figcaption className="text-center text-[10px] text-paper-muted">{label}</figcaption>
     </figure>
   );
 }
@@ -173,7 +173,7 @@ function Appendix({ findings, lang }: { findings: FindingRow[]; lang: Lang }) {
       <h2 className="text-[15px] font-bold">{t.report.technical}</h2>
       <table className="mt-2 w-full border-collapse text-[11px]">
         <thead>
-          <tr className="bg-[#F4F6F7]">
+          <tr className="bg-paper-2">
             <th className="border p-1 text-start">{t.analysis.title}</th>
             <th className="border p-1">{t.analysis.value}</th>
             <th className="border p-1">{t.analysis.reference}</th>
@@ -195,7 +195,7 @@ function Appendix({ findings, lang }: { findings: FindingRow[]; lang: Lang }) {
           ))}
         </tbody>
       </table>
-      <p className="mt-1 text-[10px] text-[#52616B]">{t.analysis.approxNote}</p>
+      <p className="mt-1 text-[10px] text-paper-muted">{t.analysis.approxNote}</p>
     </section>
   );
 }

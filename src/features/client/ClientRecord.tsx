@@ -38,12 +38,12 @@ export function ClientRecord() {
         <div className="card mb-3 flex items-center justify-between">
           <div>
             <div className="font-semibold">{rec.patientName}</div>
-            <div className="text-[12px] text-ink-secondary" dir="ltr">
+            <div className="text-[12px] text-ink-2" dir="ltr">
               {rec.code}
             </div>
           </div>
           {rec.clinic.phone && (
-            <a href={`tel:${rec.clinic.phone}`} className="flex h-11 items-center gap-2 rounded-md border border-border px-3 text-gold-ink">
+            <a href={`tel:${rec.clinic.phone}`} className="flex h-11 items-center gap-2 rounded-md border border-border px-3 text-primary-on-tint">
               <Phone size={16} /> <span dir="ltr">{rec.clinic.phone}</span>
             </a>
           )}
@@ -72,30 +72,30 @@ function PlanView({ c }: { c: PtCase }) {
   return (
     <article className="card mb-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-bold text-gold-ink">
+        <span className="font-bold text-primary-on-tint">
           {t.client.visit} · {formatDate(c.date, lang)}
         </span>
         <Tag>{c.doctorName}</Tag>
       </div>
-      <h3 className="text-[13px] font-semibold text-ink-secondary">{t.client.areas}</h3>
+      <h3 className="text-[13px] font-semibold text-ink-2">{t.client.areas}</h3>
       <ul className="mb-3 mt-1 flex flex-col gap-1">
         {c.findings.map((f) => (
           <li key={f.key} className="text-[14px]">
-            <b>{bi(f.label)}</b> — <span className="text-ink-secondary">{bi(f.patient)}</span>
+            <b>{bi(f.label)}</b> — <span className="text-ink-2">{bi(f.patient)}</span>
           </li>
         ))}
       </ul>
-      <h3 className="text-[13px] font-semibold text-ink-secondary">{t.client.timeline}</h3>
-      <ol className="mt-1 flex flex-col gap-1.5 border-s border-gold/40 ps-3">
+      <h3 className="text-[13px] font-semibold text-ink-2">{t.client.timeline}</h3>
+      <ol className="mt-1 flex flex-col gap-1.5 border-s border-primary/40 ps-3">
         {c.sessions.map((s) => (
           <li key={s.index} className="text-[14px]">
             <span className="font-semibold">{t.plan.session(num(s.index + 1))}</span>
-            {s.after && <span className="text-[12px] text-ink-tertiary"> · {bi(s.after)}</span>}
-            <div className="text-ink-secondary">{s.items.map(bi).join('، ')}</div>
+            {s.after && <span className="text-[12px] text-muted"> · {bi(s.after)}</span>}
+            <div className="text-ink-2">{s.items.map(bi).join('، ')}</div>
           </li>
         ))}
       </ol>
-      <p className="mt-3 text-[11px] text-ink-tertiary">{t.report.disclaimer}</p>
+      <p className="mt-3 text-[11px] text-muted">{t.report.disclaimer}</p>
     </article>
   );
 }
@@ -119,7 +119,7 @@ function PhotosView({ rec, c, photos }: { rec: PtRecord; c: PtCase; photos: PtPh
       {before && sim && (
         <Section title={t.client.simulation}>
           <CompareSlider left={before.blob} right={sim.blob} leftLabel={t.age.before} rightLabel={`${t.age.afterSim} · ${num(c.targetAge)}`} />
-          <p className="mt-1 text-[11px] text-ink-tertiary">{t.age.simNote}</p>
+          <p className="mt-1 text-[11px] text-muted">{t.age.simNote}</p>
         </Section>
       )}
       {before && after && (
@@ -137,7 +137,7 @@ function PhotosView({ rec, c, photos }: { rec: PtRecord; c: PtCase; photos: PtPh
         </div>
       </Section>
       <Section title={t.client.progress}>
-        <p className="mb-2 text-[13px] text-ink-secondary">{t.client.progressHint}</p>
+        <p className="mb-2 text-[13px] text-ink-2">{t.client.progressHint}</p>
         <div className="flex flex-col gap-2">
           {views.map((v) => {
             const p = of('progress', v);
@@ -164,7 +164,7 @@ function Thumb({ blob, label }: { blob: Blob; label: { fa: string; en: string } 
   return (
     <figure>
       {url && <img src={url} alt={bi(label)} className="aspect-[3/4] w-full rounded-md object-cover" />}
-      <figcaption className="truncate text-center text-[11px] text-ink-secondary">{bi(label)}</figcaption>
+      <figcaption className="truncate text-center text-[11px] text-ink-2">{bi(label)}</figcaption>
     </figure>
   );
 }
@@ -182,7 +182,7 @@ function CareView({ rec }: { rec: PtRecord }) {
       ) : (
         items.map((a, i) => (
           <article key={`${a.modality}-${i}`} className="card mb-2">
-            <h3 className="font-semibold text-gold-ink">{t.plan.modality[a.modality] ?? a.modality}</h3>
+            <h3 className="font-semibold text-primary-on-tint">{t.plan.modality[a.modality] ?? a.modality}</h3>
             <p className="mt-1 whitespace-pre-line text-[14px]">{a.text}</p>
           </article>
         ))
@@ -200,7 +200,7 @@ function ChatView({ code, messages, queuedPhotos }: { code: string; messages: { 
   return (
     <div className="flex flex-col gap-2">
       {messages.map((m) => (
-        <div key={m.id} className={`max-w-[85%] rounded-lg px-3 py-2 ${m.from === 'patient' ? 'self-end bg-gold-tint text-gold-ink' : 'self-start bg-surface-2'}`}>
+        <div key={m.id} className={`max-w-[85%] rounded-lg px-3 py-2 ${m.from === 'patient' ? 'self-end bg-primary-tint text-primary-on-tint' : 'self-start bg-surface-2'}`}>
           <div className="mb-0.5 text-[11px] opacity-70">
             {m.from === 'patient' ? t.patient.fromPatient : t.patient.fromDoctor} · {formatDate(m.at, lang).split(' (')[0]}
             {m.from === 'patient' && !m.sent && ` · ${t.client.queued}`}
@@ -219,8 +219,8 @@ function ChatView({ code, messages, queuedPhotos }: { code: string; messages: { 
       >
         <Send size={16} /> {t.client.addQuestion}
       </Button>
-      <p className="mt-2 text-[12px] text-ink-secondary">{t.client.sendHint}</p>
-      <Button variant="gold" disabled={queued === 0} onClick={async () => shareJson(await buildReplyPackage(code), `tanasob-reply-${code}.json`)}>
+      <p className="mt-2 text-[12px] text-ink-2">{t.client.sendHint}</p>
+      <Button variant="primary" disabled={queued === 0} onClick={async () => shareJson(await buildReplyPackage(code), `tanasob-reply-${code}.json`)}>
         <Share2 size={18} /> {t.client.sendToClinic} ({num(queued)})
       </Button>
     </div>

@@ -47,7 +47,7 @@ export function ReportPage() {
       <Page>
         <CaseSteps caseId={caseId} />
         {signoff ? (
-          <Notice tone="gold">
+          <Notice tone="primary">
             {t.report.signed} {formatDate(signoff.signedAt, lang)} — {signoff.doctorName}
           </Notice>
         ) : (
@@ -69,7 +69,7 @@ export function ReportPage() {
                 </Notice>
               </div>
             )}
-            <Button variant="gold" className="w-full" disabled={!ready} onClick={() => void sign()}>
+            <Button variant="primary" className="w-full" disabled={!ready} onClick={() => void sign()}>
               {t.report.sign}
             </Button>
           </>
@@ -98,7 +98,7 @@ export function ReportPage() {
                 <Share2 size={18} /> {t.patient.exportPkg}
               </Button>
             )}
-            {note && <Notice tone="gold">{note}</Notice>}
+            {note && <Notice tone="primary">{note}</Notice>}
           </div>
         )}
       </Page>

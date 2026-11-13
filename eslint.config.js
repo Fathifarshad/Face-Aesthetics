@@ -18,6 +18,16 @@ export default tseslint.config(
     },
   },
   {
+    // Image engine and clinical data stay free of React and UI code so they can be tested alone (SUPERPROMPT: stack).
+    files: ['src/engine/**/*.ts', 'src/data/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: ['react', 'react-dom', 'react-*', '**/features/**', '**/components/**', '**/store/**'] },
+      ],
+    },
+  },
+  {
     files: ['scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },

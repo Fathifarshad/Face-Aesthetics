@@ -41,7 +41,7 @@ export const SERVICES: readonly ServiceDef[] = [
     views: ['frontal', 'oblique-r', 'oblique-l', 'profile-r', 'profile-l', 'smile', 'lips-pursed'],
   },
   { id: 'eyes-teartrough', label: { fa: 'زیر چشم', en: 'Tear trough / eyes' }, views: ['frontal', 'oblique-r', 'oblique-l', 'smile'] },
-  { id: 'upper-toxin', label: { fa: 'بوتاکس بالای صورت', en: 'Upper-face toxin' }, views: ['frontal', 'frown', 'brows-raised', 'smile'] },
+  { id: 'upper-toxin', label: { fa: 'توکسین بالای صورت', en: 'Upper-face toxin' }, views: ['frontal', 'frown', 'brows-raised', 'smile'] },
   {
     id: 'midface-cheek',
     label: { fa: 'گونه و میانهٔ صورت (فیلر/نخ)', en: 'Cheek & mid-face (filler/threads)' },

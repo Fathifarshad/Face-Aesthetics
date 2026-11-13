@@ -3,19 +3,21 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { APP_NAME } from './src/app/config';
 
 export default defineConfig(({ mode }) => ({
   base: process.env.BASE_PATH ?? '/',
   plugins: [
     react(),
+    { name: 'app-name', transformIndexHtml: (html: string) => html.replaceAll('%APP_NAME%', APP_NAME.fa) },
     ...(mode === 'https' ? [basicSsl()] : []),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'Tanasob — Face Aesthetic Analysis',
-        short_name: 'Tanasob',
-        description: 'Measured aesthetic analysis and treatment planning',
+        name: `${APP_NAME.en} — Face Aesthetic Simulation & Planning`,
+        short_name: APP_NAME.en,
+        description: 'Aesthetic analysis, simulation and treatment planning for physicians',
         lang: 'fa',
         dir: 'rtl',
         theme_color: '#0A0A0B',

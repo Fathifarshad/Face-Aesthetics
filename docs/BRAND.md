@@ -1,60 +1,245 @@
-# Brand and design system
+# راهنمای برند — نوا (NEVA)
 
-## 1. Product brand
-- Working name: `[APP_NAME]` (placeholder). Name ideas to check for trademark/domain availability before use:
-  "Chehreh Pro" (چهره‌پرو), "Tanasob" (تناسب), "Proporta"
-- Positioning (fa): «دستیار آنالیز و برنامه‌ریزی درمان زیبایی، ویژهٔ پزشک»
-- Positioning (en): "Measured aesthetic analysis and treatment planning for physicians"
-- Working name in the app: «تناسب» / Tanasob (trademark check still pending)
-- Personality: clinical, calm, precise, respectful; premium black & gold look, never a "beauty filter"
-- Logo: wordmark in Vazirmatn 700 + a simple mark (face outline with a vertical midline and three horizontal thirds lines). Placeholder until designed
+نسخهٔ 2.0 · 2026-11-13 · جایگزین `docs/BRAND.md` در کیت قبلی
 
-## 2. Clinic / doctor branding (white-label, in Settings)
-Shown on the patient report and the app header:
-- Clinic logo (PNG/SVG, max 512 px), clinic name, address, phone
-- Doctor name, title, medical council (licence) number, signature image
-- Report accent color (validated for ≥ 4.5:1 contrast on white; fallback to primary if it fails)
-- Optional footer line (website / Instagram handle)
-The app brand stays small on reports ("prepared with [APP_NAME]").
+فونت، اندازه‌ها و اجزا از 7 صفحهٔ طراحی‌شدهٔ قبلی استخراج شده‌اند. **رنگ‌ها طبق تصمیم مالک (2026-11-13) مشکی و طلایی‌اند**، نه سبزآبیِ ماک‌آپ‌ها؛ ماک‌آپ‌ها فقط مرجع چیدمان و سلسله‌مراتب‌اند.
 
-## 3. Design tokens — BLACK & GOLD (decided 2026-10-27, replaces the teal mockup palette)
-The mockups in docs/design/screens/ remain the reference for layout and hierarchy only; colours come from
-this table (source of truth in `tailwind.config.ts`).
+## 1. هویت
 
-| Token | Value | Use |
-|---|---|---|
-| bg | #0A0A0B | app background |
-| surface / surface-2 | #141416 / #1C1C20 | cards / inputs, inactive chips |
-| border | #2C2A26 | card borders |
-| ink | #F4EFE4 | main text |
-| ink-secondary | #B5AE9F | secondary text (≥ 4.5:1 on bg and surface) |
-| ink-tertiary | #8C8577 | captions |
-| gold | #D4AF37 | primary accent, active states, mask, focus ring |
-| gold-hover / gold-deep | #E6C65C / #A8862A | hover / gradient end |
-| gold-tint / gold-ink | #2A2414 / #F1D98A | selected chips bg / text on tint |
-| primary button | gradient #F1D98A → #D4AF37 → #A8862A, text #0A0A0B | |
-| warn bg / ink | #3A2A10 / #F5C26B | warnings |
-| priority | #F08A4B | high-severity marks |
-| danger | #F0524F | danger zones, emergency |
-| ok | #7FD6A0 | passed checks |
-| radius.sm / md / lg / xl | 10 / 12 / 14 / 20 px | chips-buttons / inputs / cards / image panels |
-| touch target | ≥ 44 px | all interactive elements |
+| | |
+|---|---|
+| نام | **نوا** (NEVA). فقط در `src/app/config.ts` (`APP_NAME`) نوشته می‌شود؛ بررسی نشان تجاری و دامنه هنوز انجام نشده |
+| یک‌خطی | دستیار مشاورهٔ زیبایی برای پزشک: آنالیز، شبیه‌سازی و طرح درمان در یک جریان |
+| مخاطب | پزشک و تزریق‌کننده. بیمار پروندهٔ تأییدشدهٔ خودش را در اپ کلاینت می‌بیند |
+| شخصیت | دقیق، آرام، بی‌ادعا. شبیه یک دستگاه اندازه‌گیری خوب، نه یک اپ زیبایی |
 
-Printed patient reports stay light (white paper) with the clinic accent; default report accent #7A5F12
-(dark gold, 6:1 on white). Accents under 4.5:1 fall back automatically.
+**سه اصل برند**
 
-## 4. Typography
-- Family: Vazirmatn (variable), fallback Tahoma, sans-serif; Latin also Vazirmatn for consistency
-- Scale: 24/700 page title (lists) · 18/700 screen title · 16/600 section/primary button · 15/600 card title · 14/400 body · 13 secondary · 12 caption · 11 minimum (labels only)
-- Numbers: Persian digits in fa UI (`Intl.NumberFormat('fa-IR')`), Latin digits in en; measurements always with unit
-- Line height 1.6 for Persian body text
+1. **ابزار بالینی، نه ویترین.** رابط خنثی است تا عکس بیمار مرکز توجه بماند.
+2. **صداقت دربارهٔ قطعیت.** هر چیزِ تخمینی، تخمینی دیده می‌شود.
+3. **احترام به بیمار.** از واژه‌های «عیب» و «نقص» استفاده نمی‌کنیم.
 
-## 5. Iconography and imagery
-- Stroke icons, 1.8 px, rounded caps (e.g., Lucide). No emoji
-- Face illustrations: neutral line drawings; never stock "beauty" photos
-- Heat zones: primary (moderate) and priority-high (high) at 20–35 % opacity
+## 2. لحن و واژه‌ها
 
-## 6. Voice
-- Doctor-facing: precise and short. "گودی زیر چشم · درجهٔ 3 از 4 · اطمینان بالا"
-- Patient-facing: plain, warm, no jargon, no judgement (see docs/SAFETY.md §3)
-- Always state uncertainty plainly: «تقریبی»، «پیشنهاد؛ تصمیم با پزشک»
+- جمله‌های کوتاه، فعل معلوم، بدون تعارف.
+- دکمه دقیقاً همان کاری را می‌گوید که انجام می‌دهد: «تأیید درجه»، نه «ادامه».
+- خطا می‌گوید چه شد و چه باید کرد: «سر حدود 12 درجه چرخیده. عکس روبه‌رو را دوباره بگیرید.»
+- اعداد با رقم لاتین (0 تا 9) و واحد لاتین: `0.5 mL`، `20 U`. داخل `<bdi>` تا در متن فارسی جابه‌جا نشوند.
+
+| بنویس | ننویس |
+|---|---|
+| شبیه‌سازی | پیش‌بینی نتیجه، نتیجهٔ تضمینی |
+| پیشنهاد | تجویز، دستور |
+| تخمین، بازه | مقدار دقیق |
+| ناحیهٔ قابل بهبود | عیب، نقص، مشکل چهره (در متن رو به بیمار) |
+| متناسب با سن | ضد پیری، جوان‌سازی معجزه‌آسا |
+| تأییدنشده | (پنهان کردن وضعیت) |
+
+**واژه‌نامهٔ ثابت** (همه‌جا همین معادل):
+
+| انگلیسی | فارسی در رابط |
+|---|---|
+| Nasolabial fold | چین نازولبیال (خط خنده) |
+| Tear trough | گودی زیر چشم |
+| Glabellar lines | خط اخم |
+| Crow's feet | پنجه‌کلاغی |
+| Marionette lines | خطوط ماریونت |
+| Jowl / Jawline | جول / خط فک |
+| Botulinum toxin | توکسین (نه «بوتاکس»، که نام تجاری است) |
+| HA filler | فیلر HA |
+| Biostimulator | بیواستیمولاتور |
+| Thread lift | لیفت با نخ |
+| Downtime | نقاهت |
+| Before / After | قبل / بعد |
+| Simulation | شبیه‌سازی |
+| Consent | رضایت‌نامه |
+
+**متن‌های ثابت**
+
+- برچسب تصویر: «شبیه‌سازی؛ نتیجهٔ واقعی متفاوت است»
+- زیر تخمین‌ها: «بازهٔ تخمینی. مقدار نهایی با معاینه و نظر پزشک تعیین می‌شود.»
+- زیر حالت MD Codes: «MD Codes™ نشان تجاری است. جانمایی تقریبی است و راهنمای تزریق نیست.»
+
+## 3. رنگ
+
+تم مشکی و طلایی است: زمینهٔ تیرهٔ خنثی تا عکس بیمار مرکز توجه بماند، و طلایی فقط برای عمل اصلی و حالت فعال. نارنجی فقط برای اولویت و خطر است، نه تزئین.
+
+مقدارها فقط در `src/styles.css` نوشته می‌شوند، به‌صورت سه کانال RGB تا شفافیت در Tailwind کار کند (`bg-primary/40`).
+
+```css
+:root {
+  /* سطح و متن */
+  --bg: 10 10 11;            /* #0A0A0B زمینهٔ صفحه */
+  --surface: 20 20 22;       /* #141416 کارت و نوار */
+  --surface-2: 28 28 32;     /* #1C1C20 تراشهٔ خنثی، ورودی */
+  --track: 35 35 39;         /* #232327 زمینهٔ کنترل قطعه‌ای، قسمت خالی نوار درجه */
+  --border: 44 42 38;        /* #2C2A26 */
+  --ink: 244 239 228;        /* #F4EFE4 متن اصلی */
+  --ink-2: 181 174 159;      /* #B5AE9F متن ثانویه */
+  --muted: 140 133 119;      /* #8C8577 زیرنویس */
+  --line: 135 150 160;       /* #8796A0 خطوط راهنما روی چهره */
+
+  /* اصلی (طلایی) */
+  --primary: 212 175 55;         /* #D4AF37 */
+  --primary-hover: 230 198 92;   /* #E6C65C */
+  --primary-deep: 168 134 42;    /* #A8862A انتهای گرادیان دکمهٔ اصلی */
+  --primary-tint: 42 36 20;      /* #2A2414 زمینهٔ انتخاب‌شده */
+  --primary-on-tint: 241 217 138;/* #F1D98A متن روی tint */
+  --on-primary: 10 10 11;        /* متن روی طلایی */
+
+  /* معنایی */
+  --priority: 240 138 75;         /* #F08A4B اولویت بالا روی نقشهٔ چهره */
+  --priority-strong: 242 112 61;  /* #F2703D درجهٔ 3 و 4 */
+  --risk-bg: 58 42 16;            /* #3A2A10 برچسب خطر و هشدار */
+  --risk-fg: 245 194 107;         /* #F5C26B */
+  --danger: 240 82 79;            /* #F0524F حذف، کد هشدار MD Codes */
+  --ok: 127 214 160;              /* #7FD6A0 بررسی قبول‌شده */
+  --draft-bg: 51 43 10;           /* #332B0A نشان «تأییدنشده» */
+  --draft-fg: 255 217 102;        /* #FFD966 */
+
+  /* عکس بالینی و گزارش چاپی */
+  --photo: 5 5 5;                 /* زمینهٔ عکس و دوربین */
+  --paper: 255 255 255;           /* گزارش چاپی و کادر امضا همیشه روشن‌اند */
+  --paper-2: 244 246 247;
+  --paper-ink: 21 33 43;
+  --paper-muted: 82 97 107;
+  --paper-border: 220 226 230;
+}
+```
+
+**قواعد**
+
+- هر رنگ فقط از توکن خوانده شود؛ مقدار هگز یا `rgb()` مستقیم در اجزا ممنوع است. تست `src/app/guards.test.ts` این را بررسی می‌کند.
+- برای بوم (canvas) و SVG از `cssToken()` و `svgToken()` در `src/lib/tokens.ts` استفاده شود.
+- متن روی `--primary` همیشه `--on-primary`. متن روی `--primary-tint` همیشه `--primary-on-tint`.
+- رنگ هرگز تنها حامل معنا نیست: درجه هم نوار دارد هم عدد، خطر هم رنگ دارد هم برچسب.
+- **زمینهٔ عکس بالینی همیشه خنثی است** (`--photo`) تا رنگ پوست را عوض نشان ندهد. هیچ فیلتر، گرادیان یا رنگ برند روی عکس نیاید.
+- گرادیان طلایی فقط روی دکمهٔ اصلی و نام اپ در صفحهٔ آغاز مجاز است.
+- گزارش چاپی روشن می‌ماند (توکن‌های `--paper-*`). رنگ تأکید گزارش را کلینیک انتخاب می‌کند و اگر کنتراستش روی سفید کمتر از 4.5 به 1 باشد، رنگ پیش‌فرض جایگزین می‌شود.
+- تم روشن در این نسخه نیست. اگر اضافه شد، فقط مقدار توکن‌ها عوض شود.
+- `index.html` و مانیفست PWA مقدار `--bg` را برای نوار مرورگر تکرار می‌کنند.
+
+**درجهٔ شدت (0 تا 4):** نوار پنج‌قسمتی. درجه‌های 1 و 2 با `--primary`، درجه‌های 3 و 4 با `--priority-strong`، قسمت خالی `--track`.
+
+## 4. تایپوگرافی
+
+یک خانواده برای همه‌چیز: **Vazirmatn** با وزن‌های 400، 500، 600 و 700. پشتیبان: `Tahoma, sans-serif`. فونت از خود اپ سرو شود (نه CDN) تا اپ آفلاین کار کند.
+
+| نقش | اندازه | وزن | کاربرد |
+|---|---|---|---|
+| عنوان صفحه | 18px | 700 | نوار بالا |
+| عنوان بخش | 15px | 600 | سر کارت و فهرست |
+| متن | 14px | 400 یا 600 | بدنه و نام گزینه |
+| کنترل | 13px | 600 | تراشه، دکمهٔ کوچک، زبانه |
+| زیرنویس | 12px | 400 | توضیح، مقیاس، وضعیت |
+| برچسب | 11px | 600 | نشان و تگ |
+| دکمهٔ اصلی | 16px | 600 | دکمهٔ پایین صفحه |
+
+- ارتفاع خط 1.6 برای متن و 1.3 برای عنوان.
+- ستون‌های عددی با `font-variant-numeric: tabular-nums`.
+- متن وسط‌چین نشود مگر عنوان نوار بالا و دکمه.
+
+## 5. فاصله، گوشه، سایه
+
+- شبکهٔ فاصله: 4، 6، 8، 10، 12، 14، 16، 20. حاشیهٔ افقی صفحه 16px.
+- بوم طراحی: 390×844. رابط باید از 360 تا 430 بدون شکستگی کار کند و در تبلت دوستونه شود (عکس یک طرف، فهرست طرف دیگر).
+
+| عنصر | شعاع گوشه |
+|---|---|
+| قاب عکس | 18px |
+| کارت، دکمهٔ اصلی | 14px |
+| دکمهٔ نوار بالا، کنترل قطعه‌ای | 12px |
+| دکمهٔ کوچک | 10px |
+| تگ | 6px |
+| تراشه و زبانه | 999px |
+
+- جداسازی با حاشیهٔ 1px از `--border` است، نه سایه. سایه فقط برای لایه‌های شناور (برگهٔ پایین، دستگیرهٔ اسلایدر).
+- هدف لمسی حداقل 44×44. دکمهٔ اصلی 52px ارتفاع.
+
+## 6. اجزا
+
+**دکمه‌ها**
+
+| نوع | ظاهر |
+|---|---|
+| اصلی | گرادیان طلایی (`--primary-on-tint` به `--primary` به `--primary-deep`)، متن `--on-primary`، ارتفاع 52، یکی در هر صفحه |
+| ثانویه | زمینهٔ `--surface`، حاشیهٔ `--border`، متن `--ink` |
+| وارونه | زمینهٔ `--ink`، متن `--bg` (ورود به حالت MD Codes) |
+| ملایم | زمینهٔ `--primary-tint`، متن `--primary-on-tint` (تأیید درون کارت) |
+
+**کارت یافته:** نام ناحیه و نام مقیاس در یک سطر؛ نوار درجه، «درجهٔ 3 از 4» و سطح اطمینان در سطر بعد؛ سه دکمهٔ تأیید، ویرایش شدت، رد.
+
+**کارت گزینهٔ درمان:** دکمهٔ رادیویی، عنوان، یک سطر توضیح، تگ‌ها. گزینهٔ انتخاب‌شده حاشیهٔ 2px از `--primary` دارد. تگ‌ها سه رنگ دارند: شواهد (`--primary-tint`)، خطر (`--risk-bg`)، خنثی (`--surface-2`). بازهٔ تخمین و هزینه در سمت چپ کارت با اعداد هم‌عرض.
+
+**اسلایدر قبل/بعد:** خط عمودی 2px با رنگ `--ink` و دستگیرهٔ گرد 44px. برچسب «قبل» و «بعد» در دو گوشهٔ بالای عکس. جهت کشیدن به جهت متن وابسته نیست.
+
+**اسلایدر شدت:** مسیر 4px، دستگیرهٔ 24px، مقدار درصد کنار آن. زیر آن کلید «آینهٔ دو طرف».
+
+**نشانگر MD Codes:** دایرهٔ 22px با کد درون آن (مثلاً Ck1). عادی با `--ink`، کد هشدار با `--danger` و حلقهٔ بیرونی.
+
+**نشان وضعیت:** «تأییدنشده» با `--draft-bg`؛ «ویرایش پزشک» با `--surface-2`؛ «دادهٔ نمونه» با `--surface-2`.
+
+**برچسب شبیه‌سازی:** نوار نیمه‌شفاف تیره پایین تصویر با متن سفید 11px. در خروجی PDF و تصویر ذخیره‌شده هم سوخته می‌شود و قابل خاموش کردن نیست.
+
+**نشان رضایت:** سه نقطهٔ وضعیت کنار نام بیمار (آنالیز، رندر ابری، قبل و بعد). پر یعنی ثبت‌شده، توخالی یعنی ثبت‌نشده، خط‌خورده یعنی پس‌گرفته.
+
+## 7. نقشهٔ چهره و لایه‌ها
+
+- خطوط راهنما (یک‌سوم‌ها و خط میانی) خط‌چین با `--line`.
+- نواحی اولویت بالا با `--priority` و شفافیت 0.3؛ اولویت متوسط با `--primary` و شفافیت 0.2.
+- ناحیهٔ انتخاب‌شده حاشیهٔ 2px و بدون پرشدگی، تا پوست زیر آن دیده شود.
+- لایه‌ها با یک لمس خاموش می‌شوند. عکس بدون لایه همیشه در دسترس است.
+
+## 8. آیکن و تصویر
+
+- آیکن خطی، شبکهٔ 24، ضخامت 2، سر گرد. پرشده فقط برای حالت فعال.
+- در رابط راست‌به‌چپ، پیکان «بازگشت» به راست اشاره می‌کند.
+- ایموجی به‌عنوان آیکن استفاده نشود.
+- عکس استوک از «چهرهٔ بی‌نقص»، مدل، یا تصویر تبلیغاتی در اپ نیاید. حالت خالی با طرح خطی سادهٔ چهره نشان داده شود.
+- عکس واقعی بیمار در اسکرین‌شات، دمو یا مواد بازاریابی فقط با رضایت سطح 3.
+
+## 9. حرکت
+
+- گذارها 150 تا 200 میلی‌ثانیه با `ease-out`.
+- تغییر تصویر شبیه‌سازی با اسلایدر، آنی و بدون انیمیشن است.
+- بدون جلوهٔ نمایشی (درخشش، ذره، جشن). با `prefers-reduced-motion` همهٔ گذارها خاموش شوند.
+
+## 10. دسترس‌پذیری و راست‌به‌چپ
+
+- `html[dir="rtl"][lang="fa"]`. از ویژگی‌های منطقی CSS استفاده شود (`margin-inline-start`، نه `margin-left`).
+- کنتراست متن حداقل 4.5 به 1. جفت‌های توکنی بالا این شرط را دارند.
+- حلقهٔ فوکوس 2px از `--primary` با فاصلهٔ 2px روی همهٔ کنترل‌ها.
+- با `prefers-reduced-motion` همهٔ گذارها خاموش می‌شوند (در `src/styles.css`).
+- هر تصویر و لایه متن جایگزین دارد («نقشهٔ نواحی اولویت‌دار روی چهره»).
+- نوار درجه `aria-label` دارد («شدت 3 از 4»).
+
+## 11. بکن و نکن
+
+| بکن | نکن |
+|---|---|
+| عکس بیمار بزرگ‌ترین عنصر صفحه باشد | عکس را زیر لایه و برچسب پنهان کردن |
+| بازه و واحد را کنار هم نشان بده | عدد تک بدون واحد |
+| وضعیت «تأییدنشده» را نشان بده | پنهان کردن عدم قطعیت برای زیباتر شدن رابط |
+| یک دکمهٔ اصلی در هر صفحه | چند دکمهٔ طلایی کنار هم |
+| نارنجی فقط برای اولویت و خطر | نارنجی برای تزئین یا تأکید معمولی |
+| متن خنثی و بالینی | صورتی، گرادیان تزئینی، طلایی روی عکس بیمار، واژه‌های تبلیغاتی |
+
+## 12. توکن‌ها برای Tailwind
+
+منبع: `tailwind.config.ts`. هر رنگ از متغیر CSS خوانده می‌شود.
+
+```ts
+const token = (name: string) => `rgb(var(--${name}) / <alpha-value>)`;
+// theme.extend
+colors: {
+  bg, surface, 'surface-2', track, border, ink: { DEFAULT, 2 }, muted, line,
+  primary: { DEFAULT, hover, deep, tint, 'on-tint' }, 'on-primary',
+  priority: { DEFAULT, strong }, risk: { bg, fg }, danger, ok, draft: { bg, fg },
+  photo, paper: { DEFAULT, 2, ink, muted, border },
+},
+borderRadius: { tag: '6px', sm: '10px', md: '12px', card: '14px', photo: '18px', pill: '999px' },
+fontFamily: { sans: ['"Vazirmatn Variable"', 'Vazirmatn', 'Tahoma', 'sans-serif'] },
+fontSize: { label: '11px', caption: '12px', control: '13px', body: '14px', section: '15px', cta: '16px', title: '18px' },
+```
+
+نمونهٔ کلاس‌ها: `bg-surface`، `text-ink-2`، `text-muted`، `border-primary`، `bg-primary-tint text-primary-on-tint`، `bg-risk-bg text-risk-fg`، `bg-draft-bg text-draft-fg`.

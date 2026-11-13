@@ -2,6 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens (docs/BRAND.md §3). This file is the only place colour values are written.
+ * Values are RGB channels so Tailwind opacity modifiers (bg-primary/40) keep working.
+ * index.html and the PWA manifest repeat --bg for the browser chrome.
+ */
+:root {
+  /* surface and text */
+  --bg: 10 10 11;
+  --surface: 20 20 22;
+  --surface-2: 28 28 32;
+  --track: 35 35 39;
+  --border: 44 42 38;
+  --ink: 244 239 228;
+  --ink-2: 181 174 159;
+  --muted: 140 133 119;
+  --line: 135 150 160;
+
+  /* primary (gold) */
+  --primary: 212 175 55;
+  --primary-hover: 230 198 92;
+  --primary-deep: 168 134 42;
+  --primary-tint: 42 36 20;
+  --primary-on-tint: 241 217 138;
+  --on-primary: 10 10 11;
+
+  /* semantic */
+  --priority: 240 138 75;
+  --priority-strong: 242 112 61;
+  --risk-bg: 58 42 16;
+  --risk-fg: 245 194 107;
+  --danger: 240 82 79;
+  --ok: 127 214 160;
+  --draft-bg: 51 43 10;
+  --draft-fg: 255 217 102;
+
+  /* clinical photo backdrop (neutral, never tinted) and debug marks on photos */
+  --photo: 5 5 5;
+  --mark: 127 214 211;
+
+  /* printed report and signature pad (light paper) */
+  --paper: 255 255 255;
+  --paper-2: 244 246 247;
+  --paper-ink: 21 33 43;
+  --paper-muted: 82 97 107;
+  --paper-border: 220 226 230;
+
+  /* height of the doctor tab bar; 0 outside the shell */
+  --tabbar-h: 0px;
+  --bar-pb: max(16px, env(safe-area-inset-bottom, 0px));
+}
+
 @layer base {
   html,
   body,
@@ -15,12 +66,12 @@
     -webkit-tap-highlight-color: transparent;
   }
   :focus-visible {
-    @apply outline outline-2 outline-offset-2 outline-gold;
+    @apply outline outline-2 outline-offset-2 outline-primary;
   }
   input,
   select,
   textarea {
-    @apply rounded-md border border-border bg-surface-2 px-3 text-ink placeholder:text-ink-tertiary;
+    @apply rounded-md border border-border bg-surface-2 px-3 text-ink placeholder:text-muted;
     min-height: 44px;
   }
   textarea {
@@ -28,29 +79,43 @@
   }
   input[type='range'] {
     @apply min-h-0 border-0 bg-transparent px-0;
-    accent-color: #d4af37;
+    accent-color: rgb(var(--primary));
   }
   input[type='checkbox'] {
     @apply min-h-0;
-    accent-color: #d4af37;
+    accent-color: rgb(var(--primary));
+  }
+  bdi {
+    font-variant-numeric: tabular-nums;
   }
 }
 
 @layer components {
-  .gold-text {
-    background: linear-gradient(135deg, #f1d98a 0%, #d4af37 45%, #a8862a 100%);
+  .brand-text {
+    background: linear-gradient(135deg, rgb(var(--primary-on-tint)) 0%, rgb(var(--primary)) 45%, rgb(var(--primary-deep)) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-  }
-  .gold-border {
-    border-image: linear-gradient(135deg, #f1d98a, #a8862a) 1;
   }
   .card {
     @apply rounded-lg border border-border bg-surface p-3.5;
   }
   .label {
-    @apply mb-1 block text-[13px] text-ink-secondary;
+    @apply mb-1 block text-[13px] text-ink-2;
+  }
+  /* Doctor shell: reserves room for the five-section tab bar. */
+  .has-tabbar {
+    --tabbar-h: calc(60px + env(safe-area-inset-bottom, 0px));
+    --bar-pb: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }
 
@@ -60,8 +125,8 @@
     margin: 14mm;
   }
   body {
-    background: #fff !important;
-    color: #15212b !important;
+    background: rgb(var(--paper)) !important;
+    color: rgb(var(--paper-ink)) !important;
   }
   .no-print {
     display: none !important;

@@ -303,13 +303,13 @@ export const CATALOG: Record<string, CatalogEntry> = {
   'lowerFace.ratio': m(
     { fa: 'نسبت لب بالا به چانه', en: 'Lower-face ratio' },
     'proportions',
-    { fa: 'ساب‌نازال تا استومیون تقسیم بر استومیون تا منتون (ایده‌آل ≈ ۱:۲).', en: 'Subnasale–stomion / stomion–menton (≈ 1:2).' },
+    { fa: 'ساب‌نازال تا استومیون تقسیم بر استومیون تا منتون (ایده‌آل ≈ 1:2).', en: 'Subnasale–stomion / stomion–menton (≈ 1:2).' },
     { fa: 'تناسب پایین صورت', en: 'Lower-face balance' },
   ),
   fifths: m(
     { fa: 'پنج‌قسمتی عرضی', en: 'Facial fifths' },
     'proportions',
-    { fa: 'پنج عرض افقی تقسیم بر میانگین عرض چشم؛ مقدار = بیشترین انحراف از ۱.', en: 'Five horizontal widths / mean eye width; value = largest deviation from 1.' },
+    { fa: 'پنج عرض افقی تقسیم بر میانگین عرض چشم؛ مقدار = بیشترین انحراف از 1.', en: 'Five horizontal widths / mean eye width; value = largest deviation from 1.' },
     { fa: 'تناسب عرضی صورت', en: 'Horizontal facial balance' },
   ),
   'intercanthal.ratio': m(
@@ -345,7 +345,7 @@ export const CATALOG: Record<string, CatalogEntry> = {
   'lips.upperToLower': m(
     { fa: 'نسبت لب بالا به پایین', en: 'Upper-to-lower lip ratio' },
     'lips',
-    { fa: 'ارتفاع لب بالا تقسیم بر لب پایین (مرجع ≈ ۱:۱٫۶).', en: 'Upper / lower vermilion height (≈ 1:1.6).' },
+    { fa: 'ارتفاع لب بالا تقسیم بر لب پایین (مرجع ≈ 1:1.6).', en: 'Upper / lower vermilion height (≈ 1:1.6).' },
     { fa: 'تناسب لب‌ها', en: 'Lip balance' },
   ),
   'mouth.width': m(

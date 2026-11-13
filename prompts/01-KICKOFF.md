@@ -1,5 +1,7 @@
 # Kickoff super-prompt (first session only)
 
+> Superseded on 2026-11-13 by `prompts/SUPERPROMPT.md` (PRD 2.0). Kept for history; do not use.
+
 Set before sending: model `opusplan` (or Opus), effort `high`, permission mode **Plan**.
 Paste everything below the line.
 

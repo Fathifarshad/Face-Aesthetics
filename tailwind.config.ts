@@ -1,31 +1,54 @@
 import type { Config } from 'tailwindcss';
 
+/** Colours are read from the CSS variables in src/styles.css (docs/BRAND.md §3). No hex values here. */
+const token = (name: string) => `rgb(var(--${name}) / <alpha-value>)`;
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        bg: '#0A0A0B',
-        surface: '#141416',
-        'surface-2': '#1C1C20',
-        border: '#2C2A26',
-        ink: '#F4EFE4',
-        'ink-secondary': '#B5AE9F',
-        'ink-tertiary': '#8C8577',
-        gold: {
-          DEFAULT: '#D4AF37',
-          hover: '#E6C65C',
-          deep: '#A8862A',
-          tint: '#2A2414',
-          ink: '#F1D98A',
+        bg: token('bg'),
+        surface: token('surface'),
+        'surface-2': token('surface-2'),
+        track: token('track'),
+        border: token('border'),
+        ink: { DEFAULT: token('ink'), 2: token('ink-2') },
+        muted: token('muted'),
+        line: token('line'),
+        primary: {
+          DEFAULT: token('primary'),
+          hover: token('primary-hover'),
+          deep: token('primary-deep'),
+          tint: token('primary-tint'),
+          'on-tint': token('primary-on-tint'),
         },
-        warn: { bg: '#3A2A10', ink: '#F5C26B' },
-        priority: '#F08A4B',
-        danger: '#F0524F',
-        ok: '#7FD6A0',
+        'on-primary': token('on-primary'),
+        priority: { DEFAULT: token('priority'), strong: token('priority-strong') },
+        risk: { bg: token('risk-bg'), fg: token('risk-fg') },
+        danger: token('danger'),
+        ok: token('ok'),
+        draft: { bg: token('draft-bg'), fg: token('draft-fg') },
+        photo: token('photo'),
+        paper: {
+          DEFAULT: token('paper'),
+          2: token('paper-2'),
+          ink: token('paper-ink'),
+          muted: token('paper-muted'),
+          border: token('paper-border'),
+        },
       },
-      borderRadius: { sm: '10px', md: '12px', lg: '14px', xl: '20px' },
+      borderRadius: { tag: '6px', sm: '10px', md: '12px', lg: '14px', card: '14px', photo: '18px', xl: '20px', pill: '999px' },
       fontFamily: { sans: ['"Vazirmatn Variable"', 'Vazirmatn', 'Tahoma', 'sans-serif'] },
+      fontSize: {
+        label: '11px',
+        caption: '12px',
+        control: '13px',
+        body: '14px',
+        section: '15px',
+        cta: '16px',
+        title: '18px',
+      },
       minHeight: { touch: '44px' },
       minWidth: { touch: '44px' },
     },

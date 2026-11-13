@@ -1,8 +1,9 @@
+import { APP_NAME } from '../app/config';
 import type { Dict } from './fa';
 
 export const en: Dict = {
   app: {
-    name: 'Tanasob',
+    name: APP_NAME.en,
     tagline: 'Facial aesthetic analysis and treatment planning assistant',
     approx: 'approximate',
     suggestion: 'suggestion; the physician decides',
@@ -32,6 +33,38 @@ export const en: Dict = {
     client: 'Client app',
     clientDesc: 'My treatments, photos and simulation, aftercare, ask the doctor',
     privacy: 'All photos and data are stored on this device only.',
+  },
+  nav: {
+    sections: 'App sections',
+    stepsLabel: 'Steps in this section',
+    cases: 'Cases',
+    capture: 'Capture',
+    simulate: 'Simulation',
+    plan: 'Plan',
+    gallery: 'Before/After',
+    steps: {
+      intake: 'Intake & consent',
+      capture: 'Capture',
+      analysis: 'Analysis & grading',
+      age: 'Target age',
+      simulate: 'Simulation',
+      plan: 'Treatment plan',
+      mdcodes: 'MD Codes',
+      report: 'Sign-off & report',
+      gallery: 'Before/After',
+      compare: 'Compare',
+    },
+    noCaseTitle: 'No case is open',
+    noCaseBody: 'Open a visit from the case list, or create a new case, to use this section.',
+    openCases: 'Case list',
+    simulateSoonTitle: 'Per-region simulation is not built yet',
+    simulateSoonBody:
+      'Per-region sliders and treatment options applied to the image arrive in later build stages. Until then the approximate simulation is available in the “Target age” step.',
+    toAge: 'Go to target age',
+    gallerySoonTitle: 'The before/after gallery is not built yet',
+    gallerySoonBody:
+      'The gallery with three consent levels arrives in later build stages. Until then, take “after” photos in Capture and view them side by side in Compare.',
+    toCompare: 'Compare photos',
   },
   patients: {
     title: 'Patients',
@@ -332,7 +365,7 @@ export const en: Dict = {
     aftercareTitle: 'Aftercare',
     disclaimer:
       'This report is based on an approximate photo analysis and the physician’s assessment. Results vary between individuals and are not guaranteed. Simulations are approximate.',
-    preparedWith: 'Prepared with Tanasob',
+    preparedWith: `Prepared with ${APP_NAME.en}`,
     date: 'Date',
     doctor: 'Physician',
     patient: 'Client',

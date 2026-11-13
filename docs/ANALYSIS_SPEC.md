@@ -1,5 +1,7 @@
 # Analysis specification
 
+> **Status 2026-11-13:** PRD 2.0 is the source of truth. Automatic 0–4 grading of the 16 concerns follows PRD §5.2 and replaces §6 here in M5; §7 (age logic) is replaced by PRD §5.3; region geometry for the image engine is specified in prompts/SUPERPROMPT.md. §1–§5 (landmarks, capture views, calibration, proportion metrics) stay in force for the proportions tab.
+
 All functions live in `src/analysis/` as pure TypeScript and are unit-tested on fixture landmarks.
 Reference ranges below are defaults for Phase 1 and are stored in `src/analysis/norms.ts` so the clinical
 lead can edit them. Every range is marked `reviewed: false` until the clinical lead signs it off.

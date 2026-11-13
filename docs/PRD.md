@@ -1,172 +1,450 @@
-# PRD — Face Aesthetic Analysis (Phase 1: runnable web prototype)
+# PRD — وب‌اپ شبیه‌سازی و طرح درمان زیبایی چهره برای پزشکان
 
-Version 1.0 · Owner: [product owner] · Clinical lead: [physician name] · Status: ready to build
+| | |
+|---|---|
+| نسخه | 2.0 (جایگزین PRD نسخهٔ 1 کیت قبلی) به‌همراه تصمیم‌های مالک در بخش 0 |
+| تاریخ | 2026-11-13 |
+| نام محصول | نوا (NEVA)؛ فقط در `src/app/config.ts` نوشته می‌شود |
+| محدودهٔ این نسخه | صورت و گردن. بدن در فاز بعد |
+| پلتفرم | وب‌اپ موبایل‌محور (PWA)، فارسی و راست‌به‌چپ |
 
-## 1. Problem and goal
-Aesthetic physicians spend consultation time measuring faces by eye, explaining options verbally,
-and writing plans by hand. Phase 1 delivers a phone-first web app that turns standardized photos into
-a measured analysis and a structured, editable treatment plan the doctor signs and shares with the patient.
+## 0. تصمیم‌های مالک (2026-11-13)
 
-Success for Phase 1 = a doctor can go from first photo to signed PDF report in under 10 minutes,
-with every measurement traceable to a formula and every recommendation traceable to the knowledge base.
+این چهار تصمیم بر بقیهٔ این سند و بر `BRAND.md` مقدم‌اند:
 
-## 2. Users
-- Primary: licensed aesthetic physician / injector (single device, single clinic)
-- Secondary: the client (patient), who receives the signed report and uses the client app (§5.11) to view their
-  plan, photos and simulation, read aftercare, take progress photos and send questions to the doctor
-- Not in scope: consumers using the app on themselves; anyone under 18
+1. **نام:** نوا (NEVA). جایگزین «تناسب» در کد قدیم و «سیما» در پیش‌نویس این سند.
+2. **تم:** مشکی و طلایی می‌ماند. ساختار توکن‌ها، اندازه‌ها، اجزا و لحن از `BRAND.md` نسخهٔ 2.0 گرفته می‌شود؛ فقط مقدار رنگ‌ها فرق دارد.
+3. **اپ کلاینت:** می‌ماند و کامل می‌شود (بخش 5.10 و مرحلهٔ M11). پس کاربر دوم محصول، بیمار است.
+4. **روش ساخت:** مرحله‌به‌مرحله؛ برای هر مرحله طرح کوتاه، انتظار برای «ادامه»، ساخت، گزارش.
 
-## 3. Phase 1 scope
-In scope:
-1. Patient records (local), intake questionnaire, consent, BDD screening placeholder
-2. Guided capture of 11 views with live landmark mask, pose gating and quality checks; gallery upload fallback with the same checks
-3. Automatic frontal analysis (proportions, symmetry, canthal tilt, lips, face shape) with mm calibration from iris diameter
-4. Semi-automatic profile analysis (doctor taps/drags points; app computes angles)
-5. Clinician grading of volume/aging findings on 0–4 scales (app suggests, doctor decides)
-6. Actual age + target age controls; age-aware norms and plan intensity
-7. Rule-based treatment plan in 3 tiers (minimal / recommended / comprehensive) with sequencing, session caps and contraindication filtering
-8. MD Codes toggle: generic anatomical zone overlay + code table that stays empty until licensed data is added
-9. Doctor sign-off, patient report (fa/en) via print-to-PDF, consent summary
-10. Encryption at rest, auto-delete policy, export/delete patient
-11. **Approximate target-age simulation, on-device** (decided 2026-10-27): landmark-guided warp + shadow
-    softening + edge-preserving skin smoothing, scaled by target gap × graded severity; always labelled
-    "approximate"; saved with the case on the doctor's device and delivered to the client app
-12. **Client app** (same PWA, `/client` route) — see §5.11
-13. **Service-based photo protocol**: required views and counts follow the services chosen for the visit,
-    separate Before / After sections, a guide beside every view, confirm-or-retake right after capture — see §5.3
+آنالیز تناسبات نسخهٔ 1 (یک‌سوم‌ها، تقارن، کالیبراسیون با عنبیه) در این سند نیست، ولی چون ساخته و تست شده، به‌عنوان زبانهٔ فرعی آنالیز نگه داشته می‌شود.
 
-Out of scope (Phase 2+): AI skin analysis, apparent-age estimation model, *generative/AI* target-age simulation,
-3D reconstruction, backend/sync (real-time chat, push notifications), multi-user clinics, doctor license
-verification, native iOS/Android, body analysis. The UI keeps clearly-labelled placeholders for these.
+## 1. خلاصه
 
-## 4. Core flow
-Login (app PIN) → Patients list → New analysis → Intake & consent → Guided capture (11 views)
-→ Analysis (findings, confirm/edit/reject) → Age (actual/target) → Treatment plan (tiers, options per finding)
-→ MD Codes view (optional) → Sign-off → Report (PDF / private file) → Follow-up (same-angle recapture, compare)
+پزشک عکس استاندارد بیمار را می‌دهد، سن واقعی و «هدف سنی» را انتخاب می‌کند و اپ سه چیز تحویل می‌دهد:
 
-## 5. Screens and acceptance criteria
-Mockups: docs/design/screens/ (Main, Capture, Analysis, Age, Plan, MDCodes, Report). Match layout, hierarchy and tokens; content may differ.
+1. **تصویر شبیه‌سازی‌شده** از بهترین حالتِ متناسب با همان سن (مثلاً چین نازولبیال ملایم‌تر، خطوط پیشانی کمتر).
+2. **فهرست تغییرها**، هر کدام با چند گزینهٔ درمان (فیلر، توکسین، نخ، دستگاه، ترکیبی)، قابل مرتب‌سازی بر اساس نتیجه، هزینه، سرعت اثر، ماندگاری و نقاهت. انتخاب هر گزینه همان لحظه روی تصویر اعمال می‌شود.
+3. **تخمین حجم و دوز** برای هر گزینه، همراه با کد MD Codes ناحیه، و در پایان **گالری قبل و بعد** طبق پروتکل عکاسی و با رضایت ثبت‌شدهٔ بیمار.
 
-### 5.1 Patients (Main)
-- List of cases with status chip: awaiting sign-off / follow-up / complete
-- Search by name or file number; big primary button "new analysis"
-- Counters: awaiting sign-off, follow-ups this week, due for re-treatment (toxin 3–4 months, HA 9–18 months — configurable)
-- AC: 200 cases render and filter in < 200 ms on a mid-range phone
+تفاوت با نسخهٔ 1: نسخهٔ 1 فقط آنالیز و پیشنهاد می‌داد. نسخهٔ 2 تصویرِ «بعد» می‌سازد و هر تغییرِ تصویر را به یک قلم درمانی با حجم و هزینه وصل می‌کند.
 
-### 5.2 Intake, consent, screening
-- Questionnaire fields listed in docs/SAFETY.md §2; each answer can block or flag treatment options
-- Separate consent toggles: photography, analysis, storage, educational use; each revocable
-- Age < 18 → flow stops with message
-- BDD screening: validated instrument chosen by the clinical lead (`TODO(clinical)`: licence + exact items). Result visible to doctor only
-- AC: blocked options never appear in the plan; flags appear as warnings on affected options
+## 2. کاربر، مسئله، خارج از محدوده
 
-### 5.3 Guided capture
-- Services chosen at case creation (full analysis, lips, tear trough, upper-face toxin, cheek/mid-face filler or
-  threads, jawline & chin, neck, skin) determine the required views; the union is shown as "n of N required photos"
-  (`src/capture/services.ts`, `TODO(clinical)` confirm each set)
-- Two separate sections: **Before treatment** and **After treatment**, each with its own counter and progress bar;
-  the After section uses the matching Before photo as a 35 % ghost overlay
-- Every view shows a pose illustration and plain-language guide next to the capture buttons; general photography
-  rules (background, light, no makeup/filters, lens, same setup before/after) are one tap away
-- Immediately after capture or gallery upload: confirmation screen with the detected landmark mask and live QC
-  checklist (pass / fail + fix hint); actions: accept & save · use anyway (marked low quality) · retake
-- Photos are saved on the doctor's device and, after sign-off and with the "client app" consent, delivered to
-  the client app; client progress photos come back to the doctor's record as After photos (source = client)
-- 11 views per docs/ANALYSIS_SPEC.md §2 with on-screen instruction and target pose
-- Live FaceLandmarker mask; shutter enabled only when yaw/pitch/roll within ±3° of target (±5° for profile), face size within range, exposure OK, single face
-- Checklist with live pass/fail and a plain-language fix ("turn slightly toward the window")
-- Follow-up mode: ghost overlay of the previous photo of the same view at 35% opacity
-- Gallery upload runs the same checks; failing photos can be kept only with an explicit "use anyway" and are marked low-quality
-- AC: on a mid-range Android phone, landmark detection ≥ 15 fps in preview; capture → stored in < 1 s
+**کاربر اصلی:** پزشک و تزریق‌کنندهٔ دارای مجوز. همهٔ آنالیز، شبیه‌سازی و طرح درمان فقط در پنل پزشک است.
 
-### 5.4 Analysis
-- Face image with toggles: landmarks, thirds/fifths guides, symmetry midline, finding heat zones
-- Tabs: proportions · volume & aging · dynamics · skin (Phase 2 placeholder) · lips
-- Each finding card: name, value with unit, reference range, deviation, severity 0–4, confidence, source scale name; actions confirm / edit severity / reject (with reason)
-- Volume & aging findings (temple, mid-face, tear trough, nasolabial, marionette, jowl, jawline, chin, neck) are graded by the doctor with the app's suggestion pre-selected
-- AC: every numeric value matches the unit-tested function output; edits are persisted and audit-logged
+**کاربر دوم:** بیمار، فقط در اپ کلاینت (بخش 5.10). او پروندهٔ تأییدشدهٔ خودش را می‌بیند و هیچ آنالیز یا شبیه‌سازی‌ای را خودش اجرا نمی‌کند.
 
-### 5.5 Age
-- Actual age (number, required) and apparent age field (doctor estimate in Phase 1; model in Phase 2)
-- Target age: slider from actual age down to actual − 15; quick picks: natural / refreshed / maximum realistic
-- Region chips showing doctor-estimated regional age (optional)
-- Simulation area shows a labelled Phase 2 placeholder and the before photo
-- AC: changing target age changes plan intensity per docs/TREATMENTS.md §4
+**مسئله:** در مشاوره، بیمار نمی‌تواند نتیجه را تصور کند و پزشک ابزاری ندارد که «این تغییر ظاهری» را به «این محصول، این مقدار، این هزینه» وصل کند. بررسی 16 ابزار موجود نشان داد بیشترشان فقط تصویر می‌سازند و به مقدار و قلم درمان وصل نمی‌شوند (بخش 12).
 
-### 5.6 Treatment plan
-- Tier switch: minimal / recommended / comprehensive
-- Session timeline (order and intervals from docs/TREATMENTS.md §3)
-- Per finding: 1–4 options with tags (evidence level, high-risk zone, downtime, Fitzpatrick caution); doctor selects
-- Session total volume/units shown only where data exists; exceeding the configured cap shows a warning
-- Price per item from clinic settings → cost estimate
-- AC: no option violates a contraindication; every option shows its knowledge-base source id
+**خارج از محدوده در این نسخه:** بدن، تشخیص بیماری پوستی، نسخه‌نویسی، راهنمای گام‌به‌گام تزریق، آنالیز یا شبیه‌سازی توسط خود بیمار، و هر ادعای «پیش‌بینی نتیجه».
 
-### 5.7 MD Codes view
-- Toggle from plan screen; doctor-only
-- Generic anatomical zones drawn from landmarks; code table populated only from `mdcodes.json`
-- Danger-zone overlay (vessel paths as approximate guides with disclaimer)
-- Emergency button opens the vascular-occlusion protocol page (docs/SAFETY.md §4)
-- AC: with empty `mdcodes.json` the screen shows zones and a "licensed data not installed" note, no errors
+## 3. اصول محصول
 
-### 5.8 Sign-off and report
-- Checklist (findings reviewed, plan approved, contraindications checked, screening reviewed); sign button disabled until complete
-- Signature pad, doctor name and licence number from settings
-- Report: clinic logo/colors (white-label), before photos, plain-language findings, chosen plan, sessions, aftercare, disclaimer; never MD Codes or volumes unless the doctor ticks "include technical appendix"
-- Output: print-to-PDF (fa and en), Jalali + Gregorian dates
-- AC: report prints on A4 without clipped text in Chrome Android and Safari iOS
+1. **تصمیم با پزشک است.** همهٔ خروجی‌ها پیشنهادند. هیچ درجه، حجم یا گزینه‌ای بدون تأیید پزشک وارد گزارش نمی‌شود.
+2. **شبیه‌سازی تصویرسازی است، نه وعده.** هر تصویر خروجی برچسب دائمی «شبیه‌سازی؛ نتیجهٔ واقعی متفاوت است» دارد.
+3. **متناسب با سن.** هدف حذف همهٔ نشانه‌ها نیست. مقدار اصلاح از سن واقعی و هدف سنی محاسبه می‌شود (بخش 5.3).
+4. **عکس از دستگاه خارج نمی‌شود** مگر برای رندر ابری، و آن هم فقط پس از رضایت ثبت‌شدهٔ بیمار.
+5. **هر عدد بالینی وضعیت دارد:** `verified` (با منبع) یا `draft` (نیازمند تأیید پزشک ارشد). عدد `draft` در رابط با نشان «تأییدنشده» دیده می‌شود.
 
-### 5.9 Follow-up
-- Recapture with ghost overlay, side-by-side and slider compare, measurement deltas for repeated metrics
-- GAIS rating (doctor) and patient satisfaction (placeholder for FACE-Q; licence `TODO(clinical)`)
+## 4. جریان اصلی
 
-### 5.10 Settings
-- Doctor profile, clinic branding (logo, primary color), prices, session caps, re-treatment intervals, data retention period, language, app PIN
-- Aftercare text per modality, written by the physician (shown in the report and the client app)
+```
+پروندهٔ بیمار → رضایت آنالیز → عکاسی هدایت‌شده (یا بارگذاری)
+→ تشخیص نقاط چهره → درجه‌بندی خودکار + اصلاح پزشک
+→ سن واقعی و هدف سنی → شبیه‌سازی (اسلایدر قبل/بعد)
+→ برای هر تغییر: انتخاب گزینهٔ درمان (اعمال روی تصویر)
+→ جمع حجم، دوز، هزینه، ترتیب جلسات → تأیید پزشک → گزارش
+→ پس از درمان: عکس‌های «بعد» طبق پروتکل + رضایت انتشار
+```
 
-### 5.11 Client app (clinic app installed by clients)
-Same PWA, opened at `/#/client` (the clinic shares the link / QR; "Add to home screen" installs it).
-- Identity = **patient code** (`TN-XXXX-XXXX-X`, Crockford base32 + check character). The doctor finds any
-  record by code on later visits; the client opens their record by code
-- Doctor → client: "send record to client app" builds a file (signed visits only) with plain-language findings,
-  chosen plan, session order, before/after photos, the saved simulation, aftercare and doctor replies.
-  It is shared via the phone share sheet (messenger, AirDrop) — nothing is uploaded to a server
-- Client app tabs: **My plan** · **Photos** (before vs simulation and before vs after sliders, progress-photo
-  capture with the same guide/QC/confirmation) · **Care** (aftercare + emergency warning + clinic phone) ·
-  **Ask the doctor** (questions queued offline)
-- Client → doctor: "send questions and photos to the clinic" builds a reply file; the doctor imports it on the
-  Patients screen; questions appear in the patient thread and photos join the latest case as After (low quality)
-- Never shown to the client: measurements, MD Codes, volumes, BDD result, unsigned visits
-- Phase 2: backend sync for real-time chat, push reminders (re-treatment, aftercare check-ins), clinic accounts
-- AC: package round-trip (doctor → client → doctor) preserves messages without duplicates; client app works offline
+## 5. نیازمندی‌های کارکردی
 
-## 6. Non-functional requirements
-- Performance: first load < 3 s on 4G after first visit (PWA cache); analysis of 11 views < 5 s
-- Offline: whole Phase 1 works offline after first load
-- Privacy: photos and records encrypted at rest (AES-GCM, key derived from app PIN with PBKDF2); auto-delete after retention period; full export/delete per patient
-- Accessibility: touch targets ≥ 44 px, contrast ≥ 4.5:1, real buttons/labels, screen-reader labels in Persian
-- Browsers: Chrome Android (last 2), Safari iOS 16+
-- Languages: fa (RTL, default), en (LTR)
+### 5.1 پرونده و عکاسی (F1)
 
-## 7. Data model (Phase 1)
-Patient {id, fileNo, displayName, birthYear, sex, fitzpatrick?, ethnicityNorm, createdAt}
-Case {id, patientId, createdAt, status, actualAge, apparentAge?, targetAge, intake, consents, screening}
-Photo {id, caseId, view, blob(encrypted), qc{yaw,pitch,roll,exposure,faceSize}, lowQuality, takenAt}
-Landmarks {photoId, points[478], edited[]?}
-Finding {id, caseId, key, value, unit, reference, severity, confidence, source, status(confirmed|edited|rejected), note}
-Plan {id, caseId, tier, items[{findingKey, optionId, session}], totals, warnings}
-SignOff {caseId, checklist, signatureImage, signedAt, doctor}
-AuditLog {id, caseId, at, action, before, after}
-Patient += {code}; Case += {services[]}; Photo += {phase: before|after, source: doctor|patient}
-Simulation {id, caseId, photoId, targetAge, strength, blob, createdAt}
-Message {id, owner: doctor|patient, patientCode, from, text, at, sent}
-Client side: PtRecord {code, patientName, clinic, cases[PtCase], updatedAt} · PtPhoto {id, code, caseId, phase, view, blob, sent}
+- F1.1 ساخت پرونده با شناسهٔ داخلی، سن، جنسیت، تیپ پوستی Fitzpatrick (اختیاری).
+- F1.2 بارگذاری عکس از فایل یا دوربین، با **قاب شبح** (ghost overlay) برای هم‌ترازی سر.
+- F1.3 بررسی کیفیت پیش از پذیرش: یک چهره، چرخش سر کمتر از 8 درجه در نمای روبه‌رو، نور یکنواخت، وضوح کافی، حالت خنثی. در صورت رد، دلیل و راه اصلاح را بگو.
+- F1.4 حذف EXIF هنگام ورود. نسخهٔ کاری حداکثر 1280 پیکسل در ضلع بلند.
+- F1.5 نماهای لازم در بخش 8.
 
-## 8. Risks and open questions
-- MD Codes licence, validated scale images licence, BDD instrument, FACE-Q licence → `TODO(clinical)`
-- Regulatory status (decision-support software) — legal review before any real patient use
-- Landmark accuracy on profile views is limited → semi-automatic by design
-- Primary market and default ethnic norm (current default: Iranian/Middle Eastern, adjustable)
+### 5.2 آنالیز و درجه‌بندی (F2)
 
-## 9. Definition of done (Phase 1)
-All milestones in docs/TASKS.md ticked, `npm run check` and e2e green, clinical lead reviewed every
-reference range and treatment entry, no real patient photo used before M9 (security) is done.
+- F2.1 تشخیص 478 نقطه با MediaPipe FaceLandmarker، کاملاً در مرورگر.
+- F2.2 برای هر یک از 16 مشکل بخش 6، درجهٔ 0 تا 4 پیشنهاد بده، همراه با سطح اطمینان (کم، متوسط، بالا).
+- F2.3 روش درجه‌بندی خودکار نسخهٔ اول: شاخص انرژی باند میانی در ماسک ناحیه نسبت به پوست مرجع گونه (جزئیات در بخش 5.4). این شاخص **تقریبی** است و به نور حساس است.
+- F2.4 پزشک هر درجه را تأیید، ویرایش یا رد می‌کند. فقط موارد تأییدشده به مرحلهٔ بعد می‌روند.
+- F2.5 نام مقیاس مرجع کنار هر مشکل نمایش داده می‌شود (WSRS، MFVDS، مقیاس‌های Merz و Allergan). استفادهٔ رسمی از این مقیاس‌ها نیازمند بررسی مجوز است.
+
+### 5.3 سن واقعی و هدف سنی (F3)
+
+پزشک یکی از سه هدف را انتخاب می‌کند:
+
+| هدف | `ageOffset` |
+|---|---|
+| بهترین حالت همین سن | 0 |
+| حدود 5 سال جوان‌تر | 5 |
+| حدود 10 سال جوان‌تر | 10 |
+
+برای هر مشکل، «درجهٔ مجازِ متناسب با سن» از یک جدول خطی محاسبه می‌شود و شدت اصلاح از فاصلهٔ درجهٔ فعلی تا آن:
+
+```ts
+// allowed: درجه‌ای که برای این سن طبیعی حساب می‌شود (پیش‌نویس، TODO(clinical))
+const allowed = (age: number) => clamp((age - 25) / 12.5, 0, 3); // 25→0 ، 50→2 ، 62→3
+const target = allowed(realAge - ageOffset);
+const intensity = grade > target ? (grade - target) / grade : 0;   // 0..1
+```
+
+- F3.1 `intensity` مقدار پیش‌فرض اسلایدر هر تغییر است. پزشک می‌تواند هر کدام را دستی عوض کند.
+- F3.2 سقف ایمنی: هیچ جلوه‌ای بیش از 85٪ اعمال نمی‌شود تا تصویر مصنوعی نشود.
+- F3.3 ضرایب `allowed` برای هر مشکل جداگانه قابل تنظیم است و در `src/data/ageNorms.ts` نگه‌داری می‌شود.
+
+### 5.4 موتور شبیه‌سازی تصویر (F4)
+
+رویکرد ترکیبی، طبق تصمیم کاربر:
+
+**الف) پیش‌نمایش آنی در مرورگر (پیش‌فرض، خصوصی).** دو خانوادهٔ جلوه:
+
+1. **هموارسازی باندی** برای خطوط و چین‌ها. تصویر به چهار لایه تفکیک می‌شود:
+   `fine = I − LP1`، `band1 = LP1 − LP2`، `band2 = LP2 − LP3`، `base = LP3`
+   با شعاع‌های تاری حدود 0.006، 0.02 و 0.05 برابر پهنای صورت. در ماسک هر ناحیه، مؤلفه‌های **تیره‌تر از اطراف** (سایهٔ چین) بیشتر تضعیف می‌شوند تا مؤلفه‌های روشن، و `fine` تقریباً حفظ می‌شود تا بافت پوست نماند و صورت «پلاستیکی» نشود.
+
+   | نوع | ضریب fine | ضریب band1 | ضریب band2 |
+   |---|---|---|---|
+   | خطوط ریز (پیشانی، اخم، پنجه‌کلاغی، دور لب) | 0.35 | 0.9 | 0.3 |
+   | چین عمیق (نازولبیال، ماریونت) | 0.1 | 0.7 | 0.8 |
+   | گودی (زیر چشم، شقیقه) | 0 | 0.5 | 0.85 |
+
+2. **جابه‌جایی موضعی (warp)** برای حجم و فرم: عملگر «باد کردن» (لب، گونه، چانه) و «جابه‌جایی برداری» (لیفت میانهٔ صورت، خط فک، دم ابرو، گوشهٔ لب، باریک‌سازی ماستر). همهٔ عملگرها در یک میدان جابه‌جایی جمع و با یک نمونه‌برداری دوخطی اعمال می‌شوند.
+
+- F4.1 هندسهٔ نواحی در **دستگاه مختصات چهره** تعریف می‌شود (مبدأ: وسط دو چشم؛ محور x: خط گوشهٔ خارجی دو چشم؛ واحد: فاصلهٔ دو گوشهٔ خارجی)، تا با چرخش و اندازهٔ عکس سازگار بماند.
+- F4.2 ماسک محافظ روی چشم، ابرو، سوراخ بینی و لب (به‌جز جلوه‌های خود لب) تا تار نشوند.
+- F4.3 ماسک‌ها و لایه‌های LP یک بار برای هر عکس محاسبه و نگه‌داری می‌شوند. تغییر اسلایدر باید زیر 50 میلی‌ثانیه روی موبایل میان‌رده بازرندر شود.
+- F4.4 تاری با پیاده‌سازی خودمان (box blur سه‌مرحله‌ای) انجام می‌شود، نه `ctx.filter`، چون Safari آن را قابل‌اتکا پشتیبانی نمی‌کند. پردازش در Web Worker.
+- F4.5 **اسلایدر قبل/بعد** با خط عمودی قابل کشیدن، روی عکس «قبل» قفل‌شده.
+- F4.6 برای هر تغییر: کلید روشن/خاموش، اسلایدر درصد، **آینه کردن دو طرف** و دکمهٔ «هم‌اندازه کن» (الگوی Crisalix).
+- F4.7 لمس هر ناحیه روی تصویر، کارت همان تغییر را باز می‌کند و برعکس.
+
+**ب) رندر واقع‌گرایانهٔ ابری (اختیاری، پشت پرچم ویژگی).**
+
+- F4.8 فقط با رضایت ثبت‌شدهٔ بیمار برای «ارسال عکس به سرویس پردازش بیرونی» فعال می‌شود.
+- F4.9 رابط `RenderProvider` مستقل از تأمین‌کننده است. ورودی: عکس، ماسک نواحی انتخاب‌شده، شدت هر ناحیه، و خروجی پیش‌نمایش مرورگر به‌عنوان راهنما.
+- F4.10 سرور چیزی نگه نمی‌دارد. عکس پس از پاسخ حذف می‌شود و لاگ حاوی تصویر نیست.
+- F4.11 در نسخهٔ اول فقط `MockRenderProvider` پیاده می‌شود. انتخاب مدل واقعی منوط به بررسی مجوز است (بخش 10.3).
+
+### 5.5 پیشنهاد درمان و اولویت‌بندی (F5)
+
+- F5.1 برای هر مشکل تأییدشده، گزینه‌های بخش 6 نمایش داده می‌شود.
+- F5.2 مرتب‌سازی با یکی از پنج معیار: **نتیجهٔ زیبایی، هزینهٔ کمتر، سرعت اثر، ماندگاری، نقاهت کمتر**.
+- F5.3 هر گزینه یک `fx` دارد: کدام جلوه و با چه سقف شدتی روی تصویر اعمال شود. انتخاب گزینه، تصویر را همان لحظه به‌روز می‌کند. مثال: برای خطوط پیشانی، «توکسین» سقف 0.85 و «اسکین‌بوستر» سقف 0.35 دارد.
+- F5.4 سه سطح طرح: حداقلی، پیشنهادی، جامع (مطابق طرح صفحهٔ «طرح درمان»).
+- F5.5 ترتیب جلسات به‌صورت خودکار پیشنهاد می‌شود: توکسین، سپس فیلر ساختاری (شقیقه، گونه، چانه)، سپس نواحی ظریف (زیر چشم، لب)، سپس بیواستیمولاتور و دستگاه.
+- F5.6 قاعدهٔ «اول حمایت، بعد چین»: اگر افت میانهٔ صورت درجهٔ 2 یا بیشتر است، برای نازولبیال و زیر چشم ابتدا گزینهٔ حمایت گونه پیشنهاد شود.
+- F5.7 برچسب خطر برای نواحی پرخطر عروقی (میان‌ابرو، بینی، زیر چشم، شقیقه، نازولبیال بالایی) و هشدار Fitzpatrick بالا برای دستگاه‌های انرژی‌محور.
+
+### 5.6 حالت MD Codes (F6)
+
+- F6.1 لایه‌ای روی تصویر که نقاط کد را به‌صورت **تقریبی و آموزشی** نشان می‌دهد، فقط برای گزینه‌های فیلر انتخاب‌شده.
+- F6.2 کدهای هشدار با رنگ خطر و توضیح «کانولا توصیه می‌شود».
+- F6.3 جدول کد، ناحیه، عمق، ابزار و عدد فعال باید از جدول‌های مقالهٔ اصلی (دسترسی آزاد، PMC8012343) توسط پزشک ارشد وارد شود. تا آن زمان فقط خانوادهٔ کد نمایش داده می‌شود.
+- F6.4 متن ثابت زیر این حالت: «MD Codes™ نشان تجاری است. جانمایی تقریبی است و راهنمای تزریق نیست.»
+- F6.5 پیش از انتشار عمومی، مجوز استفاده از نام و محتوای MD Codes باید بررسی شود.
+
+### 5.7 تخمین حجم، دوز و هزینه (F7)
+
+```ts
+// پیش‌نویس، TODO(clinical)
+const gradeFactor = [0, 0.5, 0.75, 1.0, 1.25][grade];
+const est = {
+  min: round(opt.base.min * gradeFactor * intensity, opt.step),
+  max: round(opt.base.max * gradeFactor * intensity, opt.step),
+};
+```
+
+- F7.1 هر تخمین به‌صورت **بازه** نمایش داده می‌شود، نه عدد تک، همراه با واحد (mL، U، تعداد نخ، تعداد جلسه) و «هر طرف» یا «کل».
+- F7.2 گام گرد کردن: فیلر 0.1 mL، توکسین 2 U.
+- F7.3 جمع کل طرح: مجموع فیلر به mL و تعداد سرنگ (سقف به بالا)، مجموع توکسین به U و تعداد ویال.
+- F7.4 **تعرفهٔ کلینیک** در تنظیمات: قیمت هر mL فیلر به تفکیک نوع، هر واحد توکسین، هر نخ، هر جلسهٔ دستگاه، و واحد پول. هزینهٔ هر گزینه از تخمین × تعرفه محاسبه می‌شود. اگر تعرفه وارد نشده باشد، مرتب‌سازی هزینه از «ردهٔ نسبی هزینه» (1 تا 5) استفاده می‌کند.
+- F7.5 پزشک می‌تواند هر تخمین را دستی بازنویسی کند. مقدار بازنویسی‌شده با نشان «ویرایش پزشک» ذخیره می‌شود.
+
+### 5.8 گالری قبل و بعد (F8)
+
+- F8.1 برای هر اقدام، مجموعهٔ نماهای لازم طبق بخش 8 ساخته می‌شود.
+- F8.2 عکس «بعد» با قاب شبحِ عکس «قبل» گرفته می‌شود تا زاویه و فاصله یکی باشد.
+- F8.3 **سه سطح رضایت جدا از هم**، هر کدام با تاریخ، نام و امضای لمسی:
+  1. آنالیز و نگه‌داری عکس در پروندهٔ کلینیک
+  2. ارسال عکس به رندر ابری
+  3. استفاده از عکس‌های قبل و بعد (فقط داخلی، آموزشی، یا انتشار عمومی؛ با یا بدون پوشاندن چشم)
+- F8.4 عکس بدون رضایت سطح 3 هرگز در خروجی اشتراک‌پذیر نمی‌آید.
+- F8.5 نمای مقایسه: کنار هم، اسلایدر، و **مقایسهٔ شبیه‌سازی با نتیجهٔ واقعی** برای سنجش دقت.
+- F8.6 بیمار می‌تواند رضایت را پس بگیرد. با پس‌گیری، عکس از گالری اشتراک‌پذیر حذف می‌شود.
+
+### 5.9 گزارش (F9)
+
+- F9.1 گزارش PDF با نشان کلینیک: عکس قبل، تصویر شبیه‌سازی با برچسب، جدول اقلام (ناحیه، گزینه، کد، بازهٔ حجم، هزینه)، ترتیب جلسات، توضیح پزشک، و متن سلب مسئولیت.
+- F9.2 گزارش فقط پس از «تأیید پزشک» ساخته می‌شود.
+
+### 5.10 اپ کلاینت (F10)
+
+همان PWA در مسیر `/#/client`. نسخهٔ پایه در کیت قبلی ساخته شده است؛ این بخش آن را با نسخهٔ 2.0 هم‌تراز می‌کند.
+
+- F10.1 شناسه **کد بیمار** است. بیمار با کد یا با فایل کلینیک پروندهٔ خودش را باز می‌کند. اپ آفلاین کار می‌کند.
+- F10.2 تبادل داده با **فایل** است (پیام‌رسان یا AirDrop). در این فاز هیچ سروری در کار نیست و چیزی بارگذاری نمی‌شود.
+- F10.3 پزشک به کلاینت: فقط جلسه‌های **تأییدشده**، شامل نواحی قابل بهبود به زبان ساده، گزینه‌های انتخاب‌شده، ترتیب جلسات، تصویر شبیه‌سازی با برچسب سوخته، مراقبت‌های پس از درمان و پاسخ پزشک.
+- F10.4 عکس‌های قبل و بعد فقط با رضایت ثبت‌شدهٔ مربوط در بسته می‌آیند. با پس‌گیری رضایت، بستهٔ بعدی آن‌ها را ندارد.
+- F10.5 کلاینت به پزشک: پرسش‌ها و عکس‌های پیشرفت در یک فایل پاسخ.
+- F10.6 هرگز به کلاینت نمی‌رود: درجه‌ها، بازهٔ حجم و دوز، کدهای MD Codes، نتیجهٔ غربالگری، جلسهٔ تأییدنشده، و اقلام `draft` بدون تأیید پزشک.
+- F10.7 قالب بسته نسخه دارد و بسته‌های نسخهٔ قبل همچنان خوانده می‌شوند.
+
+## 6. پایگاه دانش: مشکل × گزینهٔ درمان
+
+ستون «جلوه»: S = هموارسازی باندی، W = جابه‌جایی. ستون «تخمین پایه» برای درجهٔ 3 است. **همهٔ ردیف‌های بدون نشان ✓ پیش‌نویس‌اند و باید توسط پزشک ارشد تأیید شوند.**
+
+| # | مشکل | گزینه‌ها (به ترتیب پیش‌فرض) | خانوادهٔ MD Codes | جلوه | تخمین پایه |
+|---|---|---|---|---|---|
+| 1 | خطوط پیشانی | توکسین فرونتالیس؛ اسکین‌بوستر؛ لیزر | F | S | توکسین 20 U ✓ |
+| 2 | خط اخم | توکسین؛ فیلر ظریف (پرخطر، فقط باتجربه) | G | S | توکسین 20 U در 5 نقطه ✓ |
+| 3 | پنجه‌کلاغی | توکسین؛ RF میکرونیدلینگ؛ اسکین‌بوستر | O | S | توکسین 24 U کل ✓ |
+| 4 | گودی زیر چشم | حمایت گونه؛ فیلر HA نرم با کانولا؛ پلی‌نوکلئوتید | Tt, Ck3 | S | فیلر 0.2 تا 0.5 mL هر طرف |
+| 5 | افت حجم میانهٔ صورت | فیلر HA ساختاری؛ بیواستیمولاتور؛ نخ | Ck1 تا Ck3 | W+S | فیلر 0.5 تا 1.5 mL هر طرف |
+| 6 | چین نازولبیال | حمایت گونه؛ فیلر مستقیم؛ نخ | Ck, NL | S+W | فیلر 0.3 تا 1.0 mL هر طرف |
+| 7 | خطوط ماریونت و گوشهٔ لب | فیلر؛ توکسین DAO؛ نخ | M, C | S+W | فیلر 0.3 تا 0.8 mL هر طرف؛ توکسین 2 تا 5 U هر طرف |
+| 8 | حجم و فرم لب | فیلر HA؛ لیپ‌فلیپ با توکسین | Lp | W | فیلر 0.5 تا 1.0 mL کل؛ توکسین 2 تا 6 U |
+| 9 | خطوط دور لب | فیلر ظریف؛ میکروتوکسین؛ لیزر | Lp | S | فیلر 0.2 تا 0.5 mL کل |
+| 10 | چانه | فیلر HA؛ توکسین منتالیس | C | W+S | فیلر 1.0 تا 2.0 mL کل؛ توکسین 4 تا 10 U |
+| 11 | خط فک و جول | فیلر؛ نخ؛ HIFU یا RF؛ بیواستیمولاتور | Jw | W | فیلر 1.0 تا 2.0 mL هر طرف |
+| 12 | پهنی فک (ماستر) | توکسین ماستر | — | W | توکسین 20 تا 30 U هر طرف (خارج از برچسب) |
+| 13 | گودی شقیقه | فیلر HA؛ بیواستیمولاتور | T | S+W | فیلر 0.5 تا 1.0 mL هر طرف |
+| 14 | افت ابرو | لیفت شیمیایی با توکسین؛ فیلر؛ نخ | E | W | توکسین 2 تا 4 U هر طرف |
+| 15 | گردن (باندها و خطوط) | توکسین پلاتیسما؛ اسکین‌بوستر؛ HIFU | — | S | توکسین 26، 31 یا 36 U ✓ |
+| 16 | کیفیت و بافت پوست | اسکین‌بوستر؛ RF میکرونیدلینگ؛ لیزر؛ پیلینگ | — | S (ملایم، کل صورت) | 2 تا 3 جلسه |
+
+هر گزینه در کد این فیلدها را دارد: `id, concernId, modality, nameFa, mdCodes[], base{min,max,unit,perSide}, onsetDays, durationMonths{min,max}, downtimeDays, efficacy(1-5), costTier(1-5), fx{type,maxStrength}, risks[], contraindications[], status('verified'|'draft'), source`.
+
+## 7. داده‌های بالینی: تأییدشده و پیش‌نویس
+
+### 7.1 تأییدشده با منبع
+
+| داده | مقدار | منبع |
+|---|---|---|
+| OnabotulinumtoxinA، خط اخم | 20 U در 5 نقطه | برچسب FDA، بخش 2.4 |
+| پنجه‌کلاغی | 24 U کل، 3 نقطه در هر طرف | برچسب FDA |
+| خطوط پیشانی | 20 U در 5 نقطه؛ همراه با خط اخم جمعاً 40 U | برچسب FDA |
+| باندهای پلاتیسما | 26، 31 یا 36 U | برچسب FDA |
+| ماندگاری توکسین در خط اخم | میانهٔ حدود 120 روز | PMID 23106853 |
+| MD Codes: حجم بولوس | تا 0.3 mL در هر کمپارتمان | PMID 32445044 |
+| MD Codes: استثناها | شقیقه و زاویهٔ فک عدد فعال 0.5 mL؛ فنینگ با کانولا حداقل 0.5 mL | PMID 32445044 |
+| MD Codes: Ck1، Ck2، Ck3 | قوس زایگوما، برجستگی زایگوما، گونهٔ قدامی‌میانی | PMID 32445044 |
+| MD Codes: سطح شواهد | سطح IV؛ خود نویسنده می‌گوید پشتوانهٔ کارآزمایی مستقل و دادهٔ ایمنی ندارد | PMID 32445044 |
+
+دوزهای برچسب فقط برای OnabotulinumtoxinA است. واحدهای برندهای دیگر قابل تبدیل مستقیم نیستند؛ اپ باید برند را بپرسد و برای برندهای دیگر عدد خودکار ندهد.
+
+### 7.2 پیش‌نویس (تأییدنشده در تحقیق)
+
+تحقیق این موارد را از منبع معتبر تأیید نکرد. اعداد بخش 6 برای این‌ها از عرف رایج بالینی آمده و باید پزشک ارشد تأیید یا اصلاح کند:
+
+- بازهٔ حجم فیلر در همهٔ نواحی
+- دوزهای خارج از برچسب توکسین (ماستر، DAO، منتالیس، لیپ‌فلیپ، لیفت ابرو)
+- جدول کامل MD Codes برای خانواده‌های F, T, E, G, O, Tt, N, NL, Lp, M, C, Jw و فهرست کدهای هشدار
+- زمان شروع اثر، ماندگاری و نقاهت برای فیلر، نخ، بیواستیمولاتور، RF، HIFU و لیزر
+
+پیش‌نویس زمان‌بندی برای مرتب‌سازی:
+
+| روش | شروع اثر | ماندگاری | نقاهت |
+|---|---|---|---|
+| توکسین | 3 تا 7 روز، اوج 2 تا 4 هفته | 3 تا 4 ماه | تقریباً صفر |
+| فیلر HA | فوری | 6 تا 18 ماه | 1 تا 7 روز |
+| نخ PDO | فوری | 6 تا 18 ماه | 3 تا 10 روز |
+| بیواستیمولاتور | 4 تا 12 هفته | 18 تا 24 ماه | 1 تا 3 روز |
+| RF میکرونیدلینگ | 1 تا 3 ماه، چند جلسه | 6 تا 12 ماه | 1 تا 5 روز |
+| HIFU | 2 تا 3 ماه | 6 تا 12 ماه | 0 تا 2 روز |
+| لیزر بازسازی | 2 تا 8 هفته | 12 ماه به بالا | 5 تا 14 روز |
+
+## 8. پروتکل عکاسی قبل و بعد (پیش‌نویس)
+
+تحقیق منبع استانداردی برای این بخش پیدا نکرد. موارد زیر عرف رایج عکاسی بالینی است و باید با پروتکل کلینیک تطبیق داده شود.
+
+**شرایط ثابت:** پس‌زمینهٔ یکدست خنثی، نور یکنواخت از دو طرف بدون سایه، فاصله و فاصلهٔ کانونی ثابت، دوربین هم‌سطح چشم، سر در صفحهٔ فرانکفورت، بدون آرایش و عینک و جواهر، مو پشت گوش، حالت چهرهٔ خنثی.
+
+| اقدام | نماهای ثابت | نماهای حرکتی |
+|---|---|---|
+| همهٔ اقدام‌ها (پایه) | روبه‌رو، 45 درجه چپ و راست، نیم‌رخ چپ و راست | — |
+| توکسین بالای صورت | پایه | اخم کامل، بالا بردن ابرو، لبخند کامل، بستن محکم چشم |
+| فیلر میانه و پایین صورت | پایه + نمای از پایین (سر عقب) | لبخند |
+| لب | پایه + نمای نزدیک لب | لبخند، غنچه کردن |
+| خط فک و گردن | پایه + سر پایین | منقبض کردن گردن |
+
+**زمان عکس «بعد»:** توکسین 2 هفته؛ فیلر 2 تا 4 هفته؛ نخ 4 هفته؛ بیواستیمولاتور و دستگاه 3 ماه.
+
+## 9. مدل داده
+
+```ts
+type Grade = 0 | 1 | 2 | 3 | 4;
+type Status = 'verified' | 'draft';
+
+interface Patient { id: string; code: string; birthYear: number; sex: 'F' | 'M'; fitzpatrick?: 1|2|3|4|5|6; createdAt: number; }
+
+interface Photo { id: string; patientId: string; sessionId: string; view: ViewId; kind: 'before' | 'after';
+  blob: Blob; width: number; height: number; landmarks?: Float32Array; capturedAt: number; }
+
+interface Finding { concernId: ConcernId; side: 'L' | 'R' | 'both'; autoGrade: Grade; confidence: 'low' | 'mid' | 'high';
+  grade: Grade; reviewed: 'confirmed' | 'edited' | 'rejected' | 'pending'; }
+
+interface SimChange { concernId: ConcernId; enabled: boolean; intensity: number; mirror: boolean; optionId?: string; }
+
+interface PlanItem { concernId: ConcernId; optionId: string; est: { min: number; max: number; unit: Unit; perSide: boolean };
+  overridden?: { value: number; note?: string }; cost?: { min: number; max: number }; session: number; }
+
+interface Consent { id: string; patientId: string; scope: 'analysis' | 'cloudRender' | 'beforeAfter';
+  detail?: { use: 'internal' | 'education' | 'public'; maskEyes: boolean }; signedName: string; signature: Blob;
+  signedAt: number; revokedAt?: number; }
+
+interface Plan { id: string; patientId: string; realAge: number; ageOffset: 0 | 5 | 10; tier: 'minimal' | 'recommended' | 'full';
+  changes: SimChange[]; items: PlanItem[]; approvedBy?: string; approvedAt?: number; }
+```
+
+## 10. معماری
+
+### 10.1 استک
+
+- Vite، React، TypeScript (strict)، Tailwind با توکن‌های `BRAND.md`
+- MediaPipe FaceLandmarker (`@mediapipe/tasks-vision`)؛ فایل‌های wasm و مدل **از خود اپ** سرو شوند (در `public/mediapipe/`)، نه از CDN
+- موتور تصویر: TypeScript خالص روی `ImageData` در Web Worker (WebGL در فاز بعد، اگر لازم شد)
+- ذخیره‌سازی: Dexie (IndexedDB)، با رمزنگاری عکس‌ها توسط Web Crypto (AES-GCM، کلید مشتق از رمز پزشک)
+- PWA با کارکرد آفلاین
+- تست: Vitest برای منطق، Playwright برای جریان اصلی
+- رندر ابری: یک تابع سرور کوچک پشت `RenderProvider` (فاز بعد)
+
+### 10.2 ساختار پوشه
+
+```
+src/
+  app/            مسیرها و قاب اپ
+  features/       capture, analysis, age, simulate, plan, mdcodes, gallery, report, settings
+  engine/         landmarks.ts, faceFrame.ts, regions.ts, masks.ts, bands.ts, warp.ts, pipeline.worker.ts
+  data/           concerns.ts, options.ts, mdcodes.ts, ageNorms.ts, photoProtocol.ts
+  db/             schema.ts, crypto.ts
+  ui/             اجزای مشترک طبق BRAND.md
+docs/             PRD.md, BRAND.md, ANALYSIS_SPEC.md, TREATMENTS.md, SAFETY.md, TASKS.md
+```
+
+پوشه‌های کیت قبلی (`src/analysis`، `src/capture`، `src/plan`، `src/simulation`، `src/share`، `src/components`) تا مرحله‌ای که جایگزین می‌شوند سر جایشان می‌مانند. کد تازه در `src/app`، `src/engine` و `src/data` نوشته می‌شود. `src/engine` و `src/data` به React و اجزای رابط وابسته نمی‌شوند (قاعدهٔ lint).
+
+### 10.3 مجوز کدهای متن‌باز (نتیجهٔ تحقیق)
+
+| جزء | مجوز | وضعیت استفادهٔ تجاری |
+|---|---|---|
+| MediaPipe tasks-vision | Apache-2.0 (کد) | مجاز؛ مجوز فایل مدل از model card بررسی شود |
+| Transformers.js | Apache-2.0 | مجاز |
+| diffusers | Apache-2.0 | مجاز (کد) |
+| YUCIHighPassSkinSmoothing | MIT | الگوریتم قابل اقتباس (پیاده‌سازی Core Image است، باید بازنویسی شود) |
+| face-parsing.PyTorch | MIT (کد) | وزن‌ها روی CelebAMask-HQ آموزش دیده‌اند؛ بررسی شود |
+| LandmarkDiff-public | MIT (کد) | نزدیک‌ترین نمونه به رندر ابری ما؛ مدل‌های همراهش مجوز جدا دارند |
+| SAM (پیرسازی) | MIT (کد) | وزن‌ها به FFHQ وابسته‌اند؛ غیرتجاری فرض شود |
+| FFHQ-Wrinkle و وزن‌های آن | CC BY-NC-SA 4.0 | **غیرتجاری؛ استفاده نشود** |
+| InstantID / InsightFace | وزن‌ها فقط پژوهشی | **استفاده نشود** |
+| FLUX.1 Kontext [dev] | مجوز غیرتجاری | نیازمند بررسی حقوقی |
+
+نتیجه: برای پیش‌نمایش مرورگر هیچ مدل وزن‌داری جز MediaPipe لازم نیست و مانع مجوزی وجود ندارد. برای رندر ابری، مدل پیرسازی یا چروک با مجوز تجاریِ تأییدشده پیدا نشد؛ این بخش پیش از پیاده‌سازی واقعی بررسی حقوقی می‌خواهد.
+
+## 11. نیازمندی‌های غیرکارکردی
+
+- **حریم خصوصی:** بدون تحلیل‌گر شخص ثالث؛ بدون فراخوانی شبکه حاوی عکس مگر F4.8؛ قفل اپ با رمز؛ خروج خودکار پس از 5 دقیقه بی‌کاری؛ دکمهٔ «حذف کامل پرونده».
+- **کارایی:** آمادگی عکس (نقاط + لایه‌ها + ماسک‌ها) زیر 3 ثانیه؛ بازرندر اسلایدر زیر 50 میلی‌ثانیه روی موبایل میان‌رده.
+- **دسترس‌پذیری:** هدف لمسی حداقل 44 پیکسل؛ کنتراست متن حداقل 4.5 به 1؛ همهٔ اسلایدرها با صفحه‌کلید کار کنند؛ احترام به `prefers-reduced-motion`.
+- **راست‌به‌چپ:** کل رابط `dir="rtl"`؛ اعداد و واحدها با `<bdi>`؛ اسلایدر قبل/بعد مستقل از جهت متن.
+- **مقررات:** این اپ ممکن است نرم‌افزار کمک‌تصمیم پزشکی حساب شود. پیش از استفادهٔ واقعی بررسی حقوقی لازم است. در اپ هیچ ادعای تشخیصی یا پیش‌بینی نتیجه نیاید.
+
+## 12. آنچه از رقبا برمی‌داریم و شکافی که پر می‌کنیم
+
+**الگوهای برگزیده:**
+
+1. اسلایدر درصد برای هر ناحیه، با برجسته شدن ناحیه، آینهٔ دو طرف و دکمهٔ هم‌اندازه (Crisalix).
+2. اسلایدر عمودی قبل/بعد روی عکس قفل‌شده (Crisalix).
+3. تنظیم «قدرت محصول» و شدت توسط پزشک، و نمایش سری چندجلسه‌ای (Perfect Corp).
+4. نمایش کمّی اختلاف حجم به‌عنوان مرجع دوز (Canfield VECTRA).
+5. عکاسی هدایت‌شده با قاب شبح (RxPhoto).
+6. گزارش PDF با نشان کلینیک، اقلام و قیمت (Crisalix).
+7. سلب مسئولیت شبیه‌سازی و مقایسهٔ بعدی پیش‌بینی با نتیجهٔ واقعی (Perfect Corp).
+8. رضایت و عکس‌ها روی خط زمانی بیمار (RxPhoto، NextMotion).
+
+**شکاف‌هایی که هیچ‌کدام کامل پر نکرده‌اند:**
+
+- اتصال تغییرِ تصویر به محصول، واحد و تعداد سرنگ. فقط EntityMed به تعداد سرنگ اشاره دارد و Canfield اختلاف حجم می‌دهد.
+- یکی بودن شبیه‌سازی، اقلام طرح درمان، قیمت و رضایت در یک جریان.
+- یکی بودن عکاسی استاندارد و شبیه‌سازی در یک محصول.
+- منطق «متناسب با سن» به‌جای جوان‌سازی بی‌قید.
+- رابط فارسی و راست‌به‌چپ.
+
+## 13. مراحل ساخت و معیار پذیرش
+
+| مرحله | خروجی | معیار پذیرش |
+|---|---|---|
+| M0 | راه‌اندازی، توکن‌های برند، قاب اپ، هم‌ترازی اسناد قدیمی کیت | اپ خالی RTL بالا می‌آید؛ lint و تست سبز |
+| M1 | بارگذاری عکس، FaceLandmarker، **لایهٔ اشکال‌زدایی نواحی** | روی 5 عکس آزمایشی، همهٔ 16 ناحیه با چشم تأیید شده و اسکرین‌شات ثبت شده |
+| M2 | پرونده، Dexie، رمزنگاری، قفل اپ | عکس در IndexedDB رمزشده است؛ حذف پرونده چیزی باقی نمی‌گذارد |
+| M3 | هموارسازی باندی + ماسک محافظ + Worker | سه نوع جلوه کار می‌کند؛ چشم و لب تار نمی‌شوند؛ بافت پوست می‌ماند |
+| M4 | عملگرهای warp + اسلایدر قبل/بعد + آینه | بازرندر زیر 50 میلی‌ثانیه؛ بدون پارگی لبهٔ صورت |
+| M5 | درجه‌بندی خودکار، بازبینی پزشک، منطق سن هدف | تست واحد برای `allowed` و `intensity`؛ تغییر هدف سنی اسلایدرها را به‌روز می‌کند |
+| M6 | پایگاه دانش، پنج معیار مرتب‌سازی، اتصال گزینه به تصویر | انتخاب هر گزینه تصویر را عوض می‌کند؛ اقلام `draft` نشان دارند |
+| M7 | حالت MD Codes، تخمین حجم و دوز، تعرفه و هزینه | تست واحد برای تخمین و جمع کل؛ هشدار نواحی پرخطر دیده می‌شود |
+| M8 | گالری قبل/بعد، سه سطح رضایت، قاب شبح | عکس بدون رضایت سطح 3 در هیچ خروجی اشتراک‌پذیری نیست؛ پس‌گیری کار می‌کند |
+| M9 | گزارش PDF، تأیید پزشک | گزارش بدون تأیید ساخته نمی‌شود؛ برچسب شبیه‌سازی روی تصویر هست |
+| M10 | `RenderProvider` با نمونهٔ ساختگی، PWA، بازبینی حریم خصوصی و دسترس‌پذیری | هیچ درخواست شبکه‌ای حاوی عکس بدون رضایت سطح 2؛ تست Playwright جریان اصلی سبز |
+| M11 | تکمیل اپ کلاینت طبق F10 | رفت‌وبرگشت بسته (پزشک، کلاینت، پزشک) بدون تکرار پیام؛ هیچ قلم بخش F10.6 در بسته نیست؛ عکس قبل و بعد بدون رضایت در بسته نیست |
+
+در همهٔ مرحله‌ها اپ کلاینت موجود باید سالم بماند؛ اگر تغییری آن را می‌شکند، در همان مرحله اصلاح می‌شود.
+
+## 14. ریسک‌ها و موارد باز
+
+| مورد | اثر | اقدام |
+|---|---|---|
+| اعداد بالینی پیش‌نویس | پیشنهاد نادرست | نشان «تأییدنشده»؛ تکمیل توسط پزشک ارشد پیش از استفادهٔ واقعی |
+| مجوز MD Codes و مقیاس‌های درجه‌بندی | مانع انتشار | بررسی حقوقی؛ تا آن زمان فقط ارجاع به مقاله |
+| درجه‌بندی خودکار به نور حساس است | درجهٔ غلط | بررسی کیفیت عکس؛ نمایش سطح اطمینان؛ تأیید اجباری پزشک |
+| شبیه‌سازی دوبعدی حجم را دقیق نشان نمی‌دهد | انتظار نادرست بیمار | برچسب دائمی؛ سقف 85٪؛ مقایسه با نتیجهٔ واقعی برای کالیبراسیون |
+| نبود مدل ابری با مجوز تجاری | تأخیر رندر واقع‌گرایانه | رابط مستقل از تأمین‌کننده؛ شروع با نمونهٔ ساختگی |
+| وضعیت نظارتی نرم‌افزار پزشکی | ریسک حقوقی | مشاورهٔ حقوقی پیش از استفادهٔ بالینی |
+| خطوط حرکتی در عکس حالت خنثی دیده نمی‌شوند | کم‌برآورد نیاز به توکسین | عکس‌های حرکتی بخش 8 در آنالیز وارد شوند (فاز بعد) |
+
+## 15. منابع
+
+- de Maio M. MD Codes: A Methodological Approach to Facial Aesthetic Treatment with Injectable Hyaluronic Acid Fillers. Aesthetic Plast Surg. PMID 32445044. https://doi.org/10.1007/s00266-020-01762-7
+- Botox Cosmetic Prescribing Information (FDA label). https://www.rxabbvie.com/pdf/botox-cosmetic_pi.pdf
+- ماندگاری توکسین در خط اخم: PMID 23106853. https://doi.org/10.1111/j.1524-4725.2012.02582.x
+- Crisalix، منوی تزریقی‌ها: https://help.crisalix.com/en_US/face-procedures-menu-injectables
+- Perfect Corp AI Aesthetic Simulator: https://www.perfectcorp.com/business/blog/ai-skincare/ai-aesthetic-treatment-simulation-injectables
+- FACE by Galderma: https://galdermaaesthetics.com/ca/face-app
+- Canfield VECTRA H2: https://air.canfieldsci.com/imaging-systems/vectra-h2-3d-imaging-system
+- EntityMed: https://entitymed.com/body-simulator
+- NextMotion: https://www.nextmotion.net/3d-aesthetic-simulation
+- RxPhoto: https://rxphoto.com/
+- LandmarkDiff: https://github.com/dreamlessx/LandmarkDiff-public
+- YUCIHighPassSkinSmoothing: https://github.com/YuAo/YUCIHighPassSkinSmoothing
+- MediaPipe Face Landmarker (web): https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker/web_js
+- FFHQ-Wrinkle: https://github.com/labhai/ffhq-wrinkle-dataset
+
+## پیوست الف: مجموعه‌های نقاط MediaPipe (478 نقطه)
+
+این مجموعه‌ها اتصال‌های استاندارد مش چهره‌اند. «راست» یعنی سمت راست خود فرد (سمت چپ تصویر). **در M1 باید با لایهٔ اشکال‌زدایی روی عکس واقعی تأیید شوند.**
+
+```ts
+export const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+export const R_EYE_LOWER = [33,7,163,144,145,153,154,155,133];
+export const R_EYE_UPPER = [33,246,161,160,159,158,157,173,133];
+export const L_EYE_LOWER = [263,249,390,373,374,380,381,382,362];
+export const L_EYE_UPPER = [263,466,388,387,386,385,384,398,362];
+export const R_BROW_UPPER = [70,63,105,66,107];
+export const R_BROW_LOWER = [46,53,52,65,55];
+export const L_BROW_UPPER = [300,293,334,296,336];
+export const L_BROW_LOWER = [276,283,282,295,285];
+export const LIPS_OUTER_UPPER = [61,185,40,39,37,0,267,269,270,409,291];
+export const LIPS_OUTER_LOWER = [61,146,91,181,84,17,314,405,321,375,291];
+export const LIPS_INNER_UPPER = [78,191,80,81,82,13,312,311,310,415,308];
+export const LIPS_INNER_LOWER = [78,95,88,178,87,14,317,402,318,324,308];
+export const ANCHOR = { foreheadTop: 10, chin: 152, noseTip: 1, subnasale: 2, nasion: 168, glabella: 9,
+  rEyeOuter: 33, rEyeInner: 133, lEyeInner: 362, lEyeOuter: 263, rMouth: 61, lMouth: 291,
+  upperLipTop: 0, lowerLipBottom: 17, rFaceEdge: 234, lFaceEdge: 454 };
+```
+
+نواحی بدون مجموعهٔ استاندارد (نازولبیال، ماریونت، زیر چشم، گونه، شقیقه، جول، ماستر) باید **هندسی** از این لنگرها ساخته شوند، نه با حدس زدن شمارهٔ نقطه. مثال: نوار نازولبیال یک منحنی بزیه از کنار پرهٔ بینی تا کمی بیرون و پایینِ گوشهٔ لب است، با نیم‌پهنای حدود 0.055 واحد چهره.

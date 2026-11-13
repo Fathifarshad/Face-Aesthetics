@@ -107,7 +107,7 @@ export function AgePage() {
           <div className="col-span-2">
             <div className="flex items-baseline justify-between">
               <span className="label">{t.age.target}</span>
-              <span className="gold-text text-[26px] font-bold">
+              <span className="brand-text text-[26px] font-bold">
                 {num(c.targetAge)} <span className="text-[13px]">{t.age.years}</span>
               </span>
             </div>
@@ -129,8 +129,8 @@ export function AgePage() {
               ))}
             </div>
             <div className="mt-3 flex items-center gap-2 text-[13px]">
-              <span className="text-ink-secondary">{t.age.tierDefault}:</span>
-              <Tag tone="gold">{t.plan.tiers[tier]}</Tag>
+              <span className="text-ink-2">{t.age.tierDefault}:</span>
+              <Tag tone="primary">{t.plan.tiers[tier]}</Tag>
             </div>
           </div>
         </div>
@@ -143,26 +143,26 @@ export function AgePage() {
               <div className="card mb-3">
                 <div className="flex items-center justify-between">
                   <span className="label">{t.age.strength}</span>
-                  <span className="text-[13px] text-gold-ink">{num(Math.round(strength * 100))}%</span>
+                  <span className="text-[13px] text-primary-on-tint">{num(Math.round(strength * 100))}%</span>
                 </div>
                 <input type="range" min={0.5} max={1.5} step={0.1} value={strength} onChange={(e) => setStrength(Number(e.target.value))} className="w-full" aria-label={t.age.strength} dir="ltr" />
-                <Button variant="gold" className="mt-2 w-full" onClick={() => void generate()} disabled={busy || c.targetAge >= c.actualAge}>
+                <Button variant="primary" className="mt-2 w-full" onClick={() => void generate()} disabled={busy || c.targetAge >= c.actualAge}>
                   <Sparkles size={18} /> {busy ? t.app.loading : t.age.simulate}
                 </Button>
               </div>
               {sim && <CompareSlider left={photo.blob} right={sim.blob} leftLabel={t.age.before} rightLabel={`${t.age.afterSim} · ${num(sim.targetAge)}`} />}
               {msg && (
                 <div className="mt-2">
-                  <Notice tone="gold">{msg}</Notice>
+                  <Notice tone="primary">{msg}</Notice>
                 </div>
               )}
-              <p className="mt-2 text-[12px] text-ink-tertiary">{t.age.simNote}</p>
+              <p className="mt-2 text-[12px] text-muted">{t.age.simNote}</p>
             </>
           )}
         </Section>
       </Page>
       <BottomBar>
-        <Button variant="gold" className="flex-1" onClick={() => nav(`/doctor/case/${caseId}/plan`)}>
+        <Button variant="primary" className="flex-1" onClick={() => nav(`/doctor/case/${caseId}/plan`)}>
           {t.age.toPlan}
         </Button>
       </BottomBar>
