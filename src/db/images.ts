@@ -1,0 +1,60 @@
+import { db } from './db';
+import type { Photo, PhotoPhase, PhotoRow, SignOff, Simulation, SimulationRow } from './types';
+import { forgetImage, openBlob, openString, sealBlob, sealString } from './vault';
+
+/**
+ * The only place images are read from or written to storage. Rows hold ciphertext (`sealed`); callers get
+ * and give plain `Photo` / `Simulation` / `SignOff` objects. Requires an unlocked vault.
+ *
+ * Inside a Dexie liveQuery, start these calls together (Promise.all) and do not read Dexie after awaiting
+ * one of them: decryption is a non-Dexie async step, and Dexie stops tracking a query after such a step.
+ */
+
+const toPhoto = async ({ sealed, ...rest }: PhotoRow): Promise<Photo> => ({ ...rest, blob: await openBlob(rest.id, sealed) });
+const toSimulation = async ({ sealed, ...rest }: SimulationRow): Promise<Simulation> => ({ ...rest, blob: await openBlob(rest.id, sealed) });
+
+export async function sealPhoto({ blob, ...rest }: Photo): Promise<PhotoRow> {
+  return { ...rest, sealed: await sealBlob(blob) };
+}
+
+export async function listPhotos(caseId: string, phase?: PhotoPhase): Promise<Photo[]> {
+  const rows = await (phase ? db.photos.where({ caseId, phase }) : db.photos.where('caseId').equals(caseId)).toArray();
+  return Promise.all(rows.map(toPhoto));
+}
+
+export async function listPhotosOfCases(caseIds: readonly string[]): Promise<Photo[]> {
+  const rows = (await Promise.all(caseIds.map((id) => db.photos.where('caseId').equals(id).toArray()))).flat();
+  return Promise.all(rows.map(toPhoto));
+}
+
+export const addPhoto = async (photo: Photo): Promise<void> => void (await db.photos.put(await sealPhoto(photo)));
+
+/** Simulations of a case, oldest first. */
+export async function listSimulations(caseId: string): Promise<Simulation[]> {
+  const rows = await db.simulations.where('caseId').equals(caseId).sortBy('createdAt');
+  return Promise.all(rows.map(toSimulation));
+}
+
+export const latestSimulation = async (caseId: string): Promise<Simulation | null> => (await listSimulations(caseId)).at(-1) ?? null;
+
+/** Stores a simulation as the only one of its case. */
+export async function replaceSimulation({ blob, ...rest }: Simulation): Promise<void> {
+  const row: SimulationRow = { ...rest, sealed: await sealBlob(blob) };
+  const old = (await db.simulations.where('caseId').equals(rest.caseId).primaryKeys()) as string[];
+  await db.transaction('rw', db.simulations, async () => {
+    await db.simulations.bulkDelete(old);
+    await db.simulations.add(row);
+  });
+  old.forEach(forgetImage);
+}
+
+export async function getSignoff(caseId: string): Promise<SignOff | null> {
+  const row = await db.signoffs.get(caseId);
+  if (!row) return null;
+  const { sealedSignature, ...rest } = row;
+  return { ...rest, signature: await openString(sealedSignature) };
+}
+
+export async function saveSignoff({ signature, ...rest }: SignOff): Promise<void> {
+  await db.signoffs.put({ ...rest, sealedSignature: await sealString(signature) });
+}

@@ -5,7 +5,7 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0 done. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0 and M2 done, M1 built and waiting for the owner to confirm the regions by eye. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
@@ -51,7 +51,8 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - `src/engine/` — image engine: pure TypeScript, no React, no DOM outside the worker (lint-enforced). Grows in M1, M3, M4
 - `src/data/` — clinical data and domain types of PRD §9 (lint-enforced: no React or UI imports). Grows in M5–M7
 - `src/features/doctor/`, `src/features/client/` — screens; `src/components/` — shared UI
-- `src/db/` — Dexie schema and repositories; `src/i18n/` — `fa.ts` (default) and `en.ts`, no hard-coded UI strings
+- `src/db/` — Dexie schema and repositories, `crypto.ts` (Web Crypto primitives), `vault.ts` (session key, lock), `images.ts` (encrypted image store)
+- `src/features/admin/` — the doctor's admin panel (`/#/admin`); `src/i18n/` — `fa.ts` (default) and `en.ts`, no hard-coded UI strings
 - v1 folders kept until replaced: `src/analysis/` (landmarks, proportions), `src/capture/`, `src/plan/`, `src/simulation/`, `src/share/`
 
 ## Conventions that are easy to get wrong
@@ -59,6 +60,12 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
   `src/lib/tokens.ts`. `src/app/guards.test.ts` fails on a hex or `rgb()` literal, a remote URL, or a network call in `src/`
 - The doctor shell sets `--tabbar-h`; `Page` and `BottomBar` in `src/components/ui.tsx` already account for it
 - A new case step must be added to `src/app/sections.ts`, to `t.nav.steps` in both dictionaries, and to the routes in `src/App.tsx`
+- Photos, simulation images and signatures are stored encrypted. Read and write them only through `src/db/images.ts`, never with
+  `db.photos` / `db.simulations` / `db.signoffs` directly. Encrypt before opening a Dexie transaction (IndexedDB transactions cannot
+  wait for Web Crypto). Inside `useLive`, call the image functions last and together (`Promise.all`): Dexie stops tracking a query
+  after a non-Dexie await
+- Routes that show patient data go inside `<VaultGate>` in `src/App.tsx`. A reload forgets the key; e2e tests start with
+  `setupVault(page)` and call `unlockVault(page)` after a reload (`e2e/helpers.ts`)
 - UI text says «توکسین», never «بوتاکس». Digits are Latin in both languages (`useNum()`)
 - Engine landmark indices live only in `src/engine/landmarks.ts` (PRD appendix A sets). Every other region is built geometrically in
   `src/engine/regions.ts`; do not add a mesh index without checking it on `/#/dev/regions` and asking the owner. The v1 file

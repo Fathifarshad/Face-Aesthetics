@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { SignaturePad } from '../../components/SignaturePad';
 import { Button, Header, LinkButton, Notice, Page, Section, Toggle } from '../../components/ui';
-import { audit, db, getSettings } from '../../db/db';
+import { audit, getSettings } from '../../db/db';
+import { getSignoff, saveSignoff } from '../../db/images';
 import { updateCase } from '../../db/repo';
 import type { ClinicSettings } from '../../db/types';
 import { formatDate, useT } from '../../i18n';
@@ -20,7 +21,7 @@ export function ReportPage() {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const data = useCase(caseId);
-  const signoff = useLive(async () => (await db.signoffs.get(caseId)) ?? null, [caseId]);
+  const signoff = useLive(() => getSignoff(caseId), [caseId]);
   const [checks, setChecks] = useState<Record<string, boolean>>({});
   const [signature, setSignature] = useState<string | null>(null);
   const [appendix, setAppendix] = useState(false);
@@ -36,7 +37,7 @@ export function ReportPage() {
 
   const sign = async () => {
     if (!signature) return;
-    await db.signoffs.put({ caseId, checklist: checks, signature, signedAt: Date.now(), doctorName: settings.doctorName, licence: settings.licence });
+    await saveSignoff({ caseId, checklist: checks, signature, signedAt: Date.now(), doctorName: settings.doctorName, licence: settings.licence });
     await updateCase(caseId, { status: 'signed' }, 'case.sign');
     await audit(caseId, 'signoff');
   };
@@ -65,7 +66,7 @@ export function ReportPage() {
             {(!settings.doctorName || !settings.licence) && (
               <div className="mb-3">
                 <Notice tone="warn">
-                  {t.report.needSettings} <Link to="/settings" className="underline">{t.app.settings}</Link>
+                  {t.report.needSettings} <Link to="/admin" className="underline">{t.app.settings}</Link>
                 </Notice>
               </div>
             )}

@@ -5,6 +5,7 @@ import { CATALOG } from '../../analysis/catalog';
 import { viewById } from '../../capture/views';
 import { Button } from '../../components/ui';
 import { db, getSettings } from '../../db/db';
+import { getSignoff, latestSimulation, listPhotos } from '../../db/images';
 import type { ClinicSettings, FindingRow, Photo, PtCase, Simulation } from '../../db/types';
 import { dictFor, formatDate, numberFormatter } from '../../i18n';
 import { useLive, useObjectUrl } from '../../lib/hooks';
@@ -28,10 +29,9 @@ export function PrintPage() {
   const data = useLive(async () => {
     const c = await db.cases.get(caseId);
     const patient = c && (await db.patients.get(c.patientId));
-    const photos = await db.photos.where({ caseId, phase: 'before' }).toArray();
-    const sim = (await db.simulations.where('caseId').equals(caseId).sortBy('createdAt')).at(-1) ?? null;
-    const signoff = await db.signoffs.get(caseId);
     const findings = await db.findings.where('caseId').equals(caseId).toArray();
+    // Image reads last and together: they decrypt, which ends Dexie's tracking of this query.
+    const [photos, sim, signoff] = await Promise.all([listPhotos(caseId, 'before'), latestSimulation(caseId), getSignoff(caseId)]);
     return c && patient ? { c, patient, photos, sim, signoff, findings } : null;
   }, [caseId]);
 

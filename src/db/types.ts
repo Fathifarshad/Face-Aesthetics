@@ -3,6 +3,7 @@ import type { Finding, Point, Pose } from '../analysis/types';
 import type { QcResult } from '../capture/qc';
 import type { Tier } from '../plan/data/treatments';
 import type { Intake } from '../plan/intake';
+import type { Sealed, WrappedKey } from './crypto';
 
 export type Sex = 'female' | 'male' | 'other';
 export type CaseStatus = 'draft' | 'awaiting-signoff' | 'signed' | 'follow-up';
@@ -88,7 +89,24 @@ export type Message = {
   sent: boolean;
 };
 
-export type AuditEntry = { id?: number; caseId: string; at: number; action: string; before?: unknown; after?: unknown };
+// ── Stored form of images (hard rule 10): encrypted at rest, decrypted only through src/db/images.ts ──
+export type PhotoRow = Omit<Photo, 'blob'> & { sealed: Sealed };
+export type SimulationRow = Omit<Simulation, 'blob'> & { sealed: Sealed };
+export type SignOffRow = Omit<SignOff, 'signature'> & { sealedSignature: Sealed };
+
+/** Key material of the doctor's vault, stored under settings key "vault". Holds no plaintext key. */
+export type VaultRecord = {
+  version: 1;
+  /** Data key wrapped by the passphrase. */
+  pass: WrappedKey;
+  /** The same data key wrapped by the recovery code. */
+  recovery: WrappedKey;
+  /** False until images saved before the vault existed have been encrypted. */
+  migrated: boolean;
+  createdAt: number;
+};
+
+export type AuditEntry ={ id?: number; caseId: string; at: number; action: string; before?: unknown; after?: unknown };
 
 export type ClinicSettings = {
   doctorName: string;

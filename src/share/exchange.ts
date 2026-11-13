@@ -1,5 +1,6 @@
 import { CATALOG } from '../analysis/catalog';
 import { db, getSettings, uid } from '../db/db';
+import { addPhoto, latestSimulation, listPhotos } from '../db/images';
 import type { PtCase, PtRecord } from '../db/types';
 import { optionById } from '../plan/data/treatments';
 import { buildSessions } from '../plan/engine';
@@ -64,10 +65,9 @@ export async function buildPatientPackage(patientId: string): Promise<PatientPac
   const ptCases = (await Promise.all(cases.map((c) => toPtCase(c.id)))).filter((c): c is PtCase => !!c);
   const photos: PatientPackage['photos'] = [];
   for (const c of ptCases) {
-    for (const ph of await db.photos.where('caseId').equals(c.id).toArray())
+    for (const ph of await listPhotos(c.id))
       photos.push({ id: ph.id, caseId: c.id, phase: ph.phase, view: ph.view, dataUrl: await blobToDataUrl(ph.blob), takenAt: ph.takenAt });
-    const sims = await db.simulations.where('caseId').equals(c.id).sortBy('createdAt');
-    const sim = sims.at(-1);
+    const sim = await latestSimulation(c.id);
     if (sim) photos.push({ id: sim.id, caseId: c.id, phase: 'simulation', view: 'frontal', dataUrl: await blobToDataUrl(sim.blob), takenAt: sim.createdAt });
   }
   const messages = await db.messages.where({ owner: 'doctor', patientCode: p.code }).toArray();
@@ -139,7 +139,7 @@ export async function importIntoDoctor(pkg: ReplyPackage): Promise<{ patientId: 
       if (await db.photos.get(ph.id)) continue;
       const blob = await dataUrlToBlob(ph.dataUrl);
       const bmp = await createImageBitmap(blob);
-      await db.photos.put({
+      await addPhoto({
         id: ph.id,
         caseId: latest.id,
         phase: 'after',

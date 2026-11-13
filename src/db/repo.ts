@@ -2,6 +2,7 @@ import { buildFindings } from '../analysis/analyze';
 import { sampler, toGray } from '../capture/imageStats';
 import { emptyIntake } from '../plan/intake';
 import { audit, db, uid } from './db';
+import { listPhotos } from './images';
 import { newPatientCode } from './patientCode';
 import type { Case, FindingRow, Patient, Photo } from './types';
 
@@ -50,7 +51,7 @@ export async function updateCase(id: string, patch: Partial<Case> | ((c: Case) =
 }
 
 export async function frontalPhoto(caseId: string, phase: 'before' | 'after' = 'before'): Promise<Photo | undefined> {
-  const photos = await db.photos.where({ caseId, phase }).toArray();
+  const photos = await listPhotos(caseId, phase);
   return photos.find((p) => p.view === 'frontal' && p.landmarks) ?? photos.find((p) => p.view === 'frontal');
 }
 
@@ -94,8 +95,9 @@ export async function deletePatient(patientId: string) {
       await db.simulations.where('caseId').equals(c.id).delete();
       await db.plans.delete(c.id);
       await db.signoffs.delete(c.id);
+      // Complete deletion (docs/PRD.md M2): the audit trail of the case goes too, nothing refers to the patient afterwards.
+      await db.audit.where('caseId').equals(c.id).delete();
       await db.cases.delete(c.id);
-      await audit(c.id, 'patient.delete');
     }
     if (p) await db.messages.where({ owner: 'doctor', patientCode: p.code }).delete();
     await db.patients.delete(patientId);

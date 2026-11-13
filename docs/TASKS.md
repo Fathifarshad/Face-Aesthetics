@@ -5,7 +5,7 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-13: **M0 done. M1 built, waiting for the owner's check of the regions by eye.** Next: **M2** (M3 only after M1 is confirmed).
+Status 2026-11-13: **M0 and M2 done. M1 built, waiting for the owner's check of the regions by eye.** Next: **M3**, which may start only after M1 is confirmed.
 
 ## What the v1 kit already provides (built 2026-10-27, kept until replaced)
 
@@ -49,10 +49,22 @@ Open points from M1:
 - `test-assets/portrait.jpg` is a photo of a real, recognisable person. Hard rule 11 asks for synthetic test data: replace it (the flow test `e2e/smoke.spec.ts` reads this file name)
 
 ## M2 — Records, encryption, app lock
-- [~] Patient record and Dexie schema (reconcile with PRD §9: internal id, Fitzpatrick optional)
-- [ ] Photos encrypted in IndexedDB (AES-GCM, key derived from the doctor's passphrase); EXIF stripped on import; working copy ≤ 1280 px
-- [ ] App lock; auto-lock after 5 minutes idle; "delete record completely"
-- [ ] (V) Photo bytes in IndexedDB are ciphertext; deleting a record leaves nothing behind
+- [x] `src/db/crypto.ts`: one random AES-GCM 256 image key, stored only wrapped by a PBKDF2-SHA-256 key (600 000 iterations) from the passphrase and, a second time, from a recovery code. No new dependency (Web Crypto)
+- [x] `src/db/vault.ts`: session key in memory only; create, unlock, lock, change passphrase, recover with code (the code is replaced after use), renew code; images saved before the vault existed are encrypted on first unlock
+- [x] `src/db/images.ts`: the only path to photos, simulation images and signatures; rows hold `sealed` ciphertext. All doctor pages and the client-package export go through it
+- [x] `src/app/VaultGate.tsx`: passphrase setup (min 8 characters), recovery code shown once, lock screen, auto-lock after 5 minutes idle; lock button on the patients page
+- [x] Admin panel `/#/admin` (owner request 2026-11-13; replaces the settings page): security, physician and clinic, pricing and safety, aftercare, data on this device, tools
+- [x] Complete deletion: deleting a patient also removes the audit entries of their cases
+- [x] EXIF is dropped on import (canvas re-encode in `processPhoto`), now covered by a test
+- [x] (V) `e2e/security.spec.ts` (5 tests, synthetic image): raw IndexedDB row has no blob, no JPEG header and no EXIF text; wrong passphrase refused; lock by button, idle and reload; passphrase change; recovery; all nine stores empty after deleting the patient. 13 unit tests in `src/db/crypto.test.ts`
+
+Open points from M2:
+- Only images are encrypted. Patient name, phone, intake answers, messages, findings and the clinic logo are stored in plain form (the owner did not ask for more; the admin panel says so). Encrypting them is a separate piece of work
+- The client app (`/#/client`) is not locked or encrypted; revisit in M11
+- Patient record fields were not reshaped to PRD §9 (the v1 fields — display name, file number, phone — are still used by the client app); Fitzpatrick stays in the intake form
+- Stored photos keep up to 1600 px on the long side; the image engine will work on a ≤ 1280 px copy (M3)
+- Automatic deletion after the retention period is still not built (the setting exists and says so)
+- The IndexedDB database is still named `tanasob`; renaming would orphan existing data
 
 ## M3 — Band smoothing
 - [ ] Three-pass separable box blur, band split, per-region masks, protection mask (eyes, brows, nostrils, lips), Web Worker

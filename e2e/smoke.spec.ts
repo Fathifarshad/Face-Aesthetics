@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync } from 'node:fs';
+import { setupVault, unlockVault } from './helpers';
 
 const shots = 'test-results/screens';
 
@@ -18,7 +19,7 @@ const tabs = (page: Page) => page.getByRole('navigation', { name: 'بخش‌ها
 for (const width of [360, 390, 430]) {
   test(`doctor frame shows the five sections at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
-    await page.goto('/#/doctor');
+    await setupVault(page);
     await expect(tabs(page).getByRole('link')).toHaveText(SECTION_TABS);
     await expect(tabs(page).getByRole('link', { name: 'پرونده‌ها' })).toHaveAttribute('aria-current', 'page');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -37,7 +38,7 @@ const PHOTO = 'test-assets/portrait.jpg';
 
 test('doctor flow: patient → intake → photo confirm → analysis → age → plan → sign-off → report', async ({ page }) => {
   test.skip(!existsSync(PHOTO), 'needs a local test photo in test-assets/ (git-ignored)');
-  await page.goto('/#/doctor/new');
+  await setupVault(page, '/#/doctor/new');
   await page.getByLabel('نام نمایشی').fill('بیمار آزمایشی');
   await page.getByLabel('شمارهٔ پرونده').fill('T-001');
   await page.getByLabel('سال تولد (میلادی)').fill('1980');
@@ -112,10 +113,12 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await expect(page).toHaveURL(/plan/);
 
   // settings needed for sign-off
-  await page.goto('/#/settings');
+  await page.goto('/#/admin');
+  await page.getByRole('button', { name: 'پزشک و کلینیک' }).click();
   await page.getByLabel('نام پزشک').fill('دکتر آزمایشی');
   await page.getByLabel('شمارهٔ نظام پزشکی').fill('12345');
-  await page.getByRole('button', { name: 'ذخیره' }).click();
+  await page.getByRole('button', { name: 'ذخیرهٔ تنظیمات' }).click();
+  await expect(page.getByRole('button', { name: 'ذخیره شد' })).toBeVisible();
   await page.goBack();
   await page.getByRole('button', { name: 'تأیید و گزارش' }).click();
   await expect(page).toHaveURL(/report/);
@@ -136,7 +139,8 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await expect(page.getByText('نواحی‌ای که ممکن است از بهبود بهره ببرند')).toBeVisible();
   await page.screenshot({ path: `${shots}/10-print.png`, fullPage: true });
 
-  // persisted after reload
+  // persisted after reload; a reload forgets the key, so the passphrase is asked again
   await page.reload();
+  await unlockVault(page);
   await expect(page.getByText('نواحی‌ای که ممکن است از بهبود بهره ببرند')).toBeVisible();
 });

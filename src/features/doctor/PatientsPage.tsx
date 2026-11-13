@@ -1,9 +1,10 @@
-import { FileUp, MessageCircle, Plus, Search, Settings } from 'lucide-react';
+import { FileUp, Lock, MessageCircle, Plus, Search, Settings } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Header, LangToggle, LinkButton, Notice, Page, Tag } from '../../components/ui';
 import { db } from '../../db/db';
 import { normalizePatientCode } from '../../db/patientCode';
+import { lock } from '../../db/vault';
 import { formatDate, useNum, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { importIntoDoctor } from '../../share/exchange';
@@ -68,7 +69,10 @@ export function PatientsPage() {
         right={
           <>
             <LangToggle />
-            <Link to="/settings" aria-label={t.app.settings} className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-surface">
+            <button type="button" onClick={lock} aria-label={t.vault.lockNow} className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-surface">
+              <Lock size={18} aria-hidden />
+            </button>
+            <Link to="/admin" aria-label={t.admin.title} className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-surface">
               <Settings size={18} />
             </Link>
           </>

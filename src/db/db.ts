@@ -7,22 +7,22 @@ import type {
   FindingRow,
   Message,
   Patient,
-  Photo,
+  PhotoRow,
   PlanRow,
   PtPhoto,
   PtRecord,
-  SignOff,
-  Simulation,
+  SignOffRow,
+  SimulationRow,
 } from './types';
 
 class AppDB extends Dexie {
   patients!: Table<Patient, string>;
   cases!: Table<Case, string>;
-  photos!: Table<Photo, string>;
+  photos!: Table<PhotoRow, string>;
   findings!: Table<FindingRow, string>;
   plans!: Table<PlanRow, string>;
-  simulations!: Table<Simulation, string>;
-  signoffs!: Table<SignOff, string>;
+  simulations!: Table<SimulationRow, string>;
+  signoffs!: Table<SignOffRow, string>;
   messages!: Table<Message, string>;
   audit!: Table<AuditEntry, number>;
   settings!: Table<{ key: string; value: unknown }, string>;

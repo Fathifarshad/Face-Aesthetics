@@ -6,6 +6,7 @@ import { AGE_BANDS, ageBandOf, type AgeBand } from '../../analysis/catalog';
 import { CompareSlider } from '../../components/CompareSlider';
 import { BottomBar, Button, Chip, Field, Header, Notice, Page, Section, Tag } from '../../components/ui';
 import { audit, db, uid } from '../../db/db';
+import { latestSimulation, replaceSimulation } from '../../db/images';
 import { frontalPhoto, updateCase } from '../../db/repo';
 import { useNum, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
@@ -27,7 +28,7 @@ export function AgePage() {
   const nav = useNavigate();
   const data = useCase(caseId);
   const photo = useLive(() => frontalPhoto(caseId), [caseId]);
-  const sim = useLive(async () => (await db.simulations.where('caseId').equals(caseId).sortBy('createdAt')).at(-1), [caseId]);
+  const sim = useLive(() => latestSimulation(caseId), [caseId]);
   const [strength, setStrength] = useState(1);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -52,8 +53,7 @@ export function AgePage() {
       const intensity = Math.min(1.5, intensityFromGap(c.actualAge, c.targetAge) * strength);
       const blob = await renderSimulation(bmp, photo.landmarks, planSeverities(findings), intensity);
       bmp.close();
-      await db.simulations.where('caseId').equals(caseId).delete();
-      await db.simulations.add({ id: uid(), caseId, photoId: photo.id, targetAge: c.targetAge, strength, blob, createdAt: Date.now() });
+      await replaceSimulation({ id: uid(), caseId, photoId: photo.id, targetAge: c.targetAge, strength, blob, createdAt: Date.now() });
       await audit(caseId, 'simulation.create', undefined, { targetAge: c.targetAge, strength });
       setMsg(t.age.simSaved);
     } finally {

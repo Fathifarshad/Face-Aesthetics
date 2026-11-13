@@ -1,5 +1,7 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { DoctorShell } from './app/DoctorShell';
+import { VaultGate } from './app/VaultGate';
+import { AdminPage } from './features/admin/AdminPage';
 import { ClientHome } from './features/client/ClientHome';
 import { ClientRecord } from './features/client/ClientRecord';
 import { InspectorPage } from './features/dev/InspectorPage';
@@ -19,7 +21,6 @@ import { ReportPage } from './features/doctor/ReportPage';
 import { GalleryPage, NoCasePage, SimulatePage } from './features/doctor/SectionPlaceholders';
 import { EmergencyPage } from './features/EmergencyPage';
 import { HomePage } from './features/HomePage';
-import { SettingsPage } from './features/SettingsPage';
 import { useDocumentLang } from './i18n';
 
 export function App() {
@@ -28,25 +29,29 @@ export function App() {
     <HashRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        {/* Doctor app frame: five sections (cases, capture, simulate, plan, before/after) */}
-        <Route element={<DoctorShell />}>
-          <Route path="/doctor" element={<PatientsPage />} />
-          <Route path="/doctor/new" element={<NewCasePage />} />
-          <Route path="/doctor/patient/:patientId" element={<PatientPage />} />
-          <Route path="/doctor/no-case/:section" element={<NoCasePage />} />
-          <Route path="/doctor/case/:caseId/intake" element={<IntakePage />} />
-          <Route path="/doctor/case/:caseId/capture" element={<CapturePage />} />
-          <Route path="/doctor/case/:caseId/analysis" element={<AnalysisPage />} />
-          <Route path="/doctor/case/:caseId/age" element={<AgePage />} />
-          <Route path="/doctor/case/:caseId/simulate" element={<SimulatePage />} />
-          <Route path="/doctor/case/:caseId/plan" element={<PlanPage />} />
-          <Route path="/doctor/case/:caseId/mdcodes" element={<MdCodesPage />} />
-          <Route path="/doctor/case/:caseId/report" element={<ReportPage />} />
-          <Route path="/doctor/case/:caseId/gallery" element={<GalleryPage />} />
-          <Route path="/doctor/case/:caseId/compare" element={<ComparePage />} />
+        {/* Everything that shows patient data sits behind the vault: passphrase, lock, auto-lock. */}
+        <Route element={<VaultGate />}>
+          {/* Doctor app frame: five sections (cases, capture, simulate, plan, before/after) */}
+          <Route element={<DoctorShell />}>
+            <Route path="/doctor" element={<PatientsPage />} />
+            <Route path="/doctor/new" element={<NewCasePage />} />
+            <Route path="/doctor/patient/:patientId" element={<PatientPage />} />
+            <Route path="/doctor/no-case/:section" element={<NoCasePage />} />
+            <Route path="/doctor/case/:caseId/intake" element={<IntakePage />} />
+            <Route path="/doctor/case/:caseId/capture" element={<CapturePage />} />
+            <Route path="/doctor/case/:caseId/analysis" element={<AnalysisPage />} />
+            <Route path="/doctor/case/:caseId/age" element={<AgePage />} />
+            <Route path="/doctor/case/:caseId/simulate" element={<SimulatePage />} />
+            <Route path="/doctor/case/:caseId/plan" element={<PlanPage />} />
+            <Route path="/doctor/case/:caseId/mdcodes" element={<MdCodesPage />} />
+            <Route path="/doctor/case/:caseId/report" element={<ReportPage />} />
+            <Route path="/doctor/case/:caseId/gallery" element={<GalleryPage />} />
+            <Route path="/doctor/case/:caseId/compare" element={<ComparePage />} />
+          </Route>
+          <Route path="/doctor/case/:caseId/print" element={<PrintPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Route>
-        <Route path="/doctor/case/:caseId/print" element={<PrintPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<Navigate to="/admin" replace />} />
         <Route path="/emergency" element={<EmergencyPage />} />
         <Route path="/dev/inspector" element={<InspectorPage />} />
         <Route path="/dev/regions" element={<RegionsDebugPage />} />

@@ -6,6 +6,8 @@ import { PHOTO_RULES, viewById } from '../../capture/views';
 import { CaptureSlot } from '../../components/CaptureSlot';
 import { BottomBar, Button, Header, Notice, Page } from '../../components/ui';
 import { audit, db, uid } from '../../db/db';
+import { listPhotos, sealPhoto } from '../../db/images';
+import { forgetImage } from '../../db/vault';
 import type { PhotoPhase } from '../../db/types';
 import { useBi, useNum, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
@@ -22,7 +24,7 @@ export function CapturePage() {
   const data = useCase(caseId);
   const [phase, setPhase] = useState<PhotoPhase>('before');
   const [rules, setRules] = useState(false);
-  const photos = useLive(() => db.photos.where('caseId').equals(caseId).toArray(), [caseId]);
+  const photos = useLive(() => listPhotos(caseId), [caseId]);
   if (!data || !photos) return null;
   const { c, patient } = data;
 
@@ -33,23 +35,26 @@ export function CapturePage() {
 
   const save = async (view: string, p: Processed, lowQuality: boolean) => {
     const prev = of(phase, view);
+    // Encrypt before the transaction: IndexedDB transactions cannot wait for Web Crypto.
+    const row = await sealPhoto({
+      id: uid(),
+      caseId,
+      phase,
+      view,
+      blob: p.blob,
+      width: p.width,
+      height: p.height,
+      landmarks: p.landmarks,
+      pose: p.pose,
+      qc: p.qc,
+      lowQuality,
+      source: 'doctor',
+      takenAt: Date.now(),
+    });
+    if (prev) forgetImage(prev.id);
     await db.transaction('rw', [db.photos, db.findings, db.audit], async () => {
       if (prev) await db.photos.delete(prev.id);
-      await db.photos.add({
-        id: uid(),
-        caseId,
-        phase,
-        view,
-        blob: p.blob,
-        width: p.width,
-        height: p.height,
-        landmarks: p.landmarks,
-        pose: p.pose,
-        qc: p.qc,
-        lowQuality,
-        source: 'doctor',
-        takenAt: Date.now(),
-      });
+      await db.photos.add(row);
       // A new frontal "before" photo invalidates the computed analysis.
       if (phase === 'before' && view === 'frontal') await db.findings.where('caseId').equals(caseId).delete();
       await audit(caseId, 'photo.save', prev ? { id: prev.id } : undefined, { phase, view, lowQuality, qcPass: p.qc.pass });

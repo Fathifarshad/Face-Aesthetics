@@ -4,6 +4,7 @@ import { viewById } from '../../capture/views';
 import { CompareSlider, SideBySide } from '../../components/CompareSlider';
 import { Chip, Header, Notice, Page, Section } from '../../components/ui';
 import { db } from '../../db/db';
+import { listPhotosOfCases, listSimulations } from '../../db/images';
 import { formatDate, useBi, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { useApp } from '../../store/app';
@@ -25,8 +26,7 @@ export function ComparePage() {
     const c = await db.cases.get(caseId);
     if (!c) return null;
     const cases = (await db.cases.where('patientId').equals(c.patientId).sortBy('createdAt')).reverse();
-    const photos = (await Promise.all(cases.map((x) => db.photos.where('caseId').equals(x.id).toArray()))).flat();
-    const sims = await db.simulations.where('caseId').equals(caseId).toArray();
+    const [photos, sims] = await Promise.all([listPhotosOfCases(cases.map((x) => x.id)), listSimulations(caseId)]);
     return { c, cases, photos, sims };
   }, [caseId]);
   if (!data) return null;
