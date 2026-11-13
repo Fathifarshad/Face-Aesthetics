@@ -3,6 +3,7 @@ import { DoctorShell } from './app/DoctorShell';
 import { ClientHome } from './features/client/ClientHome';
 import { ClientRecord } from './features/client/ClientRecord';
 import { InspectorPage } from './features/dev/InspectorPage';
+import { RegionsDebugPage } from './features/dev/RegionsDebugPage';
 import { AgePage } from './features/doctor/AgePage';
 import { AnalysisPage } from './features/doctor/AnalysisPage';
 import { CapturePage } from './features/doctor/CapturePage';
@@ -48,6 +49,7 @@ export function App() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/emergency" element={<EmergencyPage />} />
         <Route path="/dev/inspector" element={<InspectorPage />} />
+        <Route path="/dev/regions" element={<RegionsDebugPage />} />
         <Route path="/client" element={<ClientHome />} />
         <Route path="/client/:code" element={<ClientRecord />} />
         <Route path="*" element={<Navigate to="/" replace />} />

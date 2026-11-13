@@ -143,9 +143,14 @@ export function SettingsPage() {
           </div>
         </Section>
 
-        <Link to="/dev/inspector" className="text-[13px] text-muted underline">
-          {t.settings.dev}
-        </Link>
+        <div className="flex flex-col gap-1">
+          <Link to="/dev/regions" className="flex min-h-touch items-center text-control text-muted underline">
+            {t.regions.open}
+          </Link>
+          <Link to="/dev/inspector" className="flex min-h-touch items-center text-control text-muted underline">
+            {t.settings.dev}
+          </Link>
+        </div>
       </Page>
       <BottomBar>
         <Button

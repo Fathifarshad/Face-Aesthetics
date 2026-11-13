@@ -15,7 +15,9 @@ export type Token =
   | 'danger'
   | 'ok'
   | 'mark'
-  | 'paper-ink';
+  | 'paper-ink'
+  | 'risk-fg'
+  | `region-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
 
 /** Canvas colour string for a token, resolved at call time. */
 export function cssToken(name: Token, alpha = 1): string {

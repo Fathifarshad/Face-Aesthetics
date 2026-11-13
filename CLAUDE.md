@@ -60,7 +60,12 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - The doctor shell sets `--tabbar-h`; `Page` and `BottomBar` in `src/components/ui.tsx` already account for it
 - A new case step must be added to `src/app/sections.ts`, to `t.nav.steps` in both dictionaries, and to the routes in `src/App.tsx`
 - UI text says «توکسین», never «بوتاکس». Digits are Latin in both languages (`useNum()`)
-- Landmark indices live only in `src/analysis/landmarks.ts` (moving to `src/engine/landmarks.ts` in M1); verify on the debug page before use
+- Engine landmark indices live only in `src/engine/landmarks.ts` (PRD appendix A sets). Every other region is built geometrically in
+  `src/engine/regions.ts`; do not add a mesh index without checking it on `/#/dev/regions` and asking the owner. The v1 file
+  `src/analysis/landmarks.ts` serves only the old proportions code
+- Face coordinates: origin between the outer eye corners, 1 unit = their distance, y toward the chin, subject's right = negative x.
+  Region sizes are in `GEOMETRY` in `regions.ts`; after changing one, run `npx playwright test e2e/regions.spec.ts` and look at
+  `test-results/regions/*-regions.jpg`
 - The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored
 

@@ -5,7 +5,7 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-13: **M0 done.** Next: **M1**.
+Status 2026-11-13: **M0 done. M1 built, waiting for the owner's check of the regions by eye.** Next: **M2** (M3 only after M1 is confirmed).
 
 ## What the v1 kit already provides (built 2026-10-27, kept until replaced)
 
@@ -34,10 +34,18 @@ Status 2026-11-13: **M0 done.** Next: **M1**.
 - [x] (V) `npm run check` green (89 unit tests); Playwright green (5 tests) at 360, 390 and 430 px; screenshots in `test-results/screens/`
 
 ## M1 — Regions and debug overlay
-- [ ] `src/engine/faceFrame.ts`, `landmarks.ts` (PRD appendix A sets), `regions.ts` (16 regions, built geometrically)
-- [ ] Debug page: every region drawn with colour and name over the photo, anchor indices written out
-- [ ] Unit tests: frame is invariant to image rotation and scale; regions mirror left/right
-- [ ] (V) On 5 test photos all 16 regions confirmed by eye by the owner; screenshots recorded. **M3 does not start before this**
+- [x] `src/engine/faceFrame.ts`, `landmarks.ts` (PRD appendix A sets), `shapes.ts`, `regions.ts` (16 concern regions and the protected regions, built geometrically; settings in `GEOMETRY`)
+- [x] Debug page `/#/dev/regions` (link in Settings): every region drawn with its number and colour, anchor indices written out, protected regions, face axes, zoom on the face, per-region show/hide, save image, warnings for no face, several faces and a head turned more than 8°
+- [x] Unit tests (15): frame round trip, mirrored photo, invariance to rotation, scale and shift, left/right symmetry, anatomical ordering, protected regions, neck out of frame
+- [x] `e2e/regions.spec.ts` writes `<photo>-regions.jpg` and `<photo>-protect.jpg` for every file in `test-assets/` into `test-results/regions/`; page checked at 360, 390 and 430 px
+- [~] First check by Claude on the local photos (2026-11-13): placement looks right on the one neutral frontal photo (`20261112_230515`). Tuned after looking: nose-wing width, nostril and eye protection, masseter, glabella, neck size
+- [ ] (V) Owner confirms all 16 regions by eye on 5 **neutral frontal** photos. **M3 does not start before this.** Only one such photo exists now: four of the six new photos are 45° views (yaw 31–39°), one is turned 9°, and `portrait.jpg` shows a smile
+
+Open points from M1:
+- The nose wing is estimated (1.25 × the inner eye corner's distance from the midline). Nose width varies between faces, so the top of the nasolabial strip and the nostril protection can be a few millimetres off. Using mesh nose points instead needs the owner's go-ahead (the spec says no index outside appendix A) and a check of those indices on this page
+- The neck region cannot tell skin from clothing or a headscarf; the doctor turns the neck change off in that case
+- Lateral regions (crow's feet, temple, masseter, cheek) spill past the face edge on a turned head; masks are clipped to the face outline in M3
+- `test-assets/portrait.jpg` is a photo of a real, recognisable person. Hard rule 11 asks for synthetic test data: replace it (the flow test `e2e/smoke.spec.ts` reads this file name)
 
 ## M2 — Records, encryption, app lock
 - [~] Patient record and Dexie schema (reconcile with PRD §9: internal id, Fitzpatrick optional)
