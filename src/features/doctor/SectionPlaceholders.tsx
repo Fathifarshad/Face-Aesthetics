@@ -36,25 +36,6 @@ export function NoCasePage() {
   );
 }
 
-/** Per-region simulation: placeholder until the image engine lands (PRD M3–M4). */
-export function SimulatePage() {
-  const { caseId = '' } = useParams();
-  const t = useT();
-  const data = useCase(caseId);
-  if (!data) return null;
-  return (
-    <>
-      <Header title={`${t.nav.simulate} — ${data.patient.displayName}`} back={`/doctor/case/${caseId}/age`} />
-      <Page>
-        <CaseSteps caseId={caseId} />
-        <EmptyState title={t.nav.simulateSoonTitle} body={t.nav.simulateSoonBody}>
-          <LinkButton to={`/doctor/case/${caseId}/age`}>{t.nav.toAge}</LinkButton>
-        </EmptyState>
-      </Page>
-    </>
-  );
-}
-
 /** Before/after gallery: placeholder until consent levels and the gallery land (PRD M8). */
 export function GalleryPage() {
   const { caseId = '' } = useParams();
