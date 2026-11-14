@@ -75,11 +75,11 @@ Open points from M2:
 - The IndexedDB database is still named `tanasob`; renaming would orphan existing data
 
 ## M3 — Band smoothing
-- [x] Built (2026-11-14):  (3-pass box blur),  (soft region masks, protection and face clipping),  (layer split, per-type coefficients, highlights keep 40 %),  (prepare once, render per slider move, 85 % cap),  (Web Worker), page  (switch + slider per region, before/after divider, burned-in simulation label)
+- [x] Built (2026-11-14): `blur.ts` (3-pass box blur), `masks.ts` (soft region masks, protection and face clipping), `bands.ts` (layer split, per-type coefficients, highlights keep 40 %), `pipeline.ts` (prepare once, render per slider move, 85 % cap), `pipeline.worker.ts` (Web Worker), page `SimulatePage.tsx` (switch + slider per region, before/after divider, burned-in simulation label)
 - [x] Deviation from PRD §5.4, found by measurement: with 4 layers and the PRD coefficients a dark line loses at most 58 % contrast (test wants 60 %) and a broad hollow sits in the base layer. Added a 5th layer (LP4 = 0.12 face width, 'band3') and raised band2 of 'fine' to 0.6, 'deep' to 0.85, 'hollow' to 0.9. **Owner/PRD must confirm this change**
-- [x] Unit tests (18, ): exact layer sum, ≥ 60 % contrast loss per type, nothing changes outside the mask, no bright rim, nothing changes inside eyes/brows/nostrils/lips, 85 % cap
-- [ ] (V) Not done: render time < 50 ms on a mid-range phone (never measured; the page records  on the canvas); owner has not yet looked at the result on a real photo; no e2e test for the simulation page yet
-- [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine () is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
+- [x] Unit tests (18, `smoothing.test.ts`): exact layer sum, ≥ 60 % contrast loss per type, nothing changes outside the mask, no bright rim, nothing changes inside eyes/brows/nostrils/lips, 85 % cap
+- [ ] (V) Not done: render time < 50 ms on a mid-range phone (never measured; the page records `data-render-ms` on the canvas); owner has not yet looked at the result on a real photo; no e2e test for the simulation page yet
+- [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
 - [!] M1 (owner confirmation of regions by eye) was still open when M3 was started, against the SUPERPROMPT rule. Treat M3 as provisional until M1 is confirmed
 
 ## M4 — Warp and before/after slider
