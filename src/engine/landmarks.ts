@@ -45,5 +45,18 @@ export const ANCHOR = {
 
 export type AnchorName = keyof typeof ANCHOR;
 
+/**
+ * Mesh points beyond PRD appendix A, added on 2026-11-13 after the owner asked for more accurate regions.
+ * Not guessed: each index was plotted with its number on two frontal test photos and checked by eye
+ * (they lie along the visible fold / around the nostril), and they are drawn on the debug page.
+ * Left sets are the mesh mirrors of the right sets.
+ */
+/** Along the nasolabial fold, from the groove beside the nose wing to just outside and below the mouth corner. */
+export const R_NASOLABIAL = [129, 203, 206, 216, 212] as const;
+export const L_NASOLABIAL = [358, 423, 426, 436, 432] as const;
+/** Ring of points around the nostril at the base of the nose. */
+export const R_NOSTRIL = [60, 75, 59, 166, 79, 239, 238, 20] as const;
+export const L_NOSTRIL = [290, 305, 289, 392, 309, 459, 458, 250] as const;
+
 /** Number of points the engine expects (iris points 468–477 included, unused here). */
 export const LANDMARK_COUNT = 478;

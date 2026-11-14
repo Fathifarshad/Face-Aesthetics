@@ -4,7 +4,7 @@ import type { Pt } from './types';
 export type Shape =
   | { type: 'polygon'; pts: Pt[] }
   | { type: 'ellipse'; c: Pt; rx: number; ry: number }
-  | { type: 'band'; path: Pt[]; halfWidth: number };
+  | { type: 'band'; path: Pt[]; halfWidth: number; /** Width factor at the start of the path; grows to 1 over the first third. */ startScale?: number };
 
 export const lerp = (a: Pt, b: Pt, t: number): Pt => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 export const offset = (p: Pt, dx: number, dy: number): Pt => ({ x: p.x + dx, y: p.y + dy });
@@ -54,16 +54,43 @@ export function quadBezier(a: Pt, ctrl: Pt, b: Pt, segments = 12): Pt[] {
   });
 }
 
-/** Closed outline of a strip of constant half-width around a polyline (flat ends). */
-export function bandOutline(path: readonly Pt[], halfWidth: number): Pt[] {
+/** Smooth curve that passes through every given point (uniform Catmull-Rom). */
+export function smoothPath(pts: readonly Pt[], perSegment = 6): Pt[] {
+  if (pts.length < 3) return [...pts];
+  const out: Pt[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)]!;
+    const p1 = pts[i]!;
+    const p2 = pts[i + 1]!;
+    const p3 = pts[Math.min(pts.length - 1, i + 2)]!;
+    for (let k = 0; k < perSegment; k++) {
+      const t = k / perSegment;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const blend = (a: number, b: number, c: number, d: number) =>
+        0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      out.push({ x: blend(p0.x, p1.x, p2.x, p3.x), y: blend(p0.y, p1.y, p2.y, p3.y) });
+    }
+  }
+  out.push(pts[pts.length - 1]!);
+  return out;
+}
+
+/** Fraction of the path over which a tapered band reaches its full width. */
+const TAPER_LENGTH = 0.35;
+
+/** Closed outline of a strip around a polyline (flat ends). `startScale` < 1 makes the strip narrower at its start. */
+export function bandOutline(path: readonly Pt[], halfWidth: number, startScale = 1): Pt[] {
   const left: Pt[] = [];
   const right: Pt[] = [];
   path.forEach((p, i) => {
     const a = path[Math.max(0, i - 1)]!;
     const b = path[Math.min(path.length - 1, i + 1)]!;
     const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    const nx = (-(b.y - a.y) / len) * halfWidth;
-    const ny = ((b.x - a.x) / len) * halfWidth;
+    const along = path.length > 1 ? i / (path.length - 1) : 1;
+    const hw = halfWidth * (startScale + (1 - startScale) * Math.min(1, along / TAPER_LENGTH));
+    const nx = (-(b.y - a.y) / len) * hw;
+    const ny = ((b.x - a.x) / len) * hw;
     left.push({ x: p.x + nx, y: p.y + ny });
     right.push({ x: p.x - nx, y: p.y - ny });
   });
@@ -80,7 +107,7 @@ export function ellipseOutline(c: Pt, rx: number, ry: number, segments = 40): Pt
 export function outlineOf(shape: Shape): Pt[] {
   if (shape.type === 'polygon') return shape.pts;
   if (shape.type === 'ellipse') return ellipseOutline(shape.c, shape.rx, shape.ry);
-  return bandOutline(shape.path, shape.halfWidth);
+  return bandOutline(shape.path, shape.halfWidth, shape.startScale);
 }
 
 export function pointInPolygon(p: Pt, poly: readonly Pt[]): boolean {

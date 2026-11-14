@@ -67,8 +67,10 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - Routes that show patient data go inside `<VaultGate>` in `src/App.tsx`. A reload forgets the key; e2e tests start with
   `setupVault(page)` and call `unlockVault(page)` after a reload (`e2e/helpers.ts`)
 - UI text says «توکسین», never «بوتاکس». Digits are Latin in both languages (`useNum()`)
-- Engine landmark indices live only in `src/engine/landmarks.ts` (PRD appendix A sets). Every other region is built geometrically in
-  `src/engine/regions.ts`; do not add a mesh index without checking it on `/#/dev/regions` and asking the owner. The v1 file
+- Engine landmark indices live only in `src/engine/landmarks.ts` (PRD appendix A sets, plus the nasolabial and nostril sets the owner
+  approved on 2026-11-13). Other regions are built geometrically in `src/engine/regions.ts`. Never add a mesh index from memory: plot the
+  indices on test photos, check by eye, then record it in PRD appendix A. The forehead's upper edge comes from the picture
+  (`src/engine/hairline.ts`), not from the mesh. The v1 file
   `src/analysis/landmarks.ts` serves only the old proportions code
 - Face coordinates: origin between the outer eye corners, 1 unit = their distance, y toward the chin, subject's right = negative x.
   Region sizes are in `GEOMETRY` in `regions.ts`; after changing one, run `npx playwright test e2e/regions.spec.ts` and look at

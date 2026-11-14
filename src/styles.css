@@ -40,15 +40,15 @@
   /* clinical photo backdrop (neutral, never tinted) and debug marks on photos */
   --photo: 5 5 5;
   --mark: 127 214 211;
-  /* categorical colours of the region debug layer (dev only) */
-  --region-1: 64 196 255;
-  --region-2: 255 99 216;
-  --region-3: 163 230 53;
-  --region-4: 255 159 67;
-  --region-5: 167 139 250;
-  --region-6: 45 212 191;
-  --region-7: 250 204 21;
-  --region-8: 251 113 133;
+  /* Region overlay colours: one lightness and chroma (OKLCH 0.80 / 0.105), hue only varies, starting at the brand gold. */
+  --region-1: 218 186 107; /* gold */
+  --region-2: 242 172 123; /* apricot */
+  --region-3: 250 162 168; /* rose */
+  --region-4: 228 165 222; /* orchid */
+  --region-5: 182 180 255; /* periwinkle */
+  --region-6: 124 199 251; /* sky */
+  --region-7: 94 211 211; /* aqua */
+  --region-8: 139 209 154; /* mint */
 
   /* printed report and signature pad (light paper) */
   --paper: 255 255 255;

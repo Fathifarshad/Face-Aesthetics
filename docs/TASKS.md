@@ -40,10 +40,18 @@ Status 2026-11-13: **M0 and M2 done. M1 built, waiting for the owner's check of 
 - [x] `e2e/regions.spec.ts` writes `<photo>-regions.jpg` and `<photo>-protect.jpg` for every file in `test-assets/` into `test-results/regions/`; page checked at 360, 390 and 430 px
 - [~] First check by Claude on the local photos (2026-11-13): placement looks right on the one neutral frontal photo (`20261112_230515`). Tuned after looking: nose-wing width, nostril and eye protection, masseter, glabella, neck size
 - [~] Second check by Claude after the owner added four close-up photos of four more people (2026-11-13): regions land on the expected anatomy on all five faces, including a head tilted 13° (the frame follows the tilt). On close-up selfies the lower face is narrow in the image, so masseter, jowl and marionette overlap; each still sits on its own structure
+- [x] Owner feedback 2026-11-13 (nasolabial strip off the fold, forehead too small, skin region smaller than the face, colours, list under the photo) — fixed:
+  - nasolabial strip now follows mesh points `129, 203, 206, 216, 212` / `358, 423, 426, 436, 432`, verified by plotting every mesh index on two frontal photos; narrower beside the nose wing
+  - nostril protection from the mesh nostril ring instead of an estimate; the estimated nose-wing point is gone
+  - `src/engine/hairline.ts`: the upper forehead edge is measured in the picture (skin colour above each brow, walking up); forehead and skin regions reach it. Falls back to the mesh top when it cannot be measured
+  - skin region = the whole face outline closed by that edge (no inward shrink)
+  - overlay colours: one lightness and chroma, hue only varies (tokens `--region-1…8`)
+  - debug page: region list beside the photo on a wide screen; on a phone the photo stays pinned while the list scrolls
 - [ ] (V) Owner confirms all 16 regions by eye on 5 **neutral frontal** photos. **M3 does not start before this.** Photos within the pose limit and neutral: `20261112_230515` only. Close: `20261114_001811` (pitch 10°), `20261114_001749` (tilt 13°, yaw 6°). Not usable as frontal: `20261114_001802` (pitch 21°), `20261114_001815` (smile), the four 45° views, `portrait.jpg` (smile)
 
 Open points from M1:
-- The nose wing is estimated (1.25 × the inner eye corner's distance from the midline). Nose width varies between faces, so the top of the nasolabial strip and the nostril protection can be a few millimetres off. Using mesh nose points instead needs the owner's go-ahead (the spec says no index outside appendix A) and a check of those indices on this page
+- Mesh indices outside PRD appendix A are now used for the nasolabial fold and the nostrils (owner asked for more accuracy). They are listed in `src/engine/landmarks.ts`, in PRD appendix A and on the debug page. The other lateral regions (cheek, marionette, jowl, masseter, temple, crow's feet) are still placed geometrically
+- The hairline search compares colours, so it can stop early on a strongly shadowed forehead and run past the hairline on a shaved or bald head (capped at 0.75 face units above the brows). The debug page has a switch to compare with and without it
 - The neck region cannot tell skin from clothing or a headscarf; the doctor turns the neck change off in that case
 - Lateral regions (crow's feet, temple, masseter, cheek) spill past the face edge on a turned head; masks are clipped to the face outline in M3
 - `test-assets/portrait.jpg` is a photo of a real, recognisable person. Hard rule 11 asks for synthetic test data: replace it (the flow test `e2e/smoke.spec.ts` reads this file name)

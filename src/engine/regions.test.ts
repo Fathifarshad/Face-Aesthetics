@@ -1,15 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { CONCERN_IDS } from '../data/types';
 import { buildFrame, rollDeg, toFace, toPx } from './faceFrame';
-import { FIXTURE, syntheticMesh, transformed } from './fixtures';
-import { ANCHOR, FACE_OVAL, L_EYE_LOWER, LIPS_OUTER_LOWER, LIPS_OUTER_UPPER, R_BROW_UPPER, R_EYE_LOWER, R_EYE_UPPER } from './landmarks';
+import { FIXTURE, syntheticMesh, syntheticPicture, transformed } from './fixtures';
+import { detectHairline, HAIRLINE } from './hairline';
+import {
+  ANCHOR,
+  FACE_OVAL,
+  L_EYE_LOWER,
+  L_NASOLABIAL,
+  L_NOSTRIL,
+  LIPS_OUTER_LOWER,
+  LIPS_OUTER_UPPER,
+  R_BROW_UPPER,
+  R_EYE_LOWER,
+  R_EYE_UPPER,
+  R_NASOLABIAL,
+  R_NOSTRIL,
+} from './landmarks';
 import { buildRegions, outlinePx, type Region, type RegionSet } from './regions';
 import { area, centroid, pointInPolygon } from './shapes';
 import type { Pt } from './types';
 
 const size = { width: FIXTURE.width, height: FIXTURE.height };
 const mesh = syntheticMesh();
-const base = buildRegions(mesh, size);
+const base = buildRegions(mesh, { size });
 const get = (set: RegionSet, id: string): Region => {
   const r = set.regions.find((x) => x.id === id);
   if (!r) throw new Error(`region ${id} missing`);
@@ -68,7 +82,7 @@ describe('regions', () => {
   });
 
   it('gives the same face-coordinate geometry however the photo is rotated, scaled or shifted', () => {
-    const other = buildRegions(transformed(mesh, { deg: -23, scale: 0.6, dx: 80, dy: 40 }), { width: 2000, height: 2000 });
+    const other = buildRegions(transformed(mesh, { deg: -23, scale: 0.6, dx: 80, dy: 40 }), { size: { width: 2000, height: 2000 } });
     expect(other.regions.map((r) => r.id)).toEqual(base.regions.map((r) => r.id));
     for (const r of base.regions) {
       const o = get(other, r.id);
@@ -100,30 +114,79 @@ describe('regions', () => {
     }
   });
 
-  it('keeps the nasolabial strip off the lips and running from beside the nose to below the mouth corner', () => {
+  it('runs the nasolabial strip through the mesh fold points, off the lips, and narrower beside the nose', () => {
     const lips = get(base, 'lip-volume:M').outline;
-    for (const side of ['R', 'L'] as const) {
+    for (const [side, fold] of [['R', R_NASOLABIAL], ['L', L_NASOLABIAL]] as const) {
       const band = get(base, `nasolabial-fold:${side}`);
       expect(band.outline.some((p) => pointInPolygon(p, lips))).toBe(false);
       expect(lips.some((p) => pointInPolygon(p, band.outline))).toBe(false);
       if (band.shape.type !== 'band') throw new Error('expected a band');
       const path = band.shape.path;
+      // The centre line passes through every mesh point of the fold…
+      for (const i of fold) {
+        const q = toFace(base.frame, mesh[i]!);
+        expect(Math.min(...path.map((p) => Math.hypot(p.x - q.x, p.y - q.y))), `fold point ${i}`).toBeLessThan(1e-9);
+        expect(pointInPolygon(q, band.outline) || i === fold[0] || i === fold.at(-1), `fold point ${i} inside`).toBe(true);
+      }
+      // …from beside the nose down to outside and below the mouth corner.
       const mouth = toFace(base.frame, mesh[side === 'R' ? ANCHOR.rMouth : ANCHOR.lMouth]!);
-      const alar = base.derived[`alar${side}`]!;
-      expect(Math.abs(path[0]!.x)).toBeGreaterThan(Math.abs(alar.x));
       expect(path[0]!.y).toBeLessThan(toFace(base.frame, mesh[ANCHOR.subnasale]!).y);
       expect(path.at(-1)!.y).toBeGreaterThan(mouth.y);
       expect(Math.abs(path.at(-1)!.x)).toBeGreaterThan(Math.abs(mouth.x));
       expect(band.shape.halfWidth).toBe(0.055);
+      // Width across the strip at its two ends.
+      const n = path.length;
+      const width = (i: number) => Math.hypot(band.outline[i]!.x - band.outline[2 * n - 1 - i]!.x, band.outline[i]!.y - band.outline[2 * n - 1 - i]!.y);
+      expect(width(0)).toBeCloseTo(0.055, 6);
+      expect(width(n - 1)).toBeCloseTo(0.11, 6);
     }
   });
 
-  it('places the forehead above the brows and inside the face outline', () => {
+  it('covers the nostril ring with the nostril protection', () => {
+    for (const [side, ring] of [['R', R_NOSTRIL], ['L', L_NOSTRIL]] as const) {
+      const nostril = get(base, `protect-nostril:${side}`).outline;
+      for (const i of ring) expect(pointInPolygon(toFace(base.frame, mesh[i]!), nostril), `nostril point ${i}`).toBe(true);
+    }
+  });
+
+  it('without a measured hairline, runs the forehead from the brows to the top of the mesh and the skin over the whole outline', () => {
     const F = (i: number) => toFace(base.frame, mesh[i]!);
+    expect(base.hairlineMeasured).toBe(false);
     const forehead = get(base, 'forehead-lines:M').outline;
     const browTop = Math.min(...R_BROW_UPPER.map((i) => F(i).y));
     expect(centroid(forehead).y).toBeLessThan(browTop);
-    expect(Math.min(...forehead.map((p) => p.y))).toBeGreaterThan(F(ANCHOR.foreheadTop).y);
+    expect(Math.min(...forehead.map((p) => p.y))).toBeCloseTo(F(ANCHOR.foreheadTop).y, 9);
+    const oval = FACE_OVAL.map(F);
+    expect(area(get(base, 'skin-quality:M').outline)).toBeCloseTo(area(oval), 9);
+  });
+
+  it('finds the hairline in the picture and extends the forehead and the skin region up to it', () => {
+    const hairlineY = -1.0; // above the mesh top (−0.75): the mesh alone would stop short
+    const hairline = detectHairline(syntheticPicture(hairlineY), mesh);
+    expect(hairline).not.toBeNull();
+    expect(hairline!).toHaveLength(HAIRLINE.columns);
+    for (const p of hairline!) {
+      // Just below the true edge: never inside the hair, at most one step plus the margin below it.
+      expect(p.y, `column at x=${p.x.toFixed(2)}`).toBeGreaterThan(hairlineY);
+      expect(p.y).toBeLessThan(hairlineY + HAIRLINE.margin + 2 * HAIRLINE.step);
+    }
+    const withHair = buildRegions(mesh, { size, hairline });
+    expect(withHair.hairlineMeasured).toBe(true);
+    const top = (set: RegionSet, id: string) => Math.min(...get(set, id).outline.map((p) => p.y));
+    expect(top(withHair, 'forehead-lines:M')).toBeLessThan(top(base, 'forehead-lines:M') - 0.2);
+    expect(top(withHair, 'forehead-lines:M')).toBeGreaterThan(hairlineY);
+    expect(area(get(withHair, 'forehead-lines:M').outline)).toBeGreaterThan(area(get(base, 'forehead-lines:M').outline));
+    expect(top(withHair, 'skin-quality:M')).toBeCloseTo(top(withHair, 'forehead-lines:M'), 9);
+    expect(centroid(get(withHair, 'forehead-lines:M').outline).x).toBeCloseTo(0, 6);
+  });
+
+  it('stops at a low hairline instead of the mesh top, and gives up when the brows are out of the picture', () => {
+    const low = detectHairline(syntheticPicture(-0.5), mesh)!;
+    for (const p of low) expect(p.y).toBeGreaterThan(-0.5);
+    const set = buildRegions(mesh, { size, hairline: low });
+    expect(Math.min(...get(set, 'forehead-lines:M').outline.map((p) => p.y))).toBeGreaterThan(-0.5);
+    const shifted = transformed(mesh, { dy: -2000 });
+    expect(detectHairline(syntheticPicture(-1), shifted)).toBeNull();
   });
 
   it('keeps every region centre inside the face outline, lateral regions lateral and lower regions low', () => {
@@ -155,7 +218,7 @@ describe('regions', () => {
 
   it('reports the neck as missing when the photo ends at the chin or the image size is unknown', () => {
     const chinY = mesh[ANCHOR.chin]!.y;
-    const tight = buildRegions(mesh, { width: 1000, height: Math.round(chinY + 10) });
+    const tight = buildRegions(mesh, { size: { width: 1000, height: Math.round(chinY + 10) } });
     expect(tight.missing).toEqual(['neck']);
     expect(tight.regions.some((r) => r.concernId === 'neck')).toBe(false);
     expect(buildRegions(mesh).missing).toEqual(['neck']);

@@ -7,14 +7,18 @@ import {
   L_BROW_UPPER,
   L_EYE_LOWER,
   L_EYE_UPPER,
+  L_NASOLABIAL,
+  L_NOSTRIL,
   LIPS_OUTER_LOWER,
   LIPS_OUTER_UPPER,
   R_BROW_LOWER,
   R_BROW_UPPER,
   R_EYE_LOWER,
   R_EYE_UPPER,
+  R_NASOLABIAL,
+  R_NOSTRIL,
 } from './landmarks';
-import { centroid, crossingsAtX, crossingsAtY, lerp, offset, outlineOf, quadBezier, scaleAboutCentroid, type Shape } from './shapes';
+import { centroid, crossingsAtX, crossingsAtY, lerp, offset, outlineOf, quadBezier, smoothPath, type Shape } from './shapes';
 import type { FaceFrame, Pt } from './types';
 
 /** R / L = the subject's right / left; M = midline. */
@@ -41,19 +45,25 @@ export interface RegionSet {
   /** Mesh top (10) to chin (152), in face units. */
   faceHeight: number;
   regions: Region[];
-  /** Points built from anchors rather than read from the mesh, in face coordinates (shown on the debug page). */
-  derived: Record<string, Pt>;
+  /** True when the forehead and skin regions reach a hairline measured in the image, not just the mesh top. */
+  hairlineMeasured: boolean;
   /** Concerns that cannot be placed on this photo (e.g. the neck is out of frame). */
   missing: ConcernId[];
 }
 
+export interface RegionInputs {
+  /** Image size in pixels; needed only to decide whether the neck is in frame. */
+  size?: { width: number; height: number };
+  /** Upper forehead edge from `detectHairline` (face coordinates, subject's right to left). */
+  hairline?: readonly Pt[] | null;
+}
+
 /**
  * Region geometry, in face units unless a comment says otherwise (1 unit = distance between the outer eye
- * corners). Values marked [SP] come from prompts/SUPERPROMPT.md; the rest are first settings to be confirmed
- * by eye on the debug page (M1). These are image-region sizes, not clinical values.
+ * corners). Values marked [SP] come from prompts/SUPERPROMPT.md; the rest were set by eye on the debug page
+ * (M1). These are image-region sizes, not clinical values.
  */
 export const GEOMETRY = {
-  foreheadShrink: 0.92, // [SP] 8 % toward the centre, to stay off the hairline
   glabellaToNasion: 0.25, // centre sits this far from point 9 toward the nasion, to take in the nasal root
   glabellaRy: 0.14,
   glabellaPadX: 0.02,
@@ -66,12 +76,8 @@ export const GEOMETRY = {
   cheekOut: 0.06,
   cheekRx: 0.19,
   cheekRy: 0.17,
-  alarWidth: 1.25, // nose-wing edge = this × the inner eye corner's distance from the midline (checked on test photos)
-  alarUp: 0.04, // …and this far above the subnasale
   nasolabialHalfWidth: 0.055, // [SP]
-  nasolabialStart: { out: 0.04, down: -0.02 }, // from the alar point
-  nasolabialEnd: { out: 0.09, down: 0.1 }, // from the mouth corner
-  nasolabialBulge: 0.04,
+  nasolabialStartScale: 0.5, // narrower beside the nose wing, so the wing itself is left alone
   marionetteHalfWidth: 0.045,
   marionetteStart: { out: 0.03, down: 0.03 }, // from the mouth corner
   marionetteEndOut: 0.07,
@@ -101,29 +107,31 @@ export const GEOMETRY = {
   neckBelowJaw: 0.05,
   neckHalfWidthTop: 0.38,
   neckHalfWidthBottom: 0.3,
-  skinShrink: 0.96,
   eyePadUp: 0.045, // above the upper lid margin: lashes and lid crease
   eyePadDown: 0.03, // below the lower lid margin; must stay above the under-eye strip
   eyeWiden: 1.12,
-  nostrilAt: 0.6, // × alar half-width from the midline
-  nostrilUp: 0.035,
-  nostrilRx: 0.085,
-  nostrilRy: 0.05,
+  nostrilRxOfSpan: 0.65, // × the width of the nostril ring; the opening sits above or below the ring depending on camera height
+  nostrilRxMin: 0.07,
+  nostrilRy: 0.07,
 } as const;
 
 const SIDES = {
-  R: { s: -1, eyeOuter: ANCHOR.rEyeOuter, eyeInner: ANCHOR.rEyeInner, mouth: ANCHOR.rMouth, lower: R_EYE_LOWER, upper: R_EYE_UPPER, browU: R_BROW_UPPER, browL: R_BROW_LOWER },
-  L: { s: 1, eyeOuter: ANCHOR.lEyeOuter, eyeInner: ANCHOR.lEyeInner, mouth: ANCHOR.lMouth, lower: L_EYE_LOWER, upper: L_EYE_UPPER, browU: L_BROW_UPPER, browL: L_BROW_LOWER },
+  R: { s: -1, eyeOuter: ANCHOR.rEyeOuter, mouth: ANCHOR.rMouth, lower: R_EYE_LOWER, upper: R_EYE_UPPER, browU: R_BROW_UPPER, browL: R_BROW_LOWER, fold: R_NASOLABIAL, nostril: R_NOSTRIL },
+  L: { s: 1, eyeOuter: ANCHOR.lEyeOuter, mouth: ANCHOR.lMouth, lower: L_EYE_LOWER, upper: L_EYE_UPPER, browU: L_BROW_UPPER, browL: L_BROW_LOWER, fold: L_NASOLABIAL, nostril: L_NOSTRIL },
 } as const;
 
 /** Positions in FACE_OVAL of the top arc, from the subject's left temple over the top to the right temple. */
 const OVAL_TOP_ARC = [4, 3, 2, 1, 0, 35, 34, 33, 32] as const;
+/** Positions in FACE_OVAL of the rest of the outline: left temple, down the left side, chin, up to the right temple. */
+const OVAL_BELOW_TOP = Array.from({ length: 27 }, (_, i) => i + 5);
 
 /**
  * Places the 16 concern regions of docs/PRD.md §6 and the protected regions on one frontal photo.
- * `lm` are pixel-space landmarks; `size` (image size in pixels) is needed only to decide whether the neck is in frame.
+ * `lm` are pixel-space landmarks. Without `inputs.hairline` the forehead and skin regions stop at the top of
+ * the mesh, which is below the real hairline.
  */
-export function buildRegions(lm: readonly Pt[], size?: { width: number; height: number }): RegionSet {
+export function buildRegions(lm: readonly Pt[], inputs: RegionInputs = {}): RegionSet {
+  const { size, hairline } = inputs;
   const frame = buildFrame(lm);
   const F = (i: number): Pt => toFace(frame, lm[i]!);
   const G = GEOMETRY;
@@ -141,7 +149,6 @@ export function buildRegions(lm: readonly Pt[], size?: { width: number; height: 
   };
 
   const regions: Region[] = [];
-  const derived: Record<string, Pt> = {};
   const missing: ConcernId[] = [];
   const add = (concernId: ConcernId | null, side: Side, shape: Shape, opts: { protect?: boolean; protectId?: ProtectId } = {}) =>
     regions.push({
@@ -154,19 +161,23 @@ export function buildRegions(lm: readonly Pt[], size?: { width: number; height: 
       outline: outlineOf(shape),
     });
 
-  // 1 — forehead: between the upper brow edges and the top arc of the face outline.
-  const foreheadRaw = [...R_BROW_UPPER.map(F), ...[...L_BROW_UPPER].reverse().map(F), ...OVAL_TOP_ARC.map((k) => oval[k]!)];
-  add('forehead-lines', 'M', { type: 'polygon', pts: scaleAboutCentroid(foreheadRaw, G.foreheadShrink) });
+  // Upper edge of the forehead, from the subject's left to the right: the measured hairline when there is one,
+  // otherwise the top arc of the mesh.
+  const hairlineMeasured = !!hairline && hairline.length >= 3;
+  const topEdge: Pt[] = hairlineMeasured ? [...hairline].sort((a, b) => b.x - a.x) : OVAL_TOP_ARC.map((k) => oval[k]!);
 
-  // 2 — glabella: ellipse at point 9, between the heads of the two brows.
+  // 1 — forehead: from the upper brow edges up to that edge.
+  const forehead: Shape = { type: 'polygon', pts: [...R_BROW_UPPER.map(F), ...[...L_BROW_UPPER].reverse().map(F), ...topEdge] };
+
+  // 2 — glabella: ellipse between the heads of the two brows, reaching down to the nasal root.
   const browHeadR = F(R_BROW_UPPER[R_BROW_UPPER.length - 1]!);
   const browHeadL = F(L_BROW_UPPER[L_BROW_UPPER.length - 1]!);
-  add('glabellar-lines', 'M', {
+  const glabella: Shape = {
     type: 'ellipse',
     c: lerp(F(ANCHOR.glabella), F(ANCHOR.nasion), G.glabellaToNasion),
     rx: Math.abs(browHeadL.x - browHeadR.x) / 2 + G.glabellaPadX,
     ry: G.glabellaRy,
-  });
+  };
 
   // 8 — lips: the standard outer lip contour (also protected from smoothing).
   const lipsUpper = LIPS_OUTER_UPPER.map(F);
@@ -227,17 +238,13 @@ export function buildRegions(lm: readonly Pt[], size?: { width: number; height: 
       ry: G.cheekRy,
     });
 
-    // 6 — nasolabial fold: strip around a curve from beside the nose wing to just outside and below the mouth corner.
-    // The nose wing has no standard mesh set, so it is built from anchors: a little wider than the inner eye corner,
-    // just above the subnasale. It is an estimate; nose width varies between faces (see docs/TASKS.md, M1).
-    const alar = { x: F(d.eyeInner).x * G.alarWidth, y: subnasale.y - G.alarUp };
-    derived[`alar${side}`] = alar;
-    const nlStart = offset(alar, s * G.nasolabialStart.out, G.nasolabialStart.down);
-    const nlEnd = offset(mouth, s * G.nasolabialEnd.out, G.nasolabialEnd.down);
+    // 6 — nasolabial fold: strip along the mesh points that follow the fold, from the groove beside the nose
+    // wing to just outside and below the mouth corner. Narrower at the top so the nose wing is not covered.
     put('nasolabial-fold', side, {
       type: 'band',
-      path: quadBezier(nlStart, offset(lerp(nlStart, nlEnd, 0.5), s * G.nasolabialBulge, 0), nlEnd),
+      path: smoothPath(d.fold.map(F)),
       halfWidth: G.nasolabialHalfWidth,
+      startScale: G.nasolabialStartScale,
     });
 
     // 7 — marionette: strip from the mouth corner down toward the jaw outline.
@@ -289,10 +296,12 @@ export function buildRegions(lm: readonly Pt[], size?: { width: number; height: 
     }
   }
 
-  // 16 — skin quality: the whole face outline, slightly inside the edge.
-  const skin: Shape = { type: 'polygon', pts: scaleAboutCentroid(oval, G.skinShrink) };
+  // 16 — skin quality: the whole face — the mesh outline below the temples, closed at the top by the forehead edge.
+  const skin: Shape = { type: 'polygon', pts: [...OVAL_BELOW_TOP.map((k) => oval[k]!), ...[...topEdge].reverse()] };
 
   const midline: Partial<Record<ConcernId, Shape | null>> = {
+    'forehead-lines': forehead,
+    'glabellar-lines': glabella,
     'lip-volume': { type: 'polygon', pts: lips },
     'perioral-lines': { type: 'polygon', pts: perioral },
     chin: chinShape,
@@ -302,7 +311,6 @@ export function buildRegions(lm: readonly Pt[], size?: { width: number; height: 
 
   // Emit in the order of the PRD table.
   for (const id of CONCERN_IDS) {
-    if (regions.some((r) => r.concernId === id)) continue;
     const pair = sided[id];
     const protect = id === 'brow' || id === 'lip-volume';
     if (pair) {
@@ -311,7 +319,6 @@ export function buildRegions(lm: readonly Pt[], size?: { width: number; height: 
     } else if (midline[id]) add(id, 'M', midline[id], { protect });
     else missing.push(id);
   }
-  regions.sort((a, b) => CONCERN_IDS.indexOf(a.concernId!) - CONCERN_IDS.indexOf(b.concernId!));
 
   // Protected only: eyes (padded to cover lashes and the lid crease) and nostrils.
   for (const side of ['R', 'L'] as const) {
@@ -324,16 +331,14 @@ export function buildRegions(lm: readonly Pt[], size?: { width: number; height: 
     add(null, side, { type: 'polygon', pts: eye.map((p) => ({ x: cx + (p.x - cx) * G.eyeWiden, y: p.y })) }, { protect: true, protectId: 'eye' });
   }
   for (const side of ['R', 'L'] as const) {
-    const alar = derived[`alar${side}`]!;
-    add(
-      null,
-      side,
-      { type: 'ellipse', c: { x: G.nostrilAt * alar.x, y: subnasale.y - G.nostrilUp }, rx: G.nostrilRx, ry: G.nostrilRy },
-      { protect: true, protectId: 'nostril' },
-    );
+    const ring = SIDES[side].nostril.map(F);
+    const xs = ring.map((p) => p.x);
+    const c = { x: ring.reduce((t, p) => t + p.x, 0) / ring.length, y: ring.reduce((t, p) => t + p.y, 0) / ring.length };
+    const rx = Math.max(G.nostrilRxMin, G.nostrilRxOfSpan * (Math.max(...xs) - Math.min(...xs)));
+    add(null, side, { type: 'ellipse', c, rx, ry: G.nostrilRy }, { protect: true, protectId: 'nostril' });
   }
 
-  return { frame, faceHeight, regions, derived, missing };
+  return { frame, faceHeight, regions, hairlineMeasured, missing };
 }
 
 /** Region outline in pixels, ready for drawing or rasterising. */
