@@ -27,6 +27,8 @@ const BOX_MARGIN = 0.25;
 /** Hair detection: neighbourhood of the majority vote and width of the soft edge, in face units. */
 const HAIR_GRAIN = 0.012;
 const HAIR_FEATHER = 0.01;
+/** Hair patches smaller than a square of this side (face units) are wrinkles, not hair. */
+const HAIR_MIN_SIZE = 0.06;
 
 /**
  * Smoothing applied for each concern: the type from the PRD §5.4 table where the table names the concern
@@ -126,7 +128,7 @@ export function prepare(input: PipelineInput): Prepared {
   const cheeks = new Float32Array(pixels);
   for (const r of set.regions) if (r.concernId === 'midface-volume') stampMax(cheeks, rect.width, buildMask(r.outline.map(local), rect, 0));
   const reference = medianLuma(crop, cheeks);
-  const hair = reference === null ? null : hairMap(crop, rect.width, rect.height, reference, HAIR_GRAIN * unit, HAIR_FEATHER * unit);
+  const hair = reference === null ? null : hairMap(crop, rect.width, rect.height, reference, HAIR_GRAIN * unit, HAIR_FEATHER * unit, cheeks, (HAIR_MIN_SIZE * unit) ** 2);
   if (hair) for (let i = 0; i < pixels; i++) protect[i] = Math.max(protect[i]!, hair[i]!);
 
   // Layers: low-passes average skin only (inside the face outline, outside eyes, brows, nostrils, lips and hair).

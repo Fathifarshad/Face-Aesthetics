@@ -95,6 +95,9 @@ Open points from M2:
   - folds and hollows fade out over a wider edge (0.04 units, gain 2) just outside the approved outlines
   - start value of the sliders 0.6 → 0.75; the cap stays 0.85. New coefficients in PRD §5.4
   - e2e: change numbers now leave out the label bar (it hid the real change); a 2× zoom of the mid-face is written per photo
+- [x] Owner review 2 (2026-11-15, photo `20261114_001811`): "dark patches under the eye and beside the mouth look artificial; pictures a bit matte". Cause: the hair detector took the smooth shadow of a deep crease on a brightly lit face for hair, protected it, and the skin around it was lifted. Fixed:
+  - `hair.ts`: hair must be dark **and** rough (local roughness ≥ 2 × the cheeks', at least 3 levels); patches smaller than (0.06 face units)² are dropped (wrinkle clusters under the eye)
+  - `HIGHLIGHT_KEEP` 0.4 → 0.15 so the natural shine of the skin is not dulled (deviation from SUPERPROMPT, recorded in `bands.ts`)
 - [ ] (V) Owner looks at the corrected result (`test-results/simulate/review.html`)
 - [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
 - [x] M1 was still open when M3 was started, against the SUPERPROMPT rule; resolved 2026-11-15 when the owner confirmed the regions

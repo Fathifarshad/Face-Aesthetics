@@ -168,7 +168,7 @@ describe('band smoothing', () => {
     const bright = red(smooth(striped(W, H, [[ROW, 3, 40]]), 'fine'), W, 200, ROW) - SKIN[0];
     expect(dark).toBeLessThan(16); // the shadow is mostly gone
     expect(bright).toBeGreaterThan(25); // the highlight mostly stays
-    expect(HIGHLIGHT_KEEP).toBe(0.4);
+    expect(HIGHLIGHT_KEEP).toBe(0.15);
   });
 
   it('scales with strength and does nothing at zero', () => {
@@ -283,7 +283,7 @@ describe('pipeline on the synthetic face', () => {
       }
     expect(checked).toBeGreaterThan(500);
     expect(changed).toBe(0);
-    expect(changedElsewhere).toBeGreaterThan(1000);
+    expect(changedElsewhere).toBeGreaterThan(300);
   });
 });
 
@@ -314,6 +314,37 @@ describe('hair map', () => {
     expect(hair[30 * W + 30]).toBe(1);
     expect(hair[30 * W + 82]).toBe(0);
     expect(hair[5 * W + 100]).toBe(0);
+  });
+
+  it('does not take a smooth dark shadow for hair, however dark', () => {
+    // A broad crease shadow, far below the darkness limit in its middle, with a soft edge as real shadows have.
+    const data = striped(W, H, []);
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const t = Math.max(0, 1 - Math.hypot((x - 80) / 30, (y - 30) / 22));
+        const depth = 140 * Math.min(1, t * 2.5);
+        const i = (y * W + x) * 4;
+        for (let c = 0; c < 3; c++) data[i + c] = data[i + c]! - depth;
+      }
+    expect(data[(30 * W + 80) * 4]).toBeLessThan(80);
+    const hair = hairMap(data, W, H, medianLuma(data, all)!, 2, 2, all);
+    expect(Math.max(...hair)).toBe(0);
+  });
+
+  it('drops dark rough patches smaller than the minimum area, keeps large ones', () => {
+    const data = striped(W, H, []);
+    const rough = (x0: number, y0: number, w: number, h: number) => {
+      for (let y = y0; y < y0 + h; y++)
+        for (let x = x0; x < x0 + w; x++) {
+          const i = (y * W + x) * 4;
+          data[i] = data[i + 1] = data[i + 2] = 40 + ((x * 7 + y * 13) % 30);
+        }
+    };
+    rough(10, 15, 40, 30); // moustache-sized
+    rough(80, 25, 8, 8); // a small cluster of dark wrinkles
+    const hair = hairMap(data, W, H, medianLuma(data, all)!, 2, 2, undefined, 200);
+    expect(hair[30 * W + 30]).toBe(1);
+    expect(hair[29 * W + 84]).toBe(0);
   });
 
   it('ignores single dark specks (pores, a mole smaller than the grain)', () => {

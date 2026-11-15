@@ -45,11 +45,12 @@ export interface Coefficients {
 
 /**
  * A pixel may get brighter by the full amount (the shadow of a line or fold lifts) but darker by only this
- * share, so highlights and raised skin are not flattened. Source: SUPERPROMPT (0.4 for the positive component).
+ * share, so highlights and raised skin are not flattened. SUPERPROMPT gives 0.4; with the stronger coefficients
+ * of 2026-11-15 that dulled the natural shine of the skin (owner: the picture looks matte), hence 0.15.
  * It is applied to the net change of the pixel rather than to each band: attenuating the dark and bright
  * lobes of one band by different amounts leaves a bright rim beside the line.
  */
-export const HIGHLIGHT_KEEP = 0.4;
+export const HIGHLIGHT_KEEP = 0.15;
 
 /** Below this share of skin in a blur window, a low-pass is the plain average instead of the skin average. */
 const MIN_SKIN_WEIGHT = 0.05;
