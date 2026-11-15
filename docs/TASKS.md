@@ -5,7 +5,7 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-14: M0 and M2 done. M1 built, awaiting the owner's check of the regions by eye. M3 built but provisional (see below). Next: confirm M1, review M3, then M4 (warp).
+Status 2026-11-15: M0 and M2 done. M1 built, awaiting the owner's check of the regions by eye. M3 built, e2e test and desktop render times added; provisional until the owner reviews it. Next: confirm M1, review M3, then M4 (warp).
 
 ## What the v1 kit already provides (built 2026-10-27, kept until replaced)
 
@@ -78,7 +78,13 @@ Open points from M2:
 - [x] Built (2026-11-14): `blur.ts` (3-pass box blur), `masks.ts` (soft region masks, protection and face clipping), `bands.ts` (layer split, per-type coefficients, highlights keep 40 %), `pipeline.ts` (prepare once, render per slider move, 85 % cap), `pipeline.worker.ts` (Web Worker), page `SimulatePage.tsx` (switch + slider per region, before/after divider, burned-in simulation label)
 - [x] Deviation from PRD §5.4, found by measurement: with 4 layers and the PRD coefficients a dark line loses at most 58 % contrast (test wants 60 %) and a broad hollow sits in the base layer. Added a 5th layer (LP4 = 0.12 face width, 'band3') and raised band2 of 'fine' to 0.6, 'deep' to 0.85, 'hollow' to 0.9. **Owner/PRD must confirm this change**
 - [x] Unit tests (18, `smoothing.test.ts`): exact layer sum, ≥ 60 % contrast loss per type, nothing changes outside the mask, no bright rim, nothing changes inside eyes/brows/nostrils/lips, 85 % cap
-- [ ] (V) Not done: render time < 50 ms on a mid-range phone (never measured; the page records `data-render-ms` on the canvas); owner has not yet looked at the result on a real photo; no e2e test for the simulation page yet
+- [x] `e2e/simulate.spec.ts` (2026-11-15, 5 tests): switches and sliders (cap 85), "all off" returns the photo unchanged above the label, the label bar is on the "after" canvas, compare divider, no horizontal scroll at 360/390/430 px. Per frontal photo it writes `<photo>-60.jpg`, `<photo>-85.jpg` (before | after), `-diff.jpg` (×8) and `<photo>.txt` into `test-results/simulate/`. Helper `newCaseWithFrontal()` in `e2e/helpers.ts`
+- [~] Render time measured in desktop Chromium with Pixel 7 emulation (worker, 18 slider moves per photo): median 2.6–6.0 ms, max 13.3 ms on four photos. Still to measure on a real mid-range phone (open `/#/doctor/case/<id>/simulate`, read `data-render-ms` on the "after" canvas)
+- [ ] (V) Owner has not yet looked at the result on a real photo. Findings from the images (2026-11-15):
+  - the effect lands on the right places: under-eye, nasolabial, crow's feet, marionette, glabella
+  - forehead lines change little on `20261112_230515`
+  - moustache hair inside the nasolabial and perioral masks is smoothed too (a beard would be as well); needs a hair mask
+  - the working box is small (≈ 350 × 530 px: the 1024/1280 px limit applies to the whole photo and the face fills about a third of it), so fine detail is lost and the picture is soft when enlarged. Option: crop to the face first, then apply the size limit
 - [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
 - [!] M1 (owner confirmation of regions by eye) was still open when M3 was started, against the SUPERPROMPT rule. Treat M3 as provisional until M1 is confirmed
 
