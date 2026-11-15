@@ -46,16 +46,37 @@ function sheets(page: Page) {
     const img = d.createImageData(w, h);
     let sum = 0;
     let changed = 0;
-    for (let i = 0; i < pb.length; i += 4) {
+    // The burned-in label bar at the bottom is not part of the simulation; leave it out of the numbers.
+    const bar = Math.round(Math.max(11, Math.round((w * 11) / 390)) * 2.2) + 1;
+    const counted = w * (h - bar);
+    for (let i = 0; i < w * (h - bar) * 4; i += 4) {
       const delta = (Math.abs(pa[i]! - pb[i]!) + Math.abs(pa[i + 1]! - pb[i + 1]!) + Math.abs(pa[i + 2]! - pb[i + 2]!)) / 3;
       sum += delta;
       if (delta >= 2) changed++;
       const v = Math.min(255, delta * 8);
       img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-      img.data[i + 3] = 255;
     }
+    for (let i = 3; i < img.data.length; i += 4) img.data[i] = 255;
     d.putImageData(img, 0, 0);
-    return { pair: pair.toDataURL('image/jpeg', 0.92), diff: diff.toDataURL('image/jpeg', 0.9), mean: sum / (w * h), changed: changed / (w * h) };
+    // Middle of the face at 2x (eyes to chin), before | after: skin texture is judged here.
+    const zx = Math.round(w * 0.12);
+    const zy = Math.round(h * 0.3);
+    const zw = Math.round(w * 0.76);
+    const zh = Math.round(h * 0.42);
+    const zoom = document.createElement('canvas');
+    zoom.width = zw * 4 + 8;
+    zoom.height = zh * 2;
+    const z = zoom.getContext('2d')!;
+    z.imageSmoothingEnabled = false;
+    z.drawImage(b!, zx, zy, zw, zh, 0, 0, zw * 2, zh * 2);
+    z.drawImage(a!, zx, zy, zw, zh, zw * 2 + 8, 0, zw * 2, zh * 2);
+    return {
+      pair: pair.toDataURL('image/jpeg', 0.92),
+      diff: diff.toDataURL('image/jpeg', 0.9),
+      zoom: zoom.toDataURL('image/jpeg', 0.92),
+      mean: sum / counted,
+      changed: changed / counted,
+    };
   });
 }
 
@@ -130,19 +151,20 @@ test.describe('simulation page', () => {
       const stem = photo.replace(/\.[^.]+$/, '');
       mkdirSync(OUT, { recursive: true });
 
-      // Start strength (60 %) for the regions that start switched on.
+      // Start strength (75 %) for the regions that start switched on.
       const start = await sheets(page);
-      writeFileSync(join(OUT, `${stem}-60.jpg`), bytes(start.pair));
-      writeFileSync(join(OUT, `${stem}-60-diff.jpg`), bytes(start.diff));
+      writeFileSync(join(OUT, `${stem}-start.jpg`), bytes(start.pair));
+      writeFileSync(join(OUT, `${stem}-start-diff.jpg`), bytes(start.diff));
+      writeFileSync(join(OUT, `${stem}-start-zoom.jpg`), bytes(start.zoom));
 
-      // Every enabled slider moved to 70 and then to the cap: the render times of real slider moves.
+      // Every enabled slider moved to 80 and then to the cap: the render times of real slider moves.
       const times: number[] = [];
       const sliders = page.getByRole('slider', { name: /^شدت / });
       const count = await sliders.count();
       for (let i = 0; i < count; i++) {
         const s = sliders.nth(i);
         if (await s.isDisabled()) continue;
-        for (const v of ['70', '85']) {
+        for (const v of ['80', '85']) {
           await s.fill(v);
           times.push(await settled(page));
         }
@@ -150,6 +172,7 @@ test.describe('simulation page', () => {
       const cap = await sheets(page);
       writeFileSync(join(OUT, `${stem}-85.jpg`), bytes(cap.pair));
       writeFileSync(join(OUT, `${stem}-85-diff.jpg`), bytes(cap.diff));
+      writeFileSync(join(OUT, `${stem}-85-zoom.jpg`), bytes(cap.zoom));
       writeFileSync(join(OUT, `${stem}-after-85.jpg`), bytes(await jpg(after(page))));
 
       const sorted = [...times].sort((a, b) => a - b);
@@ -160,7 +183,7 @@ test.describe('simulation page', () => {
         [
           `box=${size}`,
           `render ms (desktop chromium, worker): median=${median.toFixed(1)} max=${sorted.at(-1)!.toFixed(1)} n=${times.length}`,
-          `start 60%: mean change=${start.mean.toFixed(2)}/255, pixels changed by >=2 levels=${(start.changed * 100).toFixed(1)}%`,
+          `start 75%: mean change=${start.mean.toFixed(2)}/255, pixels changed by >=2 levels=${(start.changed * 100).toFixed(1)}%`,
           `cap 85%:   mean change=${cap.mean.toFixed(2)}/255, pixels changed by >=2 levels=${(cap.changed * 100).toFixed(1)}%`,
           '',
         ].join('\n'),

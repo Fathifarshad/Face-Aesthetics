@@ -88,6 +88,14 @@ Open points from M2:
   - forehead lines change little on `20261112_230515` → fixed 2026-11-15: 'fine' band2 0.6 → 0.8, band3 0 → 0.3 (PRD §5.4)
   - moustache hair inside the nasolabial and perioral masks is smoothed too → fixed 2026-11-15: `src/engine/hair.ts` protects pixels darker than 0.6 × the median cheek luminance (majority vote over 0.012 face units, soft edge 0.01). Light hair (blond, grey, fine stubble) is not found
   - the working box was small (≈ 350 × 530 px) → fixed 2026-11-15: the size limit now applies to a crop around the face (`faceCrop` in `SimulatePage.tsx`) and stored photos keep 2560 px. Box on a phone ≈ 490 × 755 px; desktop render median 11 ms (was 6)
+- [x] Owner review 2026-11-15 on `test-results/simulate/review.html`: "no noticeable difference; 60 % is not enough; plastic". Fixed:
+  - `fine` (pores, grain) is never attenuated and band1 less, so texture stays (the plastic look)
+  - low-passes are skin-only averages (normalised convolution with weight = face × (1 − protected − hair)); before, the dark eye pulled the reference level of the under-eye hollow down and the hollow was hardly lifted
+  - 6th layer `band4 = LP4 − LP5` (LP5 = 0.25 face width) for the widest shadows; band2/band3 up to 1 for folds and hollows
+  - folds and hollows fade out over a wider edge (0.04 units, gain 2) just outside the approved outlines
+  - start value of the sliders 0.6 → 0.75; the cap stays 0.85. New coefficients in PRD §5.4
+  - e2e: change numbers now leave out the label bar (it hid the real change); a 2× zoom of the mid-face is written per photo
+- [ ] (V) Owner looks at the corrected result (`test-results/simulate/review.html`)
 - [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
 - [x] M1 was still open when M3 was started, against the SUPERPROMPT rule; resolved 2026-11-15 when the owner confirmed the regions
 

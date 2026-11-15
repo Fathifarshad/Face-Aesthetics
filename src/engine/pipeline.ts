@@ -13,6 +13,13 @@ export const MAX_INTENSITY = 0.85;
 
 /** Soft edge of region masks, in face units. Source: SUPERPROMPT (0.02). */
 const FEATHER = 0.02;
+/**
+ * Folds and hollows: the shadow reaches past the drawn outline, so their effect fades out over a wider edge and
+ * is at full strength already on the outline (gain 2 on a mask that is 0.5 there). The outlines themselves are
+ * the ones the owner approved in M1; only the fall-off outside them is wider.
+ */
+const SHADOW_FEATHER = 0.04;
+const SHADOW_GAIN = 2;
 /** Protected regions get a tighter edge so they stay sharp right up to their border. */
 const PROTECT_FEATHER = 0.008;
 /** Margin of the working box around the regions, in face units. */
@@ -106,7 +113,6 @@ export function prepare(input: PipelineInput): Prepared {
     crop.set(data.subarray(from, from + rect.width * 4), row * rect.width * 4);
   }
   const faceWidth = Math.hypot(landmarks[ANCHOR.lFaceEdge]!.x - landmarks[ANCHOR.rFaceEdge]!.x, landmarks[ANCHOR.lFaceEdge]!.y - landmarks[ANCHOR.rFaceEdge]!.y);
-  const dec = decompose(crop, rect.width, rect.height, faceWidth);
 
   // Smoothing never touches protected regions and never leaves the face.
   const pixels = rect.width * rect.height;
@@ -123,10 +129,17 @@ export function prepare(input: PipelineInput): Prepared {
   const hair = reference === null ? null : hairMap(crop, rect.width, rect.height, reference, HAIR_GRAIN * unit, HAIR_FEATHER * unit);
   if (hair) for (let i = 0; i < pixels; i++) protect[i] = Math.max(protect[i]!, hair[i]!);
 
+  // Layers: low-passes average skin only (inside the face outline, outside eyes, brows, nostrils, lips and hair).
+  const skinWeight = new Float32Array(pixels);
+  for (let i = 0; i < pixels; i++) skinWeight[i] = face[i]! * (1 - protect[i]!);
+  const dec = decompose(crop, rect.width, rect.height, faceWidth, skinWeight);
+
   const masks: Prepared['masks'] = {};
   for (const r of set.regions) {
     if (!r.concernId || !SMOOTHING[r.concernId]) continue;
-    const mask = buildMask(r.outline.map(local), rect, FEATHER * unit);
+    const broad = SMOOTHING[r.concernId]!.type !== 'fine';
+    const mask = buildMask(r.outline.map(local), rect, (broad ? SHADOW_FEATHER : FEATHER) * unit);
+    if (broad) for (let i = 0; i < mask.data.length; i++) mask.data[i] = Math.min(1, mask.data[i]! * SHADOW_GAIN);
     // The neck lies outside the face outline by definition; everything else is clipped to it.
     limitMask(mask, rect.width, r.concernId === 'neck' ? null : face, protect);
     (masks[r.concernId] ??= []).push(mask);
@@ -148,14 +161,14 @@ export function render(prepared: Prepared, changes: readonly Change[]): Uint8Cla
   let by0 = dec.height;
   let bx1 = 0;
   let by1 = 0;
-  const active: { mask: Mask; fine: number; band1: number; band2: number; band3: number }[] = [];
+  const active: { mask: Mask; fine: number; band1: number; band2: number; band3: number; band4: number }[] = [];
   for (const change of changes) {
     const effect = SMOOTHING[change.concernId];
     const k = Math.min(MAX_INTENSITY, Math.max(0, change.intensity)) * (effect?.scale ?? 0);
     if (!effect || k <= 0) continue;
     const c = SMOOTH_COEFFICIENTS[effect.type];
     for (const mask of masks[change.concernId] ?? []) {
-      active.push({ mask, fine: c.fine * k, band1: c.band1 * k, band2: c.band2 * k, band3: c.band3 * k });
+      active.push({ mask, fine: c.fine * k, band1: c.band1 * k, band2: c.band2 * k, band3: c.band3 * k, band4: c.band4 * k });
       bx0 = Math.min(bx0, mask.x);
       by0 = Math.min(by0, mask.y);
       bx1 = Math.max(bx1, mask.x + mask.width);
@@ -169,9 +182,10 @@ export function render(prepared: Prepared, changes: readonly Change[]): Uint8Cla
     att.band1.fill(0, row * w + bx0, row * w + bx1);
     att.band2.fill(0, row * w + bx0, row * w + bx1);
     att.band3.fill(0, row * w + bx0, row * w + bx1);
+    att.band4.fill(0, row * w + bx0, row * w + bx1);
   }
   // Overlapping regions combine like independent filters: 1 − (1 − a)(1 − b).
-  for (const { mask, fine, band1, band2, band3 } of active) {
+  for (const { mask, fine, band1, band2, band3, band4 } of active) {
     for (let row = 0; row < mask.height; row++) {
       const o = (mask.y + row) * w + mask.x;
       for (let col = 0; col < mask.width; col++) {
@@ -182,6 +196,7 @@ export function render(prepared: Prepared, changes: readonly Change[]): Uint8Cla
         att.band1[i] = 1 - (1 - att.band1[i]!) * (1 - m * band1);
         att.band2[i] = 1 - (1 - att.band2[i]!) * (1 - m * band2);
         att.band3[i] = 1 - (1 - att.band3[i]!) * (1 - m * band3);
+        att.band4[i] = 1 - (1 - att.band4[i]!) * (1 - m * band4);
       }
     }
   }

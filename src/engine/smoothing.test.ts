@@ -108,6 +108,7 @@ describe('band smoothing', () => {
         att.band1[i] = m * c.band1;
         att.band2[i] = m * c.band2;
         att.band3[i] = m * c.band3;
+        att.band4[i] = m * c.band4;
       }
     const out = new Uint8ClampedArray(src);
     compose(dec, att, out, 0, 0, W, H);

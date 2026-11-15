@@ -13,8 +13,11 @@ import { useCase } from './useCase';
 
 /** Long side of the working copy (docs/PRD.md F1.4); smaller on touch devices (SUPERPROMPT, performance). */
 const WORK_SIDE = { desktop: 1280, touch: 1024 } as const;
-/** Slider value new changes start at, until age-appropriate defaults arrive with M5. Not a clinical value. */
-const START_INTENSITY = 0.6;
+/**
+ * Slider value new changes start at, until age-appropriate defaults arrive with M5. Not a clinical value.
+ * Raised from 0.6 after the owner found the effect at 60 % too weak (2026-11-15).
+ */
+const START_INTENSITY = 0.75;
 /** Whole-face and neck smoothing start switched off: they are the least specific changes. */
 const START_OFF: readonly ConcernId[] = ['skin-quality', 'neck'];
 const SLIDER_STEP = 5;
