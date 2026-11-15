@@ -5,7 +5,7 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-15: M0 and M2 done. M1 built, awaiting the owner's check of the regions by eye. M3 built, e2e test and desktop render times added; provisional until the owner reviews it. Next: confirm M1, review M3, then M4 (warp).
+Status 2026-11-15: M0, M1 and M2 done (owner confirmed the regions by eye on 2026-11-15). M3 built, e2e test and desktop render times added; waiting for the owner's look at the result on a real photo. Next: M4 (warp).
 
 ## What the v1 kit already provides (built 2026-10-27, kept until replaced)
 
@@ -48,7 +48,7 @@ Status 2026-11-15: M0 and M2 done. M1 built, awaiting the owner's check of the r
   - overlay colours: one lightness and chroma, hue only varies (tokens `--region-1…8`)
   - debug page: region list beside the photo on a wide screen; on a phone the photo stays pinned while the list scrolls
 - [x] Owner review 2026-11-15 on the three frontal photos (review page `test-results/regions/review.html`): 15 regions correct; on `20261114_001749` region 1 (forehead) reached slightly into the hair. Fixed in `hairline.ts`: a patch that is below 88 % of the reference brightness **and** textured (brightness spread > 2 × the reference, clamped to 4–6 levels) counts as hair after 6 steps; a column whose reference is below 75 % of the median reference starts in hair and ends just above the brow. Edge moved down 0.05–0.13 face units on that photo, ≤ 0.06 on the other two. 2 unit tests (fail on the old code)
-- [ ] (V) Owner confirms region 1 on `20261114_001749` after the fix; then M1 is done.
+- [x] (V) Owner confirmed the regions after the hairline fix (2026-11-15: «نواحی تأیید است»). M1 done
 - Note: the acceptance check asked for 5 neutral frontal photos; only 3 near-frontal ones exist, and the owner reviewed those. Photos within the pose limit and neutral: `20261112_230515` only. Close: `20261114_001811` (pitch 10°), `20261114_001749` (tilt 13°, yaw 6°). Not usable as frontal: `20261114_001802` (pitch 21°), `20261114_001815` (smile), the four 45° views, `portrait.jpg` (smile)
 
 Open points from M1:
@@ -89,7 +89,7 @@ Open points from M2:
   - moustache hair inside the nasolabial and perioral masks is smoothed too → fixed 2026-11-15: `src/engine/hair.ts` protects pixels darker than 0.6 × the median cheek luminance (majority vote over 0.012 face units, soft edge 0.01). Light hair (blond, grey, fine stubble) is not found
   - the working box was small (≈ 350 × 530 px) → fixed 2026-11-15: the size limit now applies to a crop around the face (`faceCrop` in `SimulatePage.tsx`) and stored photos keep 2560 px. Box on a phone ≈ 490 × 755 px; desktop render median 11 ms (was 6)
 - [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
-- [!] M1 (owner confirmation of regions by eye) was still open when M3 was started, against the SUPERPROMPT rule. Treat M3 as provisional until M1 is confirmed
+- [x] M1 was still open when M3 was started, against the SUPERPROMPT rule; resolved 2026-11-15 when the owner confirmed the regions
 
 ## M4 — Warp and before/after slider
 - [ ] Inflate and vector operators summed into one displacement field; per-change toggle, slider, mirror, "match sides"; vertical before/after slider
