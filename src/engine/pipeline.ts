@@ -1,3 +1,4 @@
+import { SAFETY_CEILING } from '../data/ageNorms';
 import { CONCERN_IDS, type ConcernId } from '../data/types';
 import { compose, decompose, newAttenuation, SMOOTH_COEFFICIENTS, type Attenuation, type Decomposition, type SmoothType } from './bands';
 import { toPx } from './faceFrame';
@@ -10,7 +11,7 @@ import type { FaceFrame, Pt } from './types';
 import { addOperator, applyField, buildOperators, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator } from './warp';
 
 /** PRD F3.2: no effect is applied above 85 %, so the picture never looks artificial. */
-export const MAX_INTENSITY = 0.85;
+export const MAX_INTENSITY = SAFETY_CEILING;
 
 /** Soft edge of region masks, in face units. Source: SUPERPROMPT (0.02). */
 const FEATHER = 0.02;
@@ -100,6 +101,12 @@ export interface Prepared {
   scratch: Uint8ClampedArray;
   /** Last smoothing result and the strengths it was made with. */
   smoothed: { key: string; pixels: Uint8ClampedArray | null };
+  /** Per-pixel skin weight: inside the face outline, outside protected regions and hair. Used by grading. */
+  skin: Float32Array;
+  /** Cheek skin (midface regions × skin weight): the reference the grading compares each region with. */
+  cheek: Float32Array;
+  /** Median brightness of the cheeks (0…255), or null when they could not be measured. */
+  cheekLuma: number | null;
 }
 
 export interface PipelineInput {
@@ -189,6 +196,9 @@ export function prepare(input: PipelineInput): Prepared {
     field: newField(rect.width, rect.height),
     scratch: new Uint8ClampedArray(dec.src.length),
     smoothed: { key: '', pixels: null },
+    skin: skinWeight,
+    cheek: cheeks.map((v, i) => v * skinWeight[i]!),
+    cheekLuma: reference,
   };
 }
 

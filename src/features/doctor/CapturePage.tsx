@@ -126,7 +126,7 @@ export function CapturePage() {
         {done('after') > 0 && (
           <Button onClick={() => nav(`/doctor/case/${c.id}/compare`)}>{t.report.compare}</Button>
         )}
-        <Button variant="primary" className="flex-1" disabled={!hasFrontal} onClick={() => nav(`/doctor/case/${c.id}/analysis`)}>
+        <Button variant="primary" className="flex-1" disabled={!hasFrontal} onClick={() => nav(`/doctor/case/${c.id}/grading`)}>
           {t.capture.toAnalysis}
         </Button>
       </BottomBar>

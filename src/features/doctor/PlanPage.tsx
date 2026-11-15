@@ -70,7 +70,7 @@ export function PlanPage() {
     <>
       <Header
         title={`${t.plan.title} — ${patient.displayName}`}
-        back={`/doctor/case/${caseId}/age`}
+        back={`/doctor/case/${caseId}/simulate`}
         right={
           <Link to="/emergency" aria-label={t.app.emergency} className="flex h-11 w-11 items-center justify-center rounded-md border border-danger/50 text-danger">
             <Siren size={18} />

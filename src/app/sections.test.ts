@@ -12,7 +12,7 @@ describe('app sections', () => {
     expect(sectionOfPath('/doctor/case/c1/intake')).toBe('cases');
     expect(sectionOfPath('/doctor/case/c1/capture')).toBe('capture');
     expect(sectionOfPath('/doctor/case/c1/analysis')).toBe('simulate');
-    expect(sectionOfPath('/doctor/case/c1/age')).toBe('simulate');
+    expect(sectionOfPath('/doctor/case/c1/grading')).toBe('simulate');
     expect(sectionOfPath('/doctor/case/c1/simulate')).toBe('simulate');
     expect(sectionOfPath('/doctor/case/c1/mdcodes')).toBe('plan');
     expect(sectionOfPath('/doctor/case/c1/report')).toBe('plan');
@@ -28,7 +28,7 @@ describe('app sections', () => {
 
   it('sends section tabs to the open case, or to the notice when no case is open', () => {
     expect(sectionHref('cases', 'c1')).toBe('/doctor');
-    expect(sectionHref('simulate', 'c1')).toBe('/doctor/case/c1/analysis');
+    expect(sectionHref('simulate', 'c1')).toBe('/doctor/case/c1/grading');
     expect(sectionHref('gallery', 'c1')).toBe('/doctor/case/c1/gallery');
     expect(sectionHref('plan', null)).toBe('/doctor/no-case/plan');
   });

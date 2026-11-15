@@ -13,6 +13,9 @@ const OUT = 'test-results/simulate';
 /** Frontal, neutral or nearly so (see docs/TASKS.md, M1). The first one that exists is used for the page checks. */
 const FRONTAL = ['20261112_230515.jpg', '20261114_001811.jpg', '20261114_001749.jpg', 'portrait.jpg'].filter((f) => existsSync(join(ASSETS, f)));
 
+/** Changes with a smoothing effect, except whole-face skin and neck (they started off before M5 too). */
+const SMOOTHING_CHANGES = ['خطوط پیشانی', 'خط اخم', 'پنجه‌کلاغی', 'گودی زیر چشم', 'چین نازولبیال (خط خنده)', 'خطوط ماریونت', 'خطوط دور لب', 'چانه', 'گودی شقیقه'];
+
 const after = (page: Page) => page.getByRole('img', { name: 'بعد', exact: true });
 const before = (page: Page) => page.getByRole('img', { name: 'قبل', exact: true });
 
@@ -116,20 +119,23 @@ test.describe('simulation page', () => {
     page.on('pageerror', (e) => errors.push(String(e)));
     await openSimulation(page, FRONTAL[0]!);
 
-    // One switch and one slider per region with a smoothing effect; skin and neck start off.
+    // M5: with no confirmed grade every change starts off, and the page says why.
+    await expect(page.getByText('هنوز درجه‌ای تأیید نشده است', { exact: false })).toBeVisible();
+    for (const name of ['خطوط پیشانی', 'کیفیت و بافت پوست', 'پهنی فک (ماستر)', 'حجم و فرم لب'])
+      await expect(page.getByRole('switch', { name })).toHaveAttribute('aria-checked', 'false');
+    expect(await differenceAboveLabel(page)).toBe(0);
+    // Switched on by hand: one switch and one slider per region, capped at 85.
+    await press(page, page.getByRole('button', { name: 'همه روشن' }));
+    await settled(page);
     await expect(page.getByRole('switch', { name: 'خطوط پیشانی' })).toHaveAttribute('aria-checked', 'true');
-    await expect(page.getByRole('switch', { name: 'کیفیت و بافت پوست' })).toHaveAttribute('aria-checked', 'false');
     await expect(page.getByRole('slider', { name: 'شدت خطوط پیشانی' })).toHaveAttribute('max', '85');
-    // Shape changes (M4) start off.
-    await expect(page.getByRole('switch', { name: 'پهنی فک (ماستر)' })).toHaveAttribute('aria-checked', 'false');
-    await expect(page.getByRole('switch', { name: 'حجم و فرم لب' })).toHaveAttribute('aria-checked', 'false');
     expect(await differenceAboveLabel(page)).toBeGreaterThan(0);
 
     // Everything off: "after" equals "before" except for the label (zero strength returns the input).
-    await page.getByRole('button', { name: 'همه خاموش' }).click();
+    await press(page, page.getByRole('button', { name: 'همه خاموش' }));
     await settled(page);
     expect(await differenceAboveLabel(page)).toBe(0);
-    await page.getByRole('button', { name: 'همه روشن' }).click();
+    await press(page, page.getByRole('button', { name: 'همه روشن' }));
     await settled(page);
 
     // The simulation label bar darkens the bottom of the "after" canvas.
@@ -147,7 +153,7 @@ test.describe('simulation page', () => {
 
     // M4: switching a shape change on changes the picture.
     const masseter = page.getByRole('switch', { name: 'پهنی فک (ماستر)' });
-    await page.getByRole('button', { name: 'همه خاموش' }).click();
+    await press(page, page.getByRole('button', { name: 'همه خاموش' }));
     await settled(page);
     await press(page, masseter);
     await settled(page);
@@ -168,13 +174,13 @@ test.describe('simulation page', () => {
     expect(oneSide).toBeGreaterThan(0);
     const matchButton = page.getByRole('button', { name: 'هم‌اندازه کردن دو طرف پهنی فک (ماستر)' });
     await expect(matchButton).toBeEnabled();
-    await right.fill('50');
+    await right.fill('60');
     await press(page, matchButton);
-    await expect(left).toHaveValue('50');
+    await expect(left).toHaveValue('60');
     await expect(matchButton).toBeDisabled();
     await press(page, mirror);
     await expect(mirror).toBeChecked();
-    await expect(page.getByRole('slider', { name: 'شدت پهنی فک (ماستر)', exact: true })).toHaveValue('50');
+    await expect(page.getByRole('slider', { name: 'شدت پهنی فک (ماستر)', exact: true })).toHaveValue('60');
 
     // Touching a region on the photo opens its change and outlines the region (F4.7). The divider is at 20 %,
     // so a press in the middle of the picture is a tap, not a drag.
@@ -200,7 +206,13 @@ test.describe('simulation page', () => {
       const stem = photo.replace(/\.[^.]+$/, '');
       mkdirSync(OUT, { recursive: true });
 
-      // Start strength (75 %) for the regions that start switched on.
+      // The smoothing changes switched on by hand at 75 % (before M5 this was the start state; since M5 every
+      // change starts at its age-appropriate default, which is off while no grade is confirmed).
+      for (const name of SMOOTHING_CHANGES) {
+        await press(page, page.getByRole('switch', { name }));
+        await page.getByRole('slider', { name: `شدت ${name}`, exact: true }).fill('75');
+      }
+      await settled(page);
       const start = await sheets(page);
       writeFileSync(join(OUT, `${stem}-start.jpg`), bytes(start.pair));
       writeFileSync(join(OUT, `${stem}-start-diff.jpg`), bytes(start.diff));

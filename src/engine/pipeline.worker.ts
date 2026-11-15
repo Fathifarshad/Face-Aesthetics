@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+import { grade, measure, photoProblems, type AutoGrade, type Pose } from './grading';
 import { prepare, render, type Change, type Outline, type Prepared, type Rect } from './pipeline';
 import type { Pt } from './types';
 import type { ConcernId } from '../data/types';
@@ -9,11 +10,13 @@ import type { ConcernId } from '../data/types';
  */
 export type WorkerRequest =
   | { type: 'prepare'; data: Uint8ClampedArray; width: number; height: number; landmarks: Pt[] }
-  | { type: 'render'; id: number; changes: Change[] };
+  | { type: 'render'; id: number; changes: Change[] }
+  | { type: 'grade'; pose: Pose | null };
 
 export type WorkerResponse =
   | { type: 'ready'; rect: Rect; available: ConcernId[]; bilateral: ConcernId[]; outlines: Outline[]; ms: number }
   | { type: 'frame'; id: number; rect: Rect; pixels: Uint8ClampedArray; ms: number }
+  | { type: 'grades'; grades: AutoGrade[]; problems: ReturnType<typeof photoProblems>; ms: number }
   | { type: 'error'; message: string };
 
 let prepared: Prepared | null = null;
@@ -28,7 +31,10 @@ scope.onmessage = (event: MessageEvent<WorkerRequest>) => {
       prepared = prepare(request);
       const { rect, available, bilateral, outlines } = prepared;
       reply({ type: 'ready', rect, available, bilateral, outlines, ms: performance.now() - started });
-    } else if (prepared) {
+    } else if (request.type === 'grade' && prepared) {
+      const problems = photoProblems(prepared, request.pose);
+      reply({ type: 'grades', grades: grade(measure(prepared), problems), problems, ms: performance.now() - started });
+    } else if (request.type === 'render' && prepared) {
       const pixels = render(prepared, request.changes);
       reply({ type: 'frame', id: request.id, rect: prepared.rect, pixels, ms: performance.now() - started }, [pixels.buffer]);
     }

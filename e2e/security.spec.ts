@@ -7,7 +7,7 @@ import { PASSPHRASE, setupVault, unlockVault } from './helpers';
  * All data here is synthetic: a generated picture with a fake EXIF block — no real person, no real location.
  */
 const EXIF_SECRET = 'GPS-SECRET-MARKER-00.0000N-00.0000E';
-const STORES = ['patients', 'cases', 'photos', 'findings', 'plans', 'simulations', 'signoffs', 'messages', 'audit'] as const;
+const STORES = ['patients', 'cases', 'photos', 'findings', 'plans', 'simulations', 'signoffs', 'messages', 'audit', 'grades', 'simStates'] as const;
 
 /** A JPEG drawn in the page, with an EXIF (APP1) segment spliced in after the start marker. */
 async function syntheticJpegWithExif(page: Page): Promise<Buffer> {
@@ -248,11 +248,18 @@ test('deleting a patient leaves nothing about them on the device', async ({ page
   await setupVault(page);
   await createCaseAtCapture(page);
   await saveFrontalPhoto(page, await syntheticJpegWithExif(page));
-  await page.getByRole('button', { name: 'آنالیز چهره' }).last().click();
-  await expect(page).toHaveURL(/analysis/);
+  await page.getByRole('button', { name: 'درجه‌بندی' }).last().click();
+  await expect(page).toHaveURL(/grading/);
+  // A manual grade (M5) and a simulation state, so those stores hold something too.
+  await page.locator('li', { has: page.getByRole('heading', { name: 'حجم و فرم لب', exact: true }) }).getByRole('radio', { name: '2' }).click();
+  await expect(page.getByText('ویرایش‌شده').first()).toBeVisible();
+  await page.goto(page.url().replace(/grading$/, 'simulate'));
+  await page.getByRole('button', { name: 'حدود 5 سال جوان‌تر' }).click();
+  await expect(page.getByTestId('target-age')).toBeVisible();
+  await page.goto(page.url().replace(/simulate$/, 'analysis'));
   await expect(page.getByRole('heading', { name: 'گودی زیر چشم' })).toBeVisible();
 
-  for (const store of ['patients', 'cases', 'photos', 'findings', 'audit']) expect(await countStore(page, store), store).toBeGreaterThan(0);
+  for (const store of ['patients', 'cases', 'photos', 'findings', 'audit', 'grades', 'simStates']) expect(await countStore(page, store), store).toBeGreaterThan(0);
 
   await page.goto('/#/doctor');
   await page.getByRole('link', { name: /بیمار ساختگی/ }).click();

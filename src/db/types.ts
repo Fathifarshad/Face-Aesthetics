@@ -4,6 +4,7 @@ import type { QcResult } from '../capture/qc';
 import type { Tier } from '../plan/data/treatments';
 import type { Intake } from '../plan/intake';
 import type { Sealed, WrappedKey } from './crypto';
+import type { AgeTarget, ConcernId, Finding as DomainFinding } from '../data/types';
 
 export type Sex = 'female' | 'male' | 'other';
 export type CaseStatus = 'draft' | 'awaiting-signoff' | 'signed' | 'follow-up';
@@ -56,6 +57,21 @@ export type Photo = {
 };
 
 export type FindingRow = Finding & { id: string; caseId: string };
+
+/** M5 grading (PRD F2): one row per concern and side. `index` is the engine's raw measure, null for manual grades. */
+export type GradeRow = DomainFinding & { id: string; caseId: string; index: number | null; photoId: string | null; updatedAt: number };
+
+/** One change of the simulation page as the doctor left it (stored only once the doctor touched it). */
+export type SimSetting = { on: boolean; value: number; left: number; mirror: boolean; last: 'R' | 'L' };
+
+/** Simulation state of a case (PRD F3): the age target and the changes the doctor set by hand. */
+export type SimStateRow = {
+  caseId: string;
+  target: AgeTarget;
+  /** Changes the doctor moved; every other change follows the age-appropriate default. */
+  overrides: Partial<Record<ConcernId, SimSetting>>;
+  updatedAt: number;
+};
 
 export type PlanRow = { caseId: string; tier: Tier; selections: Record<string, string[]>; updatedAt: number };
 

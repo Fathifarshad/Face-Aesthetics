@@ -5,7 +5,7 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select) built and waiting for the owner's look; M5 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select) and M5 (grading, age target) built and waiting for the owner's look; M6 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
@@ -75,6 +75,9 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - Face coordinates: origin between the outer eye corners, 1 unit = their distance, y toward the chin, subject's right = negative x.
   Region sizes are in `GEOMETRY` in `regions.ts`; after changing one, run `npx playwright test e2e/regions.spec.ts` and look at
   `test-results/regions/*-regions.jpg`
+- Grades and the age target live in Dexie v2 tables `grades` and `simStates` (`src/db/simRepo.ts`). The simulation page stores only
+  the changes the doctor moved (`overrides`); every other slider is computed from confirmed grades + target (`simDefaults.ts`).
+  Grade thresholds (`src/data/gradeThresholds.ts`) are Claude's drafts from test photos: re-measure with `npx playwright test e2e/grading.spec.ts -g indices`
 - The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored
 

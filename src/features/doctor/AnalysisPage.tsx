@@ -50,7 +50,7 @@ export function AnalysisPage() {
 
   return (
     <>
-      <Header title={`${t.analysis.title} — ${patient.displayName}`} back={`/doctor/case/${caseId}/capture`} />
+      <Header title={`${t.analysis.title} — ${patient.displayName}`} back={`/doctor/case/${caseId}/simulate`} />
       <Page>
         <CaseSteps caseId={c.id} />
         {photo ? (
@@ -107,7 +107,7 @@ export function AnalysisPage() {
         </Button>
       </Page>
       <BottomBar>
-        <Button variant="primary" className="flex-1" onClick={() => nav(`/doctor/case/${caseId}/age`)}>
+        <Button variant="primary" className="flex-1" onClick={() => nav(`/doctor/case/${caseId}/plan`)}>
           {t.analysis.toAge}
         </Button>
       </BottomBar>

@@ -1,0 +1,130 @@
+import { tierFromGap } from '../plan/engine';
+import { sidesOf } from '../data/concerns';
+import { targetAgeOf } from '../data/ageNorms';
+import { CONCERN_IDS, type AgeTarget, type ConcernId, type Confidence, type FindingSide, type Grade, type Review } from '../data/types';
+import { audit, db } from './db';
+import type { GradeRow, SimSetting, SimStateRow } from './types';
+
+/**
+ * Grades (PRD F2) and simulation state (PRD F3) of a case. Plain rows: no image data.
+ * Writes are audited like the other case edits.
+ */
+
+const gradeId = (caseId: string, concernId: ConcernId, side: FindingSide) => `${caseId}:${concernId}:${side}`;
+
+export const DEFAULT_TARGET: AgeTarget = { kind: 'offset', offset: 0 };
+
+/** Every concern and side of the case, with an empty manual row where nothing was stored yet. */
+export async function listGrades(caseId: string): Promise<GradeRow[]> {
+  const stored = new Map((await db.grades.where('caseId').equals(caseId).toArray()).map((r) => [r.id, r]));
+  return CONCERN_IDS.flatMap((concernId) =>
+    sidesOf(concernId).map(
+      (side) =>
+        stored.get(gradeId(caseId, concernId, side)) ?? {
+          id: gradeId(caseId, concernId, side),
+          caseId,
+          concernId,
+          side,
+          autoGrade: null,
+          confidence: null,
+          grade: 0,
+          reviewed: 'pending' as Review,
+          index: null,
+          photoId: null,
+          updatedAt: 0,
+        },
+    ),
+  );
+}
+
+/**
+ * Stores the engine's suggestions. A finding the doctor already reviewed keeps the doctor's grade; only the
+ * suggestion beside it is refreshed. Pending findings take the new suggestion.
+ */
+export async function saveAutoGrades(
+  caseId: string,
+  photoId: string,
+  grades: readonly { concernId: ConcernId; side: FindingSide; index: number; autoGrade: Grade; confidence: Confidence }[],
+): Promise<void> {
+  await db.transaction('rw', [db.grades, db.audit], async () => {
+    const now = Date.now();
+    for (const g of grades) {
+      const id = gradeId(caseId, g.concernId, g.side);
+      const old = await db.grades.get(id);
+      const reviewed = old && old.reviewed !== 'pending';
+      await db.grades.put({
+        id,
+        caseId,
+        concernId: g.concernId,
+        side: g.side,
+        autoGrade: g.autoGrade,
+        confidence: g.confidence,
+        index: g.index,
+        photoId,
+        grade: reviewed ? old.grade : g.autoGrade,
+        reviewed: reviewed ? old.reviewed : 'pending',
+        updatedAt: now,
+      });
+    }
+    await audit(caseId, 'grades.auto', undefined, { photoId, count: grades.length });
+  });
+}
+
+/** The doctor's review of one finding (PRD F2.4). */
+export async function reviewGrade(row: GradeRow, patch: { grade?: Grade; reviewed: Review }): Promise<void> {
+  const next: GradeRow = { ...row, ...patch, updatedAt: Date.now() };
+  await db.transaction('rw', [db.grades, db.audit], async () => {
+    await db.grades.put(next);
+    await audit(row.caseId, 'grade.review', { id: row.id, grade: row.grade, reviewed: row.reviewed }, { id: row.id, grade: next.grade, reviewed: next.reviewed });
+  });
+}
+
+export async function getSimState(caseId: string): Promise<SimStateRow> {
+  return (await db.simStates.get(caseId)) ?? { caseId, target: DEFAULT_TARGET, overrides: {}, updatedAt: 0 };
+}
+
+async function putSimState(caseId: string, patch: (s: SimStateRow) => Partial<SimStateRow>, action: string, detail?: unknown) {
+  await db.transaction('rw', [db.simStates, db.audit], async () => {
+    const s = await getSimState(caseId);
+    await db.simStates.put({ ...s, ...patch(s), updatedAt: Date.now() });
+    if (action) await audit(caseId, action, undefined, detail);
+  });
+}
+
+/**
+ * Sets the age target. The v1 case fields (target age and tier) follow, so the v1 plan page, report and client
+ * package keep working until they are rebuilt (M6–M11).
+ */
+export async function setAgeTarget(caseId: string, target: AgeTarget): Promise<void> {
+  await putSimState(caseId, () => ({ target }), 'sim.target', target);
+  await syncCaseTarget(caseId);
+}
+
+/** Real age changed by the doctor: the target age follows. */
+export async function setRealAge(caseId: string, age: number): Promise<void> {
+  await db.transaction('rw', [db.cases, db.audit], async () => {
+    const c = await db.cases.get(caseId);
+    if (!c) return;
+    await db.cases.update(caseId, { actualAge: age });
+    await audit(caseId, 'age.actual', { actualAge: c.actualAge }, { actualAge: age });
+  });
+  await syncCaseTarget(caseId);
+}
+
+async function syncCaseTarget(caseId: string) {
+  const c = await db.cases.get(caseId);
+  if (!c) return;
+  const { target } = await getSimState(caseId);
+  const targetAge = targetAgeOf(c.actualAge, target);
+  await db.cases.update(caseId, { targetAge, tier: tierFromGap(c.actualAge, targetAge) });
+}
+
+/** A change the doctor moved by hand: it no longer follows the age-appropriate default. Not audited per move. */
+export async function setOverride(caseId: string, concernId: ConcernId, setting: SimSetting): Promise<void> {
+  await putSimState(caseId, (s) => ({ overrides: { ...s.overrides, [concernId]: setting } }), '');
+}
+
+/** «بازگشت به پیش‌فرض»: every change follows the default again. */
+export async function resetOverrides(caseId: string): Promise<void> {
+  await putSimState(caseId, () => ({ overrides: {} }), 'sim.reset');
+}

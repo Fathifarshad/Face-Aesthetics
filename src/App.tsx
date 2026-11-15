@@ -1,4 +1,4 @@
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { DoctorShell } from './app/DoctorShell';
 import { VaultGate } from './app/VaultGate';
 import { AdminPage } from './features/admin/AdminPage';
@@ -6,10 +6,10 @@ import { ClientHome } from './features/client/ClientHome';
 import { ClientRecord } from './features/client/ClientRecord';
 import { InspectorPage } from './features/dev/InspectorPage';
 import { RegionsDebugPage } from './features/dev/RegionsDebugPage';
-import { AgePage } from './features/doctor/AgePage';
 import { AnalysisPage } from './features/doctor/AnalysisPage';
 import { CapturePage } from './features/doctor/CapturePage';
 import { ComparePage } from './features/doctor/ComparePage';
+import { GradingPage } from './features/doctor/GradingPage';
 import { IntakePage } from './features/doctor/IntakePage';
 import { MdCodesPage } from './features/doctor/MdCodesPage';
 import { NewCasePage } from './features/doctor/NewCasePage';
@@ -41,7 +41,8 @@ export function App() {
             <Route path="/doctor/case/:caseId/intake" element={<IntakePage />} />
             <Route path="/doctor/case/:caseId/capture" element={<CapturePage />} />
             <Route path="/doctor/case/:caseId/analysis" element={<AnalysisPage />} />
-            <Route path="/doctor/case/:caseId/age" element={<AgePage />} />
+            <Route path="/doctor/case/:caseId/grading" element={<GradingPage />} />
+            <Route path="/doctor/case/:caseId/age" element={<AgeRedirect />} />
             <Route path="/doctor/case/:caseId/simulate" element={<SimulatePage />} />
             <Route path="/doctor/case/:caseId/plan" element={<PlanPage />} />
             <Route path="/doctor/case/:caseId/mdcodes" element={<MdCodesPage />} />
@@ -62,4 +63,10 @@ export function App() {
       </Routes>
     </HashRouter>
   );
+}
+
+/** The v1 target-age page was replaced by grading + the age target on the simulation page (M5). */
+function AgeRedirect() {
+  const { caseId = '' } = useParams();
+  return <Navigate to={`/doctor/case/${caseId}/grading`} replace />;
 }

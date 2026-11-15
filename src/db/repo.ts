@@ -88,10 +88,12 @@ export async function updateFinding(row: FindingRow, patch: Partial<FindingRow>)
 export async function deletePatient(patientId: string) {
   const p = await db.patients.get(patientId);
   const cases = await db.cases.where('patientId').equals(patientId).toArray();
-  await db.transaction('rw', [db.patients, db.cases, db.photos, db.findings, db.plans, db.simulations, db.signoffs, db.messages, db.audit], async () => {
+  await db.transaction('rw', [db.patients, db.cases, db.photos, db.findings, db.plans, db.simulations, db.signoffs, db.messages, db.audit, db.grades, db.simStates], async () => {
     for (const c of cases) {
       await db.photos.where('caseId').equals(c.id).delete();
       await db.findings.where('caseId').equals(c.id).delete();
+      await db.grades.where('caseId').equals(c.id).delete();
+      await db.simStates.delete(c.id);
       await db.simulations.where('caseId').equals(c.id).delete();
       await db.plans.delete(c.id);
       await db.signoffs.delete(c.id);

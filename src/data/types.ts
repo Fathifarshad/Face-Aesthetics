@@ -39,14 +39,29 @@ export type AgeOffset = 0 | 5 | 10;
 
 export type PlanTier = 'minimal' | 'recommended' | 'full';
 
+export type FindingSide = 'L' | 'R' | 'both';
+
+export type Review = 'confirmed' | 'edited' | 'rejected' | 'pending';
+
+/**
+ * One concern on one side. `autoGrade` and `confidence` are null for the concerns the engine does not grade
+ * (shape and volume, owner decision 2026-11-15: «درجهٔ دستی»); the doctor sets `grade` there.
+ * Only `confirmed` and `edited` findings feed the simulation (PRD F2.4).
+ */
 export interface Finding {
   concernId: ConcernId;
-  side: 'L' | 'R' | 'both';
-  autoGrade: Grade;
-  confidence: Confidence;
+  side: FindingSide;
+  autoGrade: Grade | null;
+  confidence: Confidence | null;
   grade: Grade;
-  reviewed: 'confirmed' | 'edited' | 'rejected' | 'pending';
+  reviewed: Review;
 }
+
+/**
+ * Target of the simulation (PRD F3): one of the three offsets, or an approximate target age the doctor types
+ * (owner request 2026-11-15, «سن دلخواه»).
+ */
+export type AgeTarget = { kind: 'offset'; offset: AgeOffset } | { kind: 'custom'; age: number };
 
 export interface SimChange {
   concernId: ConcernId;
@@ -84,6 +99,8 @@ export interface Plan {
   patientId: string;
   realAge: number;
   ageOffset: AgeOffset;
+  /** Set when the doctor typed a target age instead of picking an offset. */
+  targetAge?: number;
   tier: PlanTier;
   changes: SimChange[];
   items: PlanItem[];

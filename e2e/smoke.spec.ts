@@ -64,7 +64,11 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await accept.click();
   await expect(page.getByText(/1 از 7 عکس لازم/).first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'آنالیز چهره' }).last().click();
+  await page.getByRole('button', { name: 'درجه‌بندی' }).last().click();
+  await expect(page).toHaveURL(/grading/);
+  await expect(page.getByTestId('reviewed-count')).toBeVisible();
+  await page.screenshot({ path: `${shots}/05-grading.png`, fullPage: true });
+  await page.goto(page.url().replace(/grading$/, 'analysis'));
   await expect(page).toHaveURL(/analysis/);
   await expect(page.getByRole('heading', { name: 'گودی زیر چشم' })).toBeVisible();
   await page.screenshot({ path: `${shots}/05-analysis.png`, fullPage: true });
@@ -78,14 +82,21 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await lip.getByRole('button', { name: 'ویرایش شدت' }).click();
   await lip.getByRole('button', { name: '2' }).click();
 
-  await page.getByRole('button', { name: 'تعیین سن هدف' }).click();
-  await expect(page).toHaveURL(/age/);
-  await page.getByRole('button', { name: 'شاداب' }).click();
-  await page.getByRole('button', { name: 'ساخت شبیه‌سازی' }).click();
-  await expect(page.getByText('شبیه‌سازی ذخیره شد', { exact: false })).toBeVisible({ timeout: 60_000 });
-  await page.screenshot({ path: `${shots}/06-age.png`, fullPage: true });
+  // M5: age target and simulation; the saved image feeds the report and the client app.
+  await page.goto(page.url().replace(/analysis$/, 'simulate'));
+  const afterCanvas = page.getByRole('img', { name: 'بعد', exact: true });
+  await expect(afterCanvas).toHaveAttribute('data-ready', 'true', { timeout: 90_000 });
+  await page.getByRole('button', { name: 'حدود 5 سال جوان‌تر' }).click();
+  await page.getByRole('button', { name: 'همه روشن' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(afterCanvas).toHaveAttribute('data-ready', 'true', { timeout: 60_000 });
+  const saveSim = page.getByRole('button', { name: 'ذخیرهٔ تصویر شبیه‌سازی' });
+  await saveSim.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('تصویر شبیه‌سازی با برچسب ذخیره شد.')).toBeVisible({ timeout: 60_000 });
+  await page.screenshot({ path: `${shots}/06-simulate.png`, fullPage: true });
 
-  await page.getByRole('button', { name: 'طرح درمان' }).last().click();
+  await page.goto(page.url().replace(/simulate$/, 'plan'));
   await expect(page).toHaveURL(/plan/);
   await expect(page.getByText('زمان‌بندی جلسات')).toBeVisible();
   // Only the two highest-priority findings start expanded; open the lip finding to see its flags.
@@ -105,7 +116,7 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await expect(page.getByRole('heading', { name: 'گالری قبل و بعد هنوز ساخته نشده است' })).toBeVisible();
   await page.screenshot({ path: `${shots}/m0-gallery.png` });
   await tabs(page).getByRole('link', { name: 'شبیه‌سازی' }).click();
-  await expect(page).toHaveURL(/analysis/);
+  await expect(page).toHaveURL(/grading/);
   await page.getByRole('navigation', { name: 'گام‌های این بخش' }).getByRole('link', { name: 'شبیه‌سازی' }).click();
   await expect(page).toHaveURL(/simulate/);
   await page.screenshot({ path: `${shots}/m0-simulate.png` });
@@ -134,6 +145,14 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.getByRole('button', { name: 'امضا و تأیید' }).click();
   await expect(page.getByText('تأیید شده در', { exact: false })).toBeVisible();
   await page.screenshot({ path: `${shots}/09-report.png`, fullPage: true });
+
+  // A signed case keeps its approved target and simulation image: they go into the client package (M5 review).
+  await page.goto(page.url().replace(/report$/, 'simulate'));
+  await expect(page.getByText('این پرونده امضا شده است', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'حدود 10 سال جوان‌تر' })).toBeDisabled();
+  await expect(page.getByLabel('سن واقعی')).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'ذخیرهٔ تصویر شبیه‌سازی' })).toBeDisabled();
+  await page.goto(page.url().replace(/simulate$/, 'report'));
 
   await page.getByRole('link', { name: 'گزارش فارسی (PDF)' }).click();
   await expect(page.getByText('نواحی‌ای که ممکن است از بهبود بهره ببرند')).toBeVisible();

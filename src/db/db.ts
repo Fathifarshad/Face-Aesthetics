@@ -5,6 +5,7 @@ import type {
   Case,
   ClinicSettings,
   FindingRow,
+  GradeRow,
   Message,
   Patient,
   PhotoRow,
@@ -12,6 +13,7 @@ import type {
   PtPhoto,
   PtRecord,
   SignOffRow,
+  SimStateRow,
   SimulationRow,
 } from './types';
 
@@ -28,6 +30,8 @@ class AppDB extends Dexie {
   settings!: Table<{ key: string; value: unknown }, string>;
   ptRecords!: Table<PtRecord, string>;
   ptPhotos!: Table<PtPhoto, string>;
+  grades!: Table<GradeRow, string>;
+  simStates!: Table<SimStateRow, string>;
 
   constructor() {
     super('tanasob');
@@ -44,6 +48,11 @@ class AppDB extends Dexie {
       settings: 'key',
       ptRecords: 'code',
       ptPhotos: 'id, code, caseId',
+    });
+    // M5: grading per concern and side, and the simulation state per case (PRD F2, F3).
+    this.version(2).stores({
+      grades: 'id, caseId',
+      simStates: 'caseId',
     });
   }
 }

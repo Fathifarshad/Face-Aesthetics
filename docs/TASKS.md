@@ -5,7 +5,7 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-15: M0–M3 done (owner confirmed regions and smoothing by eye). M4 (warp) built; waiting for the owner's look at the shape changes and a render time on a real phone. Next: M5.
+Status 2026-11-15: M0–M3 done (owner confirmed regions and smoothing by eye). M4 (warp) built; waiting for the owner's look at the shape changes and a render time on a real phone. M5 (grading, age target) built; waiting for the owner's look. Next: M6.
 
 ## What the v1 kit already provides (built 2026-10-27, kept until replaced)
 
@@ -114,9 +114,39 @@ Open points from M2:
 - Note: the eye-bag bulge is not flattened; PRD §6 gives the under-eye concern S only. A warp for it would need an owner decision
 
 ## M5 — Grading and target age
-- [ ] Automatic 0–4 grade with confidence for the 16 concerns; doctor confirms, edits or rejects
-- [ ] Target age: same age / ~5 / ~10 years younger; `allowed()` and `intensity` from PRD §5.3; 85 % ceiling
-- [ ] (V) Unit tests for `allowed` and `intensity`; changing the target updates the sliders
+Owner decisions for M5 (2026-11-15): shape and volume concerns get a manual grade («درجهٔ دستی»); changing the target moves only
+sliders the doctor has not touched, plus «بازگشت به پیش‌فرض»; a fourth target «سن دلخواه» where the doctor types an approximate age.
+- [x] `src/engine/grading.ts`: index = shadow energy of the bands that carry the concern's kind of shadow (lines LP1−LP3, folds
+  LP2−LP4, hollows LP3−LP5), in % of the median cheek brightness; skin quality = fine-texture contrast in %. Per side for the
+  bilateral concerns. Confidence: low with a turned head (yaw > 8°, pitch > 10°), bad exposure, no cheek reference or a tiny region;
+  mid near a boundary; capped per concern. Worker request `grade`
+- [x] Auto-graded: forehead, glabella, crow's feet, under-eye, nasolabial, marionette, perioral, neck, skin (`AUTO_GRADED` in
+  `src/data/concerns.ts`). Manual: lips, chin, jaw, masseter, brow, midface volume, temple. Reference scale names from the v1 catalogue (draft)
+- [x] `src/data/gradeThresholds.ts`: draft thresholds per concern, set by Claude on 6 test photos of 5 people, `TODO(clinical)`.
+  A first index (region ÷ cheek shadow energy) gave grade-4 folds to a 25-year-old with smooth cheeks and was dropped.
+  On the test photos only the under-eye and marionette indices ranked the two older faces above the two young ones; their
+  confidence is capped at "mid", all others at "low". Indices per photo: `test-results/grading/<photo>.txt`
+- [x] `src/data/ageNorms.ts`: `allowed`, `intensity`, `targetAgeOf`, `defaultIntensity` (PRD §5.3 formula, same draft
+  coefficients for every concern), `SAFETY_CEILING` 0.85 (the engine's `MAX_INTENSITY` reads it)
+- [x] Dexie version 2: `grades` (one row per concern and side) and `simStates` (age target + the doctor's own slider settings);
+  both removed on patient deletion. `src/db/simRepo.ts`; the v1 case fields `targetAge` and `tier` follow the target so the v1 plan,
+  report and client package keep working
+- [x] Page «درجه‌بندی» (`/#/doctor/case/<id>/grading`, first step of the simulation section): photo with the selected region outlined,
+  per concern auto/manual tag, «تأییدنشده» badge, scale name, 0–4 per side, confirm / reject / review again, "confirm all
+  high-confidence". Only confirmed or edited grades feed the simulation (F2.4)
+- [x] Simulation page: real age (editable), target buttons and «سن دلخواه», default slider = `intensity` per side (mirror off when the
+  sides differ), «دستی» tag on moved changes, «بازگشت به پیش‌فرض», «ذخیرهٔ تصویر شبیه‌سازی» (whole photo, label burned in; replaces the
+  v1 target-age page, which is removed; `/age` redirects to grading). Step order: درجه‌بندی، شبیه‌سازی، آنالیز تناسبات
+- [x] Shared engine loader `src/features/doctor/useEngine.ts` (grading and simulation pages)
+- [x] (V) Unit tests: `allowed`, `intensity`, target age, defaults, overrides survive a target change (16, `ageTarget.test.ts`);
+  grading on the synthetic face (4, `grading.test.ts`). e2e `grading.spec.ts`: indices on 6 photos, review → target → sliders,
+  manual slider kept, custom age, reset, save image, no horizontal scroll at 360/390/430. `npm run check` 172 tests, Playwright 37 green
+- [x] Clinical-safety review (SUPERPROMPT step 7), 3 gaps fixed: «تأییدنشده» badge for the draft age table on the simulation page and
+  for the draft scale names on the grading page; on a signed case the age target, real age and image save are locked (the client
+  package reads them; a "re-open for changes" flow belongs to M9). The v1 plan page can still be edited after sign-off (older gap, M9)
+- [ ] (V) Owner looks at the grading page and the age target on a real case
+- Open: thresholds and age coefficients are drafts for a senior physician; the index is sensitive to lighting, a smile, hair and
+  clothing (neck). Motion photos (PRD §8) are not used for grading yet
 
 ## M6 — Knowledge base and sorting
 - [~] 16 concerns × options in `src/data` with every field of PRD §6, `status` and `source`

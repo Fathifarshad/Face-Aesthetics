@@ -4,8 +4,8 @@ export type SectionId = 'cases' | 'capture' | 'simulate' | 'plan' | 'gallery';
 export type StepId =
   | 'intake'
   | 'capture'
+  | 'grading'
   | 'analysis'
-  | 'age'
   | 'simulate'
   | 'plan'
   | 'mdcodes'
@@ -16,7 +16,7 @@ export type StepId =
 export const SECTIONS: readonly { id: SectionId; steps: readonly StepId[] }[] = [
   { id: 'cases', steps: ['intake'] },
   { id: 'capture', steps: ['capture'] },
-  { id: 'simulate', steps: ['analysis', 'age', 'simulate'] },
+  { id: 'simulate', steps: ['grading', 'simulate', 'analysis'] },
   { id: 'plan', steps: ['plan', 'mdcodes', 'report'] },
   { id: 'gallery', steps: ['gallery', 'compare'] },
 ];
