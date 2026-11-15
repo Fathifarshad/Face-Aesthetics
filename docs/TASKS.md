@@ -47,11 +47,14 @@ Status 2026-11-15: M0 and M2 done. M1 built, awaiting the owner's check of the r
   - skin region = the whole face outline closed by that edge (no inward shrink)
   - overlay colours: one lightness and chroma, hue only varies (tokens `--region-1…8`)
   - debug page: region list beside the photo on a wide screen; on a phone the photo stays pinned while the list scrolls
-- [ ] (V) Owner confirms all 16 regions by eye on 5 **neutral frontal** photos. **M3 does not start before this.** Photos within the pose limit and neutral: `20261112_230515` only. Close: `20261114_001811` (pitch 10°), `20261114_001749` (tilt 13°, yaw 6°). Not usable as frontal: `20261114_001802` (pitch 21°), `20261114_001815` (smile), the four 45° views, `portrait.jpg` (smile)
+- [x] Owner review 2026-11-15 on the three frontal photos (review page `test-results/regions/review.html`): 15 regions correct; on `20261114_001749` region 1 (forehead) reached slightly into the hair. Fixed in `hairline.ts`: a patch that is below 88 % of the reference brightness **and** textured (brightness spread > 2 × the reference, clamped to 4–6 levels) counts as hair after 6 steps; a column whose reference is below 75 % of the median reference starts in hair and ends just above the brow. Edge moved down 0.05–0.13 face units on that photo, ≤ 0.06 on the other two. 2 unit tests (fail on the old code)
+- [ ] (V) Owner confirms region 1 on `20261114_001749` after the fix; then M1 is done.
+- Note: the acceptance check asked for 5 neutral frontal photos; only 3 near-frontal ones exist, and the owner reviewed those. Photos within the pose limit and neutral: `20261112_230515` only. Close: `20261114_001811` (pitch 10°), `20261114_001749` (tilt 13°, yaw 6°). Not usable as frontal: `20261114_001802` (pitch 21°), `20261114_001815` (smile), the four 45° views, `portrait.jpg` (smile)
 
 Open points from M1:
 - Mesh indices outside PRD appendix A are now used for the nasolabial fold and the nostrils (owner asked for more accuracy). They are listed in `src/engine/landmarks.ts`, in PRD appendix A and on the debug page. The other lateral regions (cheek, marionette, jowl, masseter, temple, crow's feet) are still placed geometrically
-- The hairline search compares colours, so it can stop early on a strongly shadowed forehead and run past the hairline on a shaved or bald head (capped at 0.75 face units above the brows). The debug page has a switch to compare with and without it
+- The hairline search compares colour and texture, so it can stop early on a strongly shadowed or very lined forehead and run past the hairline on a shaved or bald head (capped at 0.75 face units above the brows). The debug page has a switch to compare with and without it
+- Playwright now writes its own output to `test-results/playwright/` (it empties that folder on every run); evidence images stay in `test-results/regions/`, `test-results/simulate/`, `test-results/screens/`
 - The neck region cannot tell skin from clothing or a headscarf; the doctor turns the neck change off in that case
 - Lateral regions (crow's feet, temple, masseter, cheek) spill past the face edge on a turned head; masks are clipped to the face outline in M3
 - `test-assets/portrait.jpg` is a photo of a real, recognisable person. Hard rule 11 asks for synthetic test data: replace it (the flow test `e2e/smoke.spec.ts` reads this file name)

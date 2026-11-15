@@ -189,6 +189,45 @@ describe('regions', () => {
     expect(detectHairline(syntheticPicture(-1), shifted)).toBeNull();
   });
 
+  it('stops at a soft, textured hairline that is only a little darker than the skin', () => {
+    // Above the edge: hair only 20 % darker than the skin (the darkness rule alone would not stop), but streaky.
+    const edgeY = -0.8;
+    const pic = syntheticPicture(-5);
+    const edge = toPx(base.frame, { x: 0, y: edgeY }).y;
+    for (let y = 0; y < edge; y++)
+      for (let x = 0; x < pic.width; x++) {
+        const i = (y * pic.width + x) * 4;
+        const streak = x % 4 < 2 ? 25 : -25;
+        pic.data[i] = Math.round(205 * 0.8) + streak;
+        pic.data[i + 1] = Math.round(160 * 0.8) + streak;
+        pic.data[i + 2] = Math.round(135 * 0.8) + streak;
+      }
+    const hairline = detectHairline(pic, mesh)!;
+    for (const p of hairline) {
+      expect(p.y, `column at x=${p.x.toFixed(2)}`).toBeGreaterThan(edgeY);
+      expect(p.y).toBeLessThan(edgeY + HAIRLINE.margin + 3 * HAIRLINE.step);
+    }
+  });
+
+  it('ends the forehead just above the brow where the search starts in hair (a fringe over the brow tail)', () => {
+    const pic = syntheticPicture(-1.0);
+    const clean = detectHairline(pic, mesh)!;
+    // Dark hair over the subject's right brow tail only: everything left of the first search column plus a bit.
+    const limit = toPx(base.frame, { x: clean[0]!.x + 0.03, y: 0 }).x;
+    const eyeLine = toPx(base.frame, { x: 0, y: 0 }).y;
+    for (let y = 0; y < eyeLine; y++)
+      for (let x = 0; x < limit; x++) {
+        const i = (y * pic.width + x) * 4;
+        pic.data[i] = 40;
+        pic.data[i + 1] = 32;
+        pic.data[i + 2] = 30;
+      }
+    const hairline = detectHairline(pic, mesh)!;
+    // That column now stops a little above the brow; the others still reach the real hairline.
+    expect(hairline[0]!.y).toBeGreaterThan(clean[0]!.y + 0.4);
+    for (const p of hairline.slice(2)) expect(p.y).toBeLessThan(-0.9);
+  });
+
   it('keeps every region centre inside the face outline, lateral regions lateral and lower regions low', () => {
     const oval = FACE_OVAL.map((i) => toFace(base.frame, mesh[i]!));
     for (const r of base.regions.filter((x) => x.concernId !== 'neck')) expect(pointInPolygon(centroid(r.outline), oval), r.id).toBe(true);

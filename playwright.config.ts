@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // Playwright empties its output folder on every run; keep it apart from the evidence images in test-results/<name>/.
+  outputDir: 'test-results/playwright',
   timeout: 120_000,
   expect: { timeout: 30_000 },
   use: { baseURL: 'http://localhost:5199', trace: 'retain-on-failure' },

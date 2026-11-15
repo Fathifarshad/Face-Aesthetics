@@ -26,6 +26,18 @@ export const HAIRLINE = {
   referenceSteps: 4,
   /** Non-skin when this much darker than the reference (hair, shadow under a scarf). */
   darker: 0.7,
+  /**
+   * At a soft hairline the brightness fades slowly, but hair is textured long before it is that dark:
+   * non-skin when darker than this share of the reference and the brightness spread inside the patch is
+   * above `textureFactor` × that of the reference, within [textureMin, textureMax] grey levels.
+   * Measured 2026-11-15 on the test photos: forehead skin 1–2.5, hair 4.5–11.
+   */
+  texturedDarker: 0.88,
+  textureFactor: 2,
+  textureMin: 4,
+  textureMax: 6,
+  /** A column whose reference is darker than this share of the median reference starts in hair (brow tail under a fringe). */
+  referenceFloor: 0.75,
   /** Non-skin when the hue has moved this far (Cb/Cr distance) without being brighter (grey hair, fabric). */
   chroma: 16,
   /** A brighter patch is skin shine unless it is almost colourless (white hair, wall). */
@@ -33,11 +45,13 @@ export const HAIRLINE = {
   chromaWhenBright: 30,
   /** Consecutive non-skin steps needed, so a forehead line or a mole does not end the search. */
   confirm: 3,
+  /** Steps needed when only the texture rule fires: a deep forehead line is textured too, but hair goes on much longer. */
+  confirmTextured: 6,
   /** Stay this far below the detected edge. */
   margin: 0.025,
 } as const;
 
-type Colour = { y: number; cb: number; cr: number };
+type Colour = { y: number; cb: number; cr: number; /** Standard deviation of brightness inside the patch. */ sd: number };
 
 function patchColour(px: Pixels, at: Pt, radius: number): Colour | null {
   const x0 = Math.round(at.x - radius);
@@ -48,6 +62,7 @@ function patchColour(px: Pixels, at: Pt, radius: number): Colour | null {
   let r = 0;
   let g = 0;
   let b = 0;
+  let yy = 0;
   let n = 0;
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
@@ -55,19 +70,25 @@ function patchColour(px: Pixels, at: Pt, radius: number): Colour | null {
       r += px.data[i]!;
       g += px.data[i + 1]!;
       b += px.data[i + 2]!;
+      const l = 0.299 * px.data[i]! + 0.587 * px.data[i + 1]! + 0.114 * px.data[i + 2]!;
+      yy += l * l;
       n++;
     }
   r /= n;
   g /= n;
   b /= n;
-  return { y: 0.299 * r + 0.587 * g + 0.114 * b, cb: 128 - 0.168736 * r - 0.331264 * g + 0.5 * b, cr: 128 + 0.5 * r - 0.418688 * g - 0.081312 * b };
+  const y = 0.299 * r + 0.587 * g + 0.114 * b;
+  return { y, cb: 128 - 0.168736 * r - 0.331264 * g + 0.5 * b, cr: 128 + 0.5 * r - 0.418688 * g - 0.081312 * b, sd: Math.sqrt(Math.max(0, yy / n - y * y)) };
 }
 
-function isSkin(c: Colour, ref: Colour): boolean {
+/** 'skin', clearly not skin ('other'), or only darker and textured ('textured': hair, or a deep line). */
+function classify(c: Colour, ref: Colour): 'skin' | 'other' | 'textured' {
   const H = HAIRLINE;
-  if (c.y < H.darker * ref.y) return false;
+  if (c.y < H.darker * ref.y) return 'other';
   const drift = Math.hypot(c.cb - ref.cb, c.cr - ref.cr);
-  return c.y > H.shine * ref.y ? drift <= H.chromaWhenBright : drift <= H.chroma;
+  if (!(c.y > H.shine * ref.y ? drift <= H.chromaWhenBright : drift <= H.chroma)) return 'other';
+  const texture = Math.min(H.textureMax, Math.max(H.textureMin, H.textureFactor * ref.sd));
+  return c.y < H.texturedDarker * ref.y && c.sd > texture ? 'textured' : 'skin';
 }
 
 const median3 = (a: number, b: number, c: number) => a + b + c - Math.min(a, b, c) - Math.max(a, b, c);
@@ -94,25 +115,44 @@ export function detectHairline(px: Pixels, lm: readonly Pt[]): Pt[] | null {
   const radius = Math.max(1, H.patch * frame.unit);
   const maxSteps = Math.floor(H.maxRise / H.step);
 
-  const tops: number[] = [];
+  const columns: { x: number; start: number; at: (s: number) => Colour | null; ref: Colour }[] = [];
   for (let k = 0; k < H.columns; k++) {
     const x = x0 + ((x1 - x0) * k) / (H.columns - 1);
     const start = browY(x) - H.startAboveBrow;
     const at = (s: number) => patchColour(px, toPx(frame, { x, y: start - s * H.step }), radius);
-
     const refs = Array.from({ length: H.referenceSteps }, (_, s) => at(s)).filter((c): c is Colour => c !== null);
     if (refs.length === 0) return null;
-    const ref = { y: refs.reduce((t, c) => t + c.y, 0) / refs.length, cb: refs.reduce((t, c) => t + c.cb, 0) / refs.length, cr: refs.reduce((t, c) => t + c.cr, 0) / refs.length };
+    const mean = (f: (c: Colour) => number) => refs.reduce((t, c) => t + f(c), 0) / refs.length;
+    columns.push({ x, start, at, ref: { y: mean((c) => c.y), cb: mean((c) => c.cb), cr: mean((c) => c.cr), sd: mean((c) => c.sd) } });
+  }
+  const sortedY = columns.map((c) => c.ref.y).sort((a, b) => a - b);
+  const typicalY = sortedY[Math.floor(sortedY.length / 2)]!;
+
+  const tops: number[] = [];
+  for (const { start, at, ref } of columns) {
+    // The column starts in hair: the forehead ends right above the brow here.
+    if (ref.y < H.referenceFloor * typicalY) {
+      tops.push(start + H.margin);
+      continue;
+    }
 
     let lastSkin = H.referenceSteps - 1;
     let misses = 0;
+    let textured = 0;
     for (let s = H.referenceSteps; s <= maxSteps; s++) {
       const c = at(s);
       if (c === null) break; // image edge
-      if (isSkin(c, ref)) {
+      const kind = classify(c, ref);
+      if (kind === 'skin') {
         lastSkin = s;
         misses = 0;
-      } else if (++misses >= H.confirm) break;
+        textured = 0;
+        continue;
+      }
+      // Both kinds count towards the textured run; only clear non-skin counts towards the short one.
+      textured++;
+      if (kind === 'other') misses++;
+      if (misses >= H.confirm || textured >= H.confirmTextured) break;
     }
     tops.push(start - lastSkin * H.step + H.margin);
   }
