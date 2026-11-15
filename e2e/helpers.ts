@@ -28,11 +28,12 @@ export async function unlockVault(page: Page, passphrase = PASSPHRASE): Promise<
  * Creates a synthetic case and saves `photo` as its frontal "before" photo. Returns the case id.
  * The vault must already be open.
  */
-export async function newCaseWithFrontal(page: Page, photo: string): Promise<string> {
+export async function newCaseWithFrontal(page: Page, photo: string, sex: 'زن' | 'مرد' = 'زن'): Promise<string> {
   await page.goto('/#/doctor/new');
   await page.getByLabel('نام نمایشی').fill('بیمار آزمایشی');
   await page.getByLabel('شمارهٔ پرونده').fill('T-SIM');
   await page.getByLabel('سال تولد (میلادی)').fill('1980');
+  await page.getByRole('button', { name: sex, exact: true }).click();
   // The full-face analysis service is selected by default.
   await page.getByRole('button', { name: 'ایجاد و ادامه' }).click();
   await expect(page).toHaveURL(/intake/);

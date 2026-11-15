@@ -8,7 +8,7 @@ import { ANCHOR } from './landmarks';
 import { buildMask, limitMask, stampMax, type Mask } from './masks';
 import { buildRegions, type Side } from './regions';
 import type { FaceFrame, Pt } from './types';
-import { addOperator, applyField, buildOperators, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator } from './warp';
+import { addOperator, applyField, buildOperators, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator, type Sex } from './warp';
 
 /** PRD F3.2: no effect is applied above 85 %, so the picture never looks artificial. */
 export const MAX_INTENSITY = SAFETY_CEILING;
@@ -116,11 +116,13 @@ export interface PipelineInput {
   height: number;
   /** Landmarks in pixels of that working copy. */
   landmarks: readonly Pt[];
+  /** Patient's sex; shapes the chin and jaw-angle operators. */
+  sex?: Sex;
 }
 
 /** One-time work for a photo: regions, the working box around the face, blurred layers and soft masks. */
 export function prepare(input: PipelineInput): Prepared {
-  const { data, width, height, landmarks } = input;
+  const { data, width, height, landmarks, sex } = input;
   const hairline = detectHairline({ data, width, height }, landmarks);
   const set = buildRegions(landmarks, { size: { width, height }, hairline });
   const unit = set.frame.unit;
@@ -177,7 +179,7 @@ export function prepare(input: PipelineInput): Prepared {
     (masks[r.concernId] ??= []).push({ side: r.side, mask });
   }
 
-  const ops = placeOperators(buildOperators(set, landmarks), set.frame, { x: rect.x, y: rect.y }, rect.width, rect.height);
+  const ops = placeOperators(buildOperators(set, landmarks, sex), set.frame, { x: rect.x, y: rect.y }, rect.width, rect.height);
   const available = CONCERN_IDS.filter((id) => masks[id]?.length || ops.some((o) => o.op.concernId === id));
   const outlines: Outline[] = set.regions
     .filter((r): r is typeof r & { concernId: ConcernId } => !!r.concernId && available.includes(r.concernId))

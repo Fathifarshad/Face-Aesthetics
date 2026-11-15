@@ -109,7 +109,12 @@ Open points from M2:
 - [x] Page: mirror switch per bilateral change (default on; off → right/left sliders), «هم‌اندازه کن» copies the side moved last, touching a region opens its card (smallest region under the finger wins), the open change is outlined on the photo (F4.7). Divider: drag starts on the handle or after an 8 px move; a tap picks a region. Shape-only changes (lips, jaw, masseter, brow, midface) start off until M5 sets defaults
 - [x] Unit tests (`warp.test.ts`, 7): every W concern has operators, both sides; zero strength returns the input; each operator ≤ 0.06 units and nothing outside its box; no fold (det(I − ∇d) > 0.3) and no shift on the working-box border with everything at the cap; directions; left field mirrors the right on the symmetric face; left at 0 leaves the left side untouched
 - [x] e2e (`simulate.spec.ts`): mirror, two sliders, match, tap-to-select with outline; per photo `-warp.jpg`, `-warp-diff.jpg`, `-warp-zoom.jpg` and render times. Desktop Chromium, Pixel 7 emulation (working box ≈ 490 × 750): warp slider move median 7.6–7.9 ms, smoothing slider move median 18–20 ms (max 31)
-- [ ] (V) Owner checks the shape changes on `test-results/simulate/review.html` («+ فرم و حجم»)
+- [x] Owner review 1 (2026-11-15): "the man's chin looks feminine; jawline and jowl hollowed, unnatural". Cause: the chin vector
+  pulled only the middle down (pointed chin), and the jowl (up **and in**) and masseter (wide, in) operators both pulled the lower
+  face inward. Fixed: chin moves down evenly (wide vector) and widens, a man's less long and wider (patient sex now goes to the
+  engine); jowl lifted straight up; new jaw-angle operator under «خط فک و جول» (a little fuller outward); masseter moves only the
+  lateral contour (narrower operator, 0.045 → 0.03). Unit test for male vs female chin; e2e test cases carry the photo's sex
+- [ ] (V) Owner checks the shape changes again on `test-results/simulate/review.html` («+ فرم و حجم»)
 - [ ] (V) Re-render < 50 ms on a real mid-range phone: not measured yet (open `/#/doctor/case/<id>/simulate`, read `data-render-ms` on the "after" canvas). Desktop numbers above leave ~2.5× headroom for smoothing moves
 - Note: the eye-bag bulge is not flattened; PRD §6 gives the under-eye concern S only. A warp for it would need an owner decision
 

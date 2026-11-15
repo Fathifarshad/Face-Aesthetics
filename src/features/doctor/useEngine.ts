@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkerRequest, WorkerResponse } from '../../engine/pipeline.worker';
 import type { Photo } from '../../db/types';
+import type { Sex } from '../../engine/warp';
 
 /** Long side of the working copy (docs/PRD.md F1.4); smaller on touch devices (SUPERPROMPT, performance). */
 const WORK_SIDE = { desktop: 1280, touch: 1024 } as const;
@@ -34,7 +35,7 @@ export type EngineMessage = Exclude<WorkerResponse, { type: 'ready' } | { type: 
  * later requests. `work` holds the working copy; the engine's box starts at `ready.rect.x, ready.rect.y` in it.
  * Pixels never leave the device: the worker only talks to this page.
  */
-export function useEngine(photo: Photo | null | undefined, onMessage: (msg: EngineMessage) => void) {
+export function useEngine(photo: Photo | null | undefined, onMessage: (msg: EngineMessage) => void, sex?: Sex) {
   const worker = useRef<Worker | null>(null);
   const work = useRef<HTMLCanvasElement | null>(null);
   /** Where the working copy sits in the decoded photo: photo px = crop + working px / scale. */
@@ -92,7 +93,7 @@ export function useEngine(photo: Photo | null | undefined, onMessage: (msg: Engi
       // Stored landmarks are in pixels of the stored photo; the working copy is a scaled crop of it.
       const k = canvas.width / crop.width;
       const landmarks = photo.landmarks!.map((p) => ({ x: (p.x - crop.x) * k, y: (p.y - crop.y) * k }));
-      w.postMessage({ type: 'prepare', data: pixels, width: canvas.width, height: canvas.height, landmarks } satisfies WorkerRequest, [pixels.buffer]);
+      w.postMessage({ type: 'prepare', data: pixels, width: canvas.width, height: canvas.height, landmarks, sex } satisfies WorkerRequest, [pixels.buffer]);
     })();
 
     return () => {
@@ -100,7 +101,7 @@ export function useEngine(photo: Photo | null | undefined, onMessage: (msg: Engi
       w.terminate();
       worker.current = null;
     };
-  }, [photo]);
+  }, [photo, sex]);
 
   const post = useCallback((request: WorkerRequest) => worker.current?.postMessage(request), []);
   return { status, ready, work, placement, post };

@@ -104,9 +104,12 @@ async function press(page: Page, control: Locator) {
   await page.keyboard.press('Space');
 }
 
+/** Test photos of men: the chin and jaw-angle operators depend on the recorded sex. */
+const MEN = new Set(['20261112_230515.jpg', 'portrait.jpg']);
+
 async function openSimulation(page: Page, photo: string) {
   await setupVault(page);
-  const caseId = await newCaseWithFrontal(page, join(ASSETS, photo));
+  const caseId = await newCaseWithFrontal(page, join(ASSETS, photo), MEN.has(photo) ? 'مرد' : 'زن');
   await page.goto(`/#/doctor/case/${caseId}/simulate`);
   await settled(page);
 }

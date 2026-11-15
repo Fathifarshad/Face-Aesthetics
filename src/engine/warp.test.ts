@@ -3,7 +3,8 @@ import type { ConcernId } from '../data/types';
 import { buildFrame, toPx } from './faceFrame';
 import { FIXTURE, syntheticMesh, syntheticPicture } from './fixtures';
 import { MAX_INTENSITY, prepare, render } from './pipeline';
-import { addOperator, applyField, MAX_SHIFT, newField, type Field, type PlacedOperator } from './warp';
+import { buildRegions } from './regions';
+import { addOperator, applyField, buildOperators, MAX_SHIFT, newField, type Field, type PlacedOperator } from './warp';
 
 const same = (a: Uint8ClampedArray, b: Uint8ClampedArray) => a.length === b.length && a.every((v, i) => v === b[i]);
 
@@ -99,6 +100,17 @@ describe('warp operators on the synthetic face', () => {
     }
   });
 
+  it('a man gets a wider, less lengthened chin than a woman (owner review: no pointed chin on a man)', () => {
+    const set = buildRegions(mesh, { size: { width: FIXTURE.width, height: FIXTURE.height } });
+    const chinOf = (sex: 'male' | 'female') => buildOperators(set, mesh, sex).filter((o) => o.concernId === 'chin');
+    const [mDown, mWide] = chinOf('male');
+    const [fDown, fWide] = chinOf('female');
+    expect(mDown!.v!.y).toBeLessThan(fDown!.v!.y);
+    expect(mWide!.rx).toBeGreaterThan(fWide!.rx);
+    // The downward move is spread wider than the chin itself, so the lower border moves evenly instead of to a point.
+    expect(mDown!.rx).toBeGreaterThan(mWide!.rx);
+  });
+
   it('moves each change the intended way', () => {
     // Field holds p − src: a negative dy means the content moves up.
     const brow = fieldOf(opsOf('brow', 'R'));
@@ -109,7 +121,9 @@ describe('warp operators on the synthetic face', () => {
     const jowl = fieldOf(opsOf('jawline', 'L'));
     const j = at(jowl, opsOf('jawline', 'L')[0]!.op.c);
     expect(j.dy).toBeLessThan(0);
-    expect(j.dx).toBeLessThan(0); // left side moves in (−x)
+    expect(j.dx).toBeGreaterThanOrEqual(0); // never pulled inward: that made the jaw line concave (owner, 2026-11-15)
+    const angle = opsOf('jawline', 'L')[1]!.op;
+    expect(at(jowl, angle.c).dx).toBeGreaterThan(0); // left jaw angle a little fuller outward (+x)
     const chin = fieldOf(opsOf('chin'));
     expect(at(chin, opsOf('chin')[0]!.op.c).dy).toBeGreaterThan(0); // chin a little longer
     // Lips fill out: above the upper lip's centre the content moves up, below the lower lip's centre it moves down.

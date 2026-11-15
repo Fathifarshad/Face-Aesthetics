@@ -95,7 +95,7 @@ export function SimulatePage() {
       f.pending = null;
       request(next);
     }
-  });
+  }, data?.patient.sex);
   const { status, ready, work, placement, post } = engine;
   const rect = ready?.rect ?? null;
 

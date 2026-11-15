@@ -2,6 +2,7 @@
 import { grade, measure, photoProblems, type AutoGrade, type Pose } from './grading';
 import { prepare, render, type Change, type Outline, type Prepared, type Rect } from './pipeline';
 import type { Pt } from './types';
+import type { Sex } from './warp';
 import type { ConcernId } from '../data/types';
 
 /**
@@ -9,7 +10,7 @@ import type { ConcernId } from '../data/types';
  * re-render run here, off the main thread. Pixels never leave the device; this file only talks to its page.
  */
 export type WorkerRequest =
-  | { type: 'prepare'; data: Uint8ClampedArray; width: number; height: number; landmarks: Pt[] }
+  | { type: 'prepare'; data: Uint8ClampedArray; width: number; height: number; landmarks: Pt[]; sex?: Sex }
   | { type: 'render'; id: number; changes: Change[] }
   | { type: 'grade'; pose: Pose | null };
 

@@ -71,15 +71,21 @@ function extent(outline: readonly Pt[]) {
   };
 }
 
+/** Patient's sex as recorded in the case; it shapes the chin and the jaw angle (a man's are wider and squarer). */
+export type Sex = 'female' | 'male' | 'other';
+
 /**
  * Operators for the concerns whose effect in PRD §6 includes W. Directions were proposed in the M4 plan
  * (2026-11-15) and are checked by eye on the test photos:
  *   lips: fill out (upper and lower lip, mostly vertically) · cheek: fill out, lift up and out ·
  *   nasolabial: lift the tissue beside the fold up and out · marionette: lift the mouth corner ·
- *   chin: a little longer, slightly fuller · jawline: jowl up and in · masseter: in (slimmer) ·
- *   temple: fill out · brow: lift the tail.
+ *   chin: lower border down evenly and a little wider (wider still for a man) · jawline: jowl lifted straight up,
+ *   jaw angle a little fuller outward · masseter: lateral contour in (slimmer) · temple: fill out · brow: lift the tail.
+ * Owner review 2026-11-15: the first version pulled only the middle of the chin down (a pointed, feminine chin on
+ * a man) and moved the jowl and the masseter inward, which made the jaw line concave. Fixed as above.
  */
-export function buildOperators(set: RegionSet, lm: readonly Pt[]): Operator[] {
+export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'other'): Operator[] {
+  const male = sex === 'male';
   const F = (i: number) => toFace(set.frame, lm[i]!);
   const ops: Operator[] = [];
   const region = (id: ConcernId, side: Side) => set.regions.find((r) => r.concernId === id && r.side === side);
@@ -98,12 +104,13 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[]): Operator[] {
     }
   }
 
-  // 10 — chin: a little longer (down) and slightly fuller.
+  // 10 — chin: the whole lower border moves down evenly (a wide vector, so the chin does not become pointed) and
+  // the chin widens a little; for a man less length and more width, which keeps it square.
   const chin = region('chin', 'M');
   if (chin) {
     const { c, hx, hy } = extent(chin.outline);
-    ops.push(vector('chin', 'M', { x: c.x, y: c.y + hy * 0.3 }, hx * 1.4, hy * 1.3, { x: 0, y: 1 }, 0.035));
-    ops.push(inflate('chin', 'M', c, hx * 1.3, hy * 1.2, 0.015, { x: 1, y: 0.4 }));
+    ops.push(vector('chin', 'M', { x: c.x, y: c.y + hy * 0.3 }, hx * 2.2, hy * 1.3, { x: 0, y: 1 }, male ? 0.02 : 0.03));
+    ops.push(inflate('chin', 'M', c, hx * (male ? 1.8 : 1.4), hy * 1.2, male ? 0.03 : 0.018, { x: 1, y: 0.25 }));
   }
 
   for (const side of ['R', 'L'] as const) {
@@ -124,14 +131,21 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[]): Operator[] {
       ops.push(vector('marionette', side, { x: corner.x + s * 0.03, y: corner.y + 0.04 }, 0.12, 0.14, { x: 0, y: -1 }, 0.03));
     }
     const jowl = region('jawline', side);
-    if (jowl) {
-      const { c, hx, hy } = extent(jowl.outline);
-      ops.push(vector('jawline', side, c, hx * 1.4, hy * 1.6, { x: -s * 0.4, y: -1 }, 0.04));
-    }
     const masseter = region('masseter', side);
+    if (jowl) {
+      // The jowl is lifted straight up; pulling it inward as well made the jaw line concave.
+      const { c, hx, hy } = extent(jowl.outline);
+      ops.push(vector('jawline', side, c, hx * 1.4, hy * 1.6, { x: 0, y: -1 }, 0.03));
+      if (masseter) {
+        // Jaw angle a little fuller outward, so the line from the angle to the chin reads straight and defined.
+        const m = extent(masseter.outline);
+        ops.push(vector('jawline', side, { x: m.c.x + s * m.hx * 0.5, y: m.c.y + m.hy * 0.8 }, m.hx * 0.9, m.hy * 0.7, { x: s, y: 0.3 }, male ? 0.03 : 0.02));
+      }
+    }
     if (masseter) {
+      // Only the lateral contour moves in; a wide operator dragged the inner cheek along and hollowed the lower face.
       const { c, hx, hy } = extent(masseter.outline);
-      ops.push(vector('masseter', side, { x: c.x + s * hx * 0.4, y: c.y }, hx * 1.6, hy * 1.8, { x: -s, y: 0 }, 0.045));
+      ops.push(vector('masseter', side, { x: c.x + s * hx * 0.6, y: c.y }, hx * 1.1, hy * 1.5, { x: -s, y: 0 }, 0.03));
     }
     const temple = region('temple', side);
     if (temple) {
