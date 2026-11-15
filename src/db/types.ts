@@ -70,6 +70,8 @@ export type SimStateRow = {
   target: AgeTarget;
   /** Changes the doctor moved; every other change follows the age-appropriate default. */
   overrides: Partial<Record<ConcernId, SimSetting>>;
+  /** Lip type 1–5 chosen by the doctor; absent = the type suggested from the photo. */
+  lipType?: 1 | 2 | 3 | 4 | 5;
   updatedAt: number;
 };
 

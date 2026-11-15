@@ -262,10 +262,13 @@ test.describe('simulation page', () => {
       const sorted = [...times].sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)]!;
       const size = await before(page).evaluate((c: HTMLCanvasElement) => `${c.width}x${c.height}`);
+      const lipFullness = await page.locator('[data-lip-fullness]').getAttribute('data-lip-fullness');
+      const lipType = await page.getByRole('radio', { name: /^تیپ لب/, checked: true }).getAttribute('aria-label');
       writeFileSync(
         join(OUT, `${stem}.txt`),
         [
           `box=${size}`,
+          `lip fullness=${lipFullness} → ${lipType}`,
           `render ms (desktop chromium, worker): median=${median.toFixed(1)} max=${sorted.at(-1)!.toFixed(1)} n=${times.length}`,
           `start 75%: mean change=${start.mean.toFixed(2)}/255, pixels changed by >=2 levels=${(start.changed * 100).toFixed(1)}%`,
           `cap 85%:   mean change=${cap.mean.toFixed(2)}/255, pixels changed by >=2 levels=${(cap.changed * 100).toFixed(1)}%`,

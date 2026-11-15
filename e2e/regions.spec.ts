@@ -81,7 +81,7 @@ test.describe('region debug layer', () => {
       if (info.regions === 0) {
         await expect(page.getByText(/چهره‌ای در عکس پیدا نشد|بیش از یک چهره/)).toBeVisible();
       } else {
-        expect([28, 29]).toContain(info.regions);
+        expect([30, 31]).toContain(info.regions); // +2 brow protections (2026-11-15)
         // Second image: the whole-face skin region alone.
         await page.getByRole('button', { name: 'نمایش همه' }).click();
         await page.getByRole('button', { name: 'پنهان کردن همه' }).click();

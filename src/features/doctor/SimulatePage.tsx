@@ -12,11 +12,13 @@ import {
   listGrades,
   resetOverrides,
   setAgeTarget,
+  setLipType,
   setOverride,
   setRealAge,
   DEFAULT_TARGET,
 } from '../../db/simRepo';
 import type { SimSetting } from '../../db/types';
+import { LIP_TYPE_SETTINGS, LIP_TYPES, lipTypeOf, type LipType } from '../../data/lipTypes';
 import { MAX_INTENSITY, type Change } from '../../engine/pipeline';
 import type { WorkerRequest } from '../../engine/pipeline.worker';
 import { area, pointInPolygon } from '../../engine/shapes';
@@ -75,27 +77,31 @@ export function SimulatePage() {
   const [message, setMessage] = useState<string | null>(null);
   const label = t.sim.label;
 
-  const engine = useEngine(photo, (msg) => {
-    if (msg.type !== 'frame') return;
-    const f = frames.current;
-    f.inFlight = false;
-    const canvas = after.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d')!;
-      const image = new ImageData(new Uint8ClampedArray(msg.pixels), msg.rect.width, msg.rect.height);
-      f.last = image;
-      ctx.putImageData(image, 0, 0);
-      burnSimulationLabel(ctx, label);
-      canvas.dataset.frame = String(msg.id);
-      canvas.dataset.renderMs = msg.ms.toFixed(1);
-      if (!f.pending) canvas.dataset.ready = 'true';
-    }
-    if (f.pending) {
-      const next = f.pending;
-      f.pending = null;
-      request(next);
-    }
-  }, data?.patient.sex);
+  const engine = useEngine(
+    photo,
+    (msg) => {
+      if (msg.type !== 'frame') return;
+      const f = frames.current;
+      f.inFlight = false;
+      const canvas = after.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d')!;
+        const image = new ImageData(new Uint8ClampedArray(msg.pixels), msg.rect.width, msg.rect.height);
+        f.last = image;
+        ctx.putImageData(image, 0, 0);
+        burnSimulationLabel(ctx, label);
+        canvas.dataset.frame = String(msg.id);
+        canvas.dataset.renderMs = msg.ms.toFixed(1);
+        if (!f.pending) canvas.dataset.ready = 'true';
+      }
+      if (f.pending) {
+        const next = f.pending;
+        f.pending = null;
+        request(next);
+      }
+    },
+    data?.patient.sex,
+  );
   const { status, ready, work, placement, post } = engine;
   const rect = ready?.rect ?? null;
 
@@ -136,6 +142,8 @@ export function SimulatePage() {
   }, [ready, work]);
 
   const realAge = data?.c.actualAge ?? 0;
+  const suggestedLip: LipType | null = ready ? lipTypeOf(ready.lipFullness) : null;
+  const lipType: LipType = sim?.lipType ?? suggestedLip ?? 3;
   const target: AgeTarget = sim?.target ?? DEFAULT_TARGET;
   const settings = useMemo(
     () =>
@@ -147,18 +155,22 @@ export function SimulatePage() {
     [ready, grades, overrides, realAge, JSON.stringify(target)],
   );
 
-  // Re-render on every change of a switch, a slider, a grade or the age target.
+  // Re-render on every change of a switch, a slider, a grade, the age target or the lip type.
   useEffect(() => {
     if (!settings) return;
     if (after.current) after.current.dataset.ready = 'false';
+    // The lip slider is scaled by the lip type: a thin lip changes more than a full one.
+    const k = (id: ConcernId) => (id === 'lip-volume' ? LIP_TYPE_SETTINGS.gain[lipType] : 1);
     request(
       (Object.entries(settings) as [ConcernId, SimSetting][])
         .filter(([, s]) => s.on && (s.value > 0 || (!s.mirror && s.left > 0)))
         .map(([concernId, s]) =>
-          s.mirror ? { concernId, intensity: s.value } : { concernId, intensity: s.value, left: s.left },
+          s.mirror
+            ? { concernId, intensity: s.value * k(concernId) }
+            : { concernId, intensity: s.value * k(concernId), left: s.left * k(concernId) },
         ),
     );
-  }, [settings, request]);
+  }, [settings, request, lipType]);
 
   useEffect(() => () => Object.values(timers.current).forEach((id) => window.clearTimeout(id)), []);
 
@@ -573,6 +585,41 @@ export function SimulatePage() {
                       </>
                     ) : (
                       slider(s.value, t.sim.intensity(name), (v) => update(id, { value: v, left: v }))
+                    )}
+                    {id === 'lip-volume' && (
+                      <div className="mt-2" role="radiogroup" aria-label={t.sim.lipType} data-lip-fullness={ready?.lipFullness.toFixed(3)}>
+                        <div className="mb-1 flex flex-wrap items-center gap-1.5 text-caption text-ink-2">
+                          <span>{t.sim.lipType}</span>
+                          {LIP_TYPE_SETTINGS.status === 'draft' && (
+                            <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">
+                              {t.grading.unverified}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-1.5">
+                          {LIP_TYPES.map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              role="radio"
+                              aria-checked={lipType === n}
+                              aria-label={t.sim.lipTypeOf(num(n), t.sim.lipTypes[n])}
+                              onClick={() => void setLipType(caseId, n)}
+                              className={`flex h-11 min-w-11 flex-1 items-center justify-center rounded-md border text-control ${
+                                lipType === n
+                                  ? 'border-primary bg-primary-tint font-semibold text-primary-on-tint'
+                                  : 'border-border text-ink'
+                              } ${suggestedLip === n ? 'underline decoration-primary decoration-2 underline-offset-4' : ''}`}
+                            >
+                              <bdi>{num(n)}</bdi>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-1 text-caption text-muted">
+                          {t.sim.lipTypes[lipType]}
+                          {suggestedLip !== null && ` · ${t.sim.lipSuggested(num(suggestedLip))}`}
+                        </p>
+                      </div>
                     )}
                     {sides && (
                       <div className="mt-1 flex flex-wrap items-center gap-2">

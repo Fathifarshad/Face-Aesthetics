@@ -150,6 +150,18 @@ describe('warp operators on the synthetic face', () => {
     expect(minDet).toBeGreaterThan(0.3);
   });
 
+  it('fills each lip in proportion to its own thickness: same shape, no bulge in the middle (owner review 2026-11-15)', () => {
+    for (const p of opsOf('lip-volume')) {
+      const s = p.op.samples!;
+      const shares = s.filter((k) => Math.abs(k.border - k.mouth) > 0.005).map((k) => k.d / Math.abs(k.border - k.mouth));
+      expect(shares.length).toBeGreaterThan(3);
+      for (const share of shares) expect(share).toBeCloseTo(shares[0]!, 6);
+      // The corners (zero thickness) do not move.
+      expect(s[0]!.d).toBeCloseTo(0, 6);
+      expect(s[s.length - 1]!.d).toBeCloseTo(0, 6);
+    }
+  });
+
   it('moves each change the intended way', () => {
     // Field holds p − src: a negative dy means the content moves up.
     const brow = fieldOf(opsOf('brow', 'R'));
@@ -165,11 +177,12 @@ describe('warp operators on the synthetic face', () => {
     expect(at(jowl, angle.c).dx).toBeGreaterThan(0); // left jaw angle a little fuller outward (+x)
     const chin = fieldOf(opsOf('chin'));
     expect(at(chin, opsOf('chin')[0]!.op.c).dy).toBeGreaterThan(0); // chin a little longer
-    // Lips fill out: above the upper lip's centre the content moves up, below the lower lip's centre it moves down.
+    // Lips fill out: the upper border moves up, the lower border down.
     const [upper, lower] = opsOf('lip-volume');
     const lips = fieldOf(opsOf('lip-volume'));
-    expect(at(lips, { x: upper!.op.c.x, y: upper!.op.c.y - upper!.op.ry * 0.3 }).dy).toBeLessThan(0);
-    expect(at(lips, { x: lower!.op.c.x, y: lower!.op.c.y + lower!.op.ry * 0.3 }).dy).toBeGreaterThan(0);
+    const midOf = (o: PlacedOperator) => o.op.samples!.reduce((b, s) => (Math.abs(s.x - o.op.c.x) < Math.abs(b.x - o.op.c.x) ? s : b));
+    expect(at(lips, { x: midOf(upper!).x, y: midOf(upper!).border }).dy).toBeLessThan(0);
+    expect(at(lips, { x: midOf(lower!).x, y: midOf(lower!).border }).dy).toBeGreaterThan(0);
   });
 
   it('mirrors: on a symmetric face the left field is the mirror image of the right one', () => {

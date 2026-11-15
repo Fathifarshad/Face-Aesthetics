@@ -23,7 +23,7 @@ import type { FaceFrame, Pt } from './types';
 
 /** R / L = the subject's right / left; M = midline. */
 export type Side = 'R' | 'L' | 'M';
-export type ProtectId = 'eye' | 'nostril';
+export type ProtectId = 'eye' | 'nostril' | 'brow';
 
 export interface Region {
   /** `${concernId}:${side}` or `protect-${id}:${side}`. */
@@ -110,6 +110,11 @@ export const GEOMETRY = {
   eyePadUp: 0.045, // above the upper lid margin: lashes and lid crease
   eyePadDown: 0.03, // below the lower lid margin; must stay above the under-eye strip
   eyeWiden: 1.12,
+  // Brow protection: the mesh brow stops short of the hairs at the brow head, and the glabella smoothing lightened
+  // them (owner review 2026-11-15). Padded above and below, and reaching this far past the head toward the midline.
+  browPadUp: 0.02,
+  browPadDown: 0.025,
+  browHeadReach: 0.06,
   nostrilRxOfSpan: 0.65, // × the width of the nostril ring; the opening sits above or below the ring depending on camera height
   nostrilRxMin: 0.07,
   nostrilRy: 0.07,
@@ -329,6 +334,15 @@ export function buildRegions(lm: readonly Pt[], inputs: RegionInputs = {}): Regi
     ];
     const cx = centroid(eye).x;
     add(null, side, { type: 'polygon', pts: eye.map((p) => ({ x: cx + (p.x - cx) * G.eyeWiden, y: p.y })) }, { protect: true, protectId: 'eye' });
+  }
+  for (const side of ['R', 'L'] as const) {
+    const d = SIDES[side];
+    const upper = d.browU.map(F).map((p) => offset(p, 0, -G.browPadUp));
+    const lower = d.browL.map(F).map((p) => offset(p, 0, G.browPadDown));
+    // The sets run outer → inner, so the last points are the head; the midline is at −s.
+    const head = lerp(upper[upper.length - 1]!, lower[lower.length - 1]!, 0.5);
+    const beyond = { x: head.x - d.s * G.browHeadReach, y: head.y };
+    add(null, side, { type: 'polygon', pts: [...upper, beyond, ...[...lower].reverse()] }, { protect: true, protectId: 'brow' });
   }
   for (const side of ['R', 'L'] as const) {
     const ring = SIDES[side].nostril.map(F);

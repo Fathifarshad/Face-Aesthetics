@@ -120,6 +120,17 @@ Open points from M2:
   (displacement × (1 − eye mask), eye outline grown 1.35 × 2, soft edge 0.08 units, gain 2); jowl, jaw-angle and masseter operators
   are placed on the face outline at fixed heights between mouth and chin. Unit tests: eyes still at full strength with no fold;
   jaw operators cross the face outline
+- [x] Owner review 3 (2026-11-15): "photos 2 and 3: the brow heads are changed; the lips go from thin at the corners to suddenly full in
+  the middle; changes must suit lip types 1–5; work like a facial aesthetic designer". Fixed:
+  - brow heads: the mesh brow stops short of the head hairs and the glabella smoothing lightened them. New protection region per side
+    (`protect-brow`): brow padded 0.02 up, 0.025 down, reaching 0.06 past the head toward the midline
+  - lips: new operator kind `lip` in `warp.ts`. The vermilion border moves outward at every column by 0.38 × the local lip thickness
+    at full strength (soft band 1.3 × thickness, so the mouth line hardly moves and nothing can fold); corners move by their own
+    thickness, i.e. almost not at all. The upper : lower share is nudged toward 1 : 1.6 (factor ≤ 1.25)
+  - lip type 1–5 (`src/data/lipTypes.ts`, draft): suggested from lip fullness (lip height at the middle ÷ mouth width; bounds 0.24,
+    0.30, 0.36, 0.42), chosen by the doctor in the lip card, stored in `simStates.lipType`; it scales the lip slider (1 → 100 %,
+    5 → 20 %). Measured on the test photos: 0.29, 0.31, 0.25 and 0.19 (that one smiling, which lowers the measure)
+  - Unit tests: lip shift ∝ thickness, corners still; protection list. e2e writes the lip fullness per photo
 - [ ] (V) Owner checks the shape changes again on `test-results/simulate/review.html` («+ فرم و حجم»)
 - [ ] (V) Re-render < 50 ms on a real mid-range phone: not measured yet (open `/#/doctor/case/<id>/simulate`, read `data-render-ms` on the "after" canvas). Desktop numbers above leave ~2.5× headroom for smoothing moves
 - Note: the eye-bag bulge is not flattened; PRD §6 gives the under-eye concern S only. A warp for it would need an owner decision

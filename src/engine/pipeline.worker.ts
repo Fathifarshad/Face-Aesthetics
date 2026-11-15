@@ -15,7 +15,7 @@ export type WorkerRequest =
   | { type: 'grade'; pose: Pose | null };
 
 export type WorkerResponse =
-  | { type: 'ready'; rect: Rect; available: ConcernId[]; bilateral: ConcernId[]; outlines: Outline[]; ms: number }
+  | { type: 'ready'; rect: Rect; available: ConcernId[]; bilateral: ConcernId[]; outlines: Outline[]; lipFullness: number; ms: number }
   | { type: 'frame'; id: number; rect: Rect; pixels: Uint8ClampedArray; ms: number }
   | { type: 'grades'; grades: AutoGrade[]; problems: ReturnType<typeof photoProblems>; ms: number }
   | { type: 'error'; message: string };
@@ -30,8 +30,8 @@ scope.onmessage = (event: MessageEvent<WorkerRequest>) => {
     const started = performance.now();
     if (request.type === 'prepare') {
       prepared = prepare(request);
-      const { rect, available, bilateral, outlines } = prepared;
-      reply({ type: 'ready', rect, available, bilateral, outlines, ms: performance.now() - started });
+      const { rect, available, bilateral, outlines, lipFullness } = prepared;
+      reply({ type: 'ready', rect, available, bilateral, outlines, lipFullness, ms: performance.now() - started });
     } else if (request.type === 'grade' && prepared) {
       const problems = photoProblems(prepared, request.pose);
       reply({ type: 'grades', grades: grade(measure(prepared), problems), problems, ms: performance.now() - started });

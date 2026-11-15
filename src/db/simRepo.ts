@@ -124,6 +124,11 @@ export async function setOverride(caseId: string, concernId: ConcernId, setting:
   await putSimState(caseId, (s) => ({ overrides: { ...s.overrides, [concernId]: setting } }), '');
 }
 
+/** Lip type chosen by the doctor (owner request 2026-11-15). */
+export async function setLipType(caseId: string, lipType: 1 | 2 | 3 | 4 | 5): Promise<void> {
+  await putSimState(caseId, () => ({ lipType }), 'sim.lipType', { lipType });
+}
+
 /** «بازگشت به پیش‌فرض»: every change follows the default again. */
 export async function resetOverrides(caseId: string): Promise<void> {
   await putSimState(caseId, () => ({ overrides: {} }), 'sim.reset');

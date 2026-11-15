@@ -1,7 +1,7 @@
 import { SAFETY_CEILING } from '../data/ageNorms';
 import { CONCERN_IDS, type ConcernId } from '../data/types';
 import { compose, decompose, newAttenuation, SMOOTH_COEFFICIENTS, type Attenuation, type Decomposition, type SmoothType } from './bands';
-import { toPx } from './faceFrame';
+import { toFace, toPx } from './faceFrame';
 import { hairMap, medianLuma } from './hair';
 import { detectHairline } from './hairline';
 import { ANCHOR } from './landmarks';
@@ -9,7 +9,7 @@ import { buildMask, limitMask, stampMax, type Mask } from './masks';
 import { buildRegions, type Side } from './regions';
 import { centroid } from './shapes';
 import type { FaceFrame, Pt } from './types';
-import { addOperator, applyField, buildOperators, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator, type Sex } from './warp';
+import { addOperator, applyField, buildOperators, lipFullness, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator, type Sex } from './warp';
 
 /** PRD F3.2: no effect is applied above 85 %, so the picture never looks artificial. */
 export const MAX_INTENSITY = SAFETY_CEILING;
@@ -117,6 +117,8 @@ export interface Prepared {
   cheekLuma: number | null;
   /** Per-pixel factor of the warp displacement: 0 on the eyes, 1 away from them. */
   still: Float32Array;
+  /** Lip height at the middle ÷ mouth width (suggests the lip type). */
+  lipFullness: number;
 }
 
 export interface PipelineInput {
@@ -224,6 +226,7 @@ export function prepare(input: PipelineInput): Prepared {
     cheek: cheeks.map((v, i) => v * skinWeight[i]!),
     cheekLuma: reference,
     still,
+    lipFullness: lipFullness((i) => toFace(set.frame, landmarks[i]!)),
   };
 }
 

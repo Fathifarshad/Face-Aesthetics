@@ -1,5 +1,5 @@
 import type { ConcernId } from '../data/types';
-import { ANCHOR } from './landmarks';
+import { ANCHOR, LIPS_INNER_LOWER, LIPS_INNER_UPPER, LIPS_OUTER_LOWER, LIPS_OUTER_UPPER } from './landmarks';
 import { toFace } from './faceFrame';
 import type { RegionSet, Side } from './regions';
 import { centroid, crossingsAtY, lerp } from './shapes';
@@ -29,10 +29,25 @@ const INFLATE_PEAK = 0.2862;
 /** An inflate magnifies its centre by 1 / (1 − a); a ≤ 0.5 keeps that at 2× or less, so nothing looks blown up. */
 const INFLATE_MAX = 0.5;
 
+/** One column of a lip operator, face coordinates: border and mouth-line height at x, and the border's shift. */
+export interface LipSample {
+  x: number;
+  /** Vermilion border (outer lip edge). */
+  border: number;
+  /** Mouth line (inner lip edge). */
+  mouth: number;
+  /** Shift of the border at full strength, face units, always ≥ 0 (direction given by `outward`). */
+  d: number;
+}
+
 export interface Operator {
   concernId: ConcernId;
   side: Side;
-  kind: 'inflate' | 'vector';
+  kind: 'inflate' | 'vector' | 'lip';
+  /** lip: columns from one mouth corner to the other, sorted by x. */
+  samples?: LipSample[];
+  /** lip: −1 moves the border up (upper lip), +1 down (lower lip). */
+  outward?: 1 | -1;
   /** Centre and radii, face coordinates. */
   c: Pt;
   rx: number;
@@ -71,6 +86,62 @@ function extent(outline: readonly Pt[]) {
   };
 }
 
+/**
+ * Lip settings (engine and aesthetic-design values, not clinical ones). `gain`: border shift as a share of the
+ * local lip thickness at full strength (lip type 1); with the soft band of half-height 1.3 × thickness, a share
+ * above 0.42 could fold the picture. `idealRatio`: upper : lower lip height ≈ 1 : 1.6, a common aesthetic norm.
+ */
+const LIP = { gain: 0.38, band: 1.3, minBand: 0.02, idealRatio: 1 / 1.6, balanceMax: 1.25 } as const;
+
+/** Height of a polyline (sorted by x) at x, linear between points. */
+function heightAt(pts: readonly Pt[], x: number): number {
+  if (x <= pts[0]!.x) return pts[0]!.y;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!;
+    const b = pts[i]!;
+    if (x <= b.x) return a.y + ((x - a.x) / Math.max(1e-9, b.x - a.x)) * (b.y - a.y);
+  }
+  return pts[pts.length - 1]!.y;
+}
+
+/** Lip columns from the standard contours: border and mouth line per x, for each lip, plus their mid thickness. */
+export function lipShape(F: (i: number) => Pt) {
+  const sorted = (set: readonly number[]) => set.map(F).sort((a, b) => a.x - b.x);
+  const outerU = sorted(LIPS_OUTER_UPPER);
+  const outerL = sorted(LIPS_OUTER_LOWER);
+  const innerU = sorted(LIPS_INNER_UPPER);
+  const innerL = sorted(LIPS_INNER_LOWER);
+  const column = (border: Pt[], inner: Pt[]) => border.map((p) => ({ x: p.x, border: p.y, mouth: heightAt(inner, p.x), d: 0 }));
+  const upper = column(outerU, innerU);
+  const lower = column(outerL, innerL);
+  const mid = (cols: { x: number; border: number; mouth: number }[]) => {
+    const c = cols.reduce((t, s) => t + s.x, 0) / cols.length;
+    const s = cols.reduce((best, k) => (Math.abs(k.x - c) < Math.abs(best.x - c) ? k : best));
+    return Math.abs(s.border - s.mouth);
+  };
+  const width = outerU[outerU.length - 1]!.x - outerU[0]!.x;
+  return { upper, lower, upperMid: mid(upper), lowerMid: mid(lower), width };
+}
+
+/**
+ * Lip fullness: total lip height at the middle ÷ mouth width. Used to suggest the lip type (1 very thin … 5 very
+ * full) shown to the doctor, who can change it.
+ */
+export function lipFullness(F: (i: number) => Pt): number {
+  const s = lipShape(F);
+  return (s.upperMid + s.lowerMid) / Math.max(1e-6, s.width);
+}
+
+function lipOperator(concernId: ConcernId, cols: Omit<LipSample, 'd'>[], outward: 1 | -1, gain: number): Operator {
+  const samples = cols.map((s) => ({ ...s, d: Math.min(MAX_SHIFT, gain * Math.abs(s.border - s.mouth)) }));
+  const xs = samples.map((s) => s.x);
+  const band = (s: LipSample) => Math.max(LIP.minBand, LIP.band * Math.abs(s.border - s.mouth));
+  const top = Math.min(...samples.map((s) => s.border - band(s)));
+  const bottom = Math.max(...samples.map((s) => s.border + band(s)));
+  const c = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (top + bottom) / 2 };
+  return { concernId, side: 'M', kind: 'lip', c, rx: (Math.max(...xs) - Math.min(...xs)) / 2 + 0.005, ry: (bottom - top) / 2, samples, outward };
+}
+
 /** Patient's sex as recorded in the case; it shapes the chin and the jaw angle (a man's are wider and squarer). */
 export type Sex = 'female' | 'male' | 'other';
 
@@ -102,18 +173,17 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
   const ops: Operator[] = [];
   const region = (id: ConcernId, side: Side) => set.regions.find((r) => r.concernId === id && r.side === side);
 
-  // 8 — lips: one operator per lip, centred halfway between the mouth line and the lip's outer edge.
+  // 8 — lips, the way a lip designer works: the vermilion border moves outward everywhere along the lip, by a share
+  // of the lip's own thickness at that point. The shape is kept (Cupid's bow, the fine corners), the corners grow
+  // only as much as they are thick, and there is no bulge in the middle. The first version inflated each lip around
+  // its centre: thin at the corners, suddenly full in the middle (owner review 2026-11-15). The upper lip gets a
+  // larger share when it is thinner than the common aesthetic ratio upper : lower ≈ 1 : 1.6, and the reverse.
   if (region('lip-volume', 'M')) {
-    const rMouth = F(ANCHOR.rMouth);
-    const lMouth = F(ANCHOR.lMouth);
-    const mid = lerp(rMouth, lMouth, 0.5);
-    const halfMouth = Math.abs(lMouth.x - rMouth.x) / 2;
-    const top = F(ANCHOR.upperLipTop);
-    const bottom = F(ANCHOR.lowerLipBottom);
-    for (const edge of [top, bottom]) {
-      const thick = Math.max(0.02, Math.abs(edge.y - mid.y));
-      ops.push(inflate('lip-volume', 'M', lerp(mid, edge, 0.5), halfMouth * 1.15, thick * 1.8, 0.035, { x: 0.25, y: 1 }));
-    }
+    const lips = lipShape(F);
+    const ratio = lips.upperMid / Math.max(1e-6, lips.lowerMid);
+    const balance = Math.min(LIP.balanceMax, Math.max(1 / LIP.balanceMax, Math.sqrt(LIP.idealRatio / ratio)));
+    ops.push(lipOperator('lip-volume', lips.upper, -1, LIP.gain * balance));
+    ops.push(lipOperator('lip-volume', lips.lower, 1, LIP.gain / balance));
   }
 
   // 10 — chin: the whole lower border moves down evenly (a wide vector, so the chin does not become pointed) and
@@ -226,6 +296,14 @@ export function placeOperators(ops: readonly Operator[], frame: FaceFrame, offse
         // Offsets along the face axes, in pixels.
         const u = px * xAxis.x + py * xAxis.y;
         const t = px * yAxis.x + py * yAxis.y;
+        if (op.kind === 'lip') {
+          const shift = lipShift(op, op.c.x + u / unit, op.c.y + t / unit) * unit;
+          if (shift === 0) continue;
+          const i = (y - y0) * bw + (x - x0);
+          dx[i] = shift * yAxis.x;
+          dy[i] = shift * yAxis.y;
+          continue;
+        }
         const r2 = (u * irx) ** 2 + (t * iry) ** 2;
         if (r2 >= 1) continue;
         const k = (1 - r2) * (1 - r2);
@@ -244,6 +322,28 @@ export function placeOperators(ops: readonly Operator[], frame: FaceFrame, offse
     }
     return { op, x0, y0, x1, y1, dx, dy };
   });
+}
+
+/**
+ * Shift of a lip operator at a point (face coordinates), along the face's y axis, in face units. Across the lip the
+ * shift interpolates the columns; vertically it is d · (1 − s²)² with s = distance from the border ÷ the band
+ * half-height (1.3 × the local thickness), so the border moves by d and the mouth line hardly at all.
+ */
+function lipShift(op: Operator, qx: number, qy: number): number {
+  const s = op.samples!;
+  if (qx <= s[0]!.x || qx >= s[s.length - 1]!.x) return 0;
+  let j = 1;
+  while (s[j]!.x < qx) j++;
+  const a = s[j - 1]!;
+  const b = s[j]!;
+  const f = (qx - a.x) / Math.max(1e-9, b.x - a.x);
+  const border = a.border + (b.border - a.border) * f;
+  const thick = Math.abs(a.border - a.mouth) + (Math.abs(b.border - b.mouth) - Math.abs(a.border - a.mouth)) * f;
+  const d = a.d + (b.d - a.d) * f;
+  const h = Math.max(LIP.minBand, LIP.band * thick);
+  const r = (qy - border) / h;
+  if (r * r >= 1) return 0;
+  return op.outward! * d * (1 - r * r) * (1 - r * r);
 }
 
 export interface Field {

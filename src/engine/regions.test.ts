@@ -77,7 +77,7 @@ describe('regions', () => {
   it('adds the protected regions: eyes, nostrils, brows and lips', () => {
     const ids = base.regions.filter((r) => r.protect).map((r) => r.id);
     expect(ids.sort()).toEqual(
-      ['brow:L', 'brow:R', 'lip-volume:M', 'protect-eye:L', 'protect-eye:R', 'protect-nostril:L', 'protect-nostril:R'].sort(),
+      ['brow:L', 'brow:R', 'lip-volume:M', 'protect-brow:L', 'protect-brow:R', 'protect-eye:L', 'protect-eye:R', 'protect-nostril:L', 'protect-nostril:R'].sort(),
     );
   });
 
