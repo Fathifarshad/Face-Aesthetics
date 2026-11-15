@@ -7,6 +7,7 @@ import { detectHairline } from './hairline';
 import { ANCHOR } from './landmarks';
 import { buildMask, limitMask, stampMax, type Mask } from './masks';
 import { buildRegions, type Side } from './regions';
+import { centroid } from './shapes';
 import type { FaceFrame, Pt } from './types';
 import { addOperator, applyField, buildOperators, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator, type Sex } from './warp';
 
@@ -31,6 +32,13 @@ const HAIR_GRAIN = 0.012;
 const HAIR_FEATHER = 0.01;
 /** Hair patches smaller than a square of this side (face units) are wrinkles, not hair. */
 const HAIR_MIN_SIZE = 0.06;
+/**
+ * The warp never moves the eyes: the cheek lift and the brow-tail lift reached the eyelids and changed the shape of
+ * the eye (owner review 2026-11-15). The displacement fades out over a soft margin around each eye: the eye outline
+ * grown by these factors about its centre, with a soft edge wide enough (face units) that the fade itself cannot
+ * fold the picture.
+ */
+const EYE_STILL = { grow: { x: 1.35, y: 2 }, feather: 0.08 } as const;
 
 /**
  * Smoothing applied for each concern: the type from the PRD §5.4 table where the table names the concern
@@ -107,6 +115,8 @@ export interface Prepared {
   cheek: Float32Array;
   /** Median brightness of the cheeks (0…255), or null when they could not be measured. */
   cheekLuma: number | null;
+  /** Per-pixel factor of the warp displacement: 0 on the eyes, 1 away from them. */
+  still: Float32Array;
 }
 
 export interface PipelineInput {
@@ -179,6 +189,18 @@ export function prepare(input: PipelineInput): Prepared {
     (masks[r.concernId] ??= []).push({ side: r.side, mask });
   }
 
+  // Where the warp may move the picture: everywhere except the eyes and a soft margin around them.
+  const still = new Float32Array(pixels).fill(1);
+  const eyes = new Float32Array(pixels);
+  for (const r of set.regions) {
+    if (r.protectId !== 'eye') continue;
+    const c = centroid(r.outline);
+    const grown = r.outline.map((q) => ({ x: c.x + (q.x - c.x) * EYE_STILL.grow.x, y: c.y + (q.y - c.y) * EYE_STILL.grow.y }));
+    stampMax(eyes, rect.width, buildMask(grown.map(local), rect, EYE_STILL.feather * unit));
+  }
+  // Gain 2: completely still wherever the soft mask is at least half (inside the grown outline), fading outside it.
+  for (let i = 0; i < pixels; i++) still[i] = 1 - Math.min(1, eyes[i]! * 2);
+
   const ops = placeOperators(buildOperators(set, landmarks, sex), set.frame, { x: rect.x, y: rect.y }, rect.width, rect.height);
   const available = CONCERN_IDS.filter((id) => masks[id]?.length || ops.some((o) => o.op.concernId === id));
   const outlines: Outline[] = set.regions
@@ -201,6 +223,7 @@ export function prepare(input: PipelineInput): Prepared {
     skin: skinWeight,
     cheek: cheeks.map((v, i) => v * skinWeight[i]!),
     cheekLuma: reference,
+    still,
   };
 }
 
@@ -311,6 +334,12 @@ function warp(prepared: Prepared, changes: readonly Change[], out: Uint8ClampedA
     field.dy.fill(0, row * w + x0, row * w + x1);
   }
   for (const { placed, k } of active) addOperator(field, placed, k);
+  const { still } = prepared;
+  for (let row = y0; row < y1; row++)
+    for (let i = row * w + x0; i < row * w + x1; i++) {
+      field.dx[i]! *= still[i]!;
+      field.dy[i]! *= still[i]!;
+    }
   // Only rows a sample can reach are copied: the box of the active operators plus their summed largest shift.
   const reach = Math.ceil(active.reduce((t, a) => t + a.k, 0) * MAX_SHIFT * prepared.frame.unit) + 2;
   const from = Math.max(0, y0 - reach) * w * 4;

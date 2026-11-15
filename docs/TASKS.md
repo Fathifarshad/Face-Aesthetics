@@ -114,6 +114,12 @@ Open points from M2:
   face inward. Fixed: chin moves down evenly (wide vector) and widens, a man's less long and wider (patient sex now goes to the
   engine); jowl lifted straight up; new jaw-angle operator under «خط فک و جول» (a little fuller outward); masseter moves only the
   lateral contour (narrower operator, 0.045 → 0.03). Unit test for male vs female chin; e2e test cases carry the photo's sex
+- [x] Owner review 2 (2026-11-15): "photo 1: eyes unnatural; photos 2 and 3: a dent at the jaw line / jowl". Causes: the cheek lift
+  and brow-tail lift reached the eyelids; the jaw operators were built from the jowl and masseter regions, which sit near the mouth
+  corners on close-up photos (M1 open point), so they pushed the middle of the lower cheek. Fixed: the warp never moves the eyes
+  (displacement × (1 − eye mask), eye outline grown 1.35 × 2, soft edge 0.08 units, gain 2); jowl, jaw-angle and masseter operators
+  are placed on the face outline at fixed heights between mouth and chin. Unit tests: eyes still at full strength with no fold;
+  jaw operators cross the face outline
 - [ ] (V) Owner checks the shape changes again on `test-results/simulate/review.html` («+ فرم و حجم»)
 - [ ] (V) Re-render < 50 ms on a real mid-range phone: not measured yet (open `/#/doctor/case/<id>/simulate`, read `data-render-ms` on the "after" canvas). Desktop numbers above leave ~2.5× headroom for smoothing moves
 - Note: the eye-bag bulge is not flattened; PRD §6 gives the under-eye concern S only. A warp for it would need an owner decision

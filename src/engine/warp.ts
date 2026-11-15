@@ -2,7 +2,7 @@ import type { ConcernId } from '../data/types';
 import { ANCHOR } from './landmarks';
 import { toFace } from './faceFrame';
 import type { RegionSet, Side } from './regions';
-import { centroid, lerp } from './shapes';
+import { centroid, crossingsAtY, lerp } from './shapes';
 import type { FaceFrame, Pt } from './types';
 
 /**
@@ -86,6 +86,18 @@ export type Sex = 'female' | 'male' | 'other';
  */
 export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'other'): Operator[] {
   const male = sex === 'male';
+  const mouth = lerp(toFace(set.frame, lm[ANCHOR.rMouth]!), toFace(set.frame, lm[ANCHOR.lMouth]!), 0.5);
+  const chin = toFace(set.frame, lm[ANCHOR.chin]!);
+  // Face outline (the skin region): the point on one side at a given height.
+  const face = set.regions.find((r) => r.concernId === 'skin-quality');
+  const contourAt = (side: 'R' | 'L') => {
+    if (!face) return null;
+    return (y: number): Pt => {
+      const xs = crossingsAtY(face.outline, y);
+      const x = xs.length ? (side === 'R' ? Math.min(...xs) : Math.max(...xs)) : 0;
+      return { x, y };
+    };
+  };
   const F = (i: number) => toFace(set.frame, lm[i]!);
   const ops: Operator[] = [];
   const region = (id: ConcernId, side: Side) => set.regions.find((r) => r.concernId === id && r.side === side);
@@ -106,9 +118,9 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
 
   // 10 — chin: the whole lower border moves down evenly (a wide vector, so the chin does not become pointed) and
   // the chin widens a little; for a man less length and more width, which keeps it square.
-  const chin = region('chin', 'M');
-  if (chin) {
-    const { c, hx, hy } = extent(chin.outline);
+  const chinRegion = region('chin', 'M');
+  if (chinRegion) {
+    const { c, hx, hy } = extent(chinRegion.outline);
     ops.push(vector('chin', 'M', { x: c.x, y: c.y + hy * 0.3 }, hx * 2.2, hy * 1.3, { x: 0, y: 1 }, male ? 0.02 : 0.03));
     ops.push(inflate('chin', 'M', c, hx * (male ? 1.8 : 1.4), hy * 1.2, male ? 0.03 : 0.018, { x: 1, y: 0.25 }));
   }
@@ -130,22 +142,23 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
       const corner = F(side === 'R' ? ANCHOR.rMouth : ANCHOR.lMouth);
       ops.push(vector('marionette', side, { x: corner.x + s * 0.03, y: corner.y + 0.04 }, 0.12, 0.14, { x: 0, y: -1 }, 0.03));
     }
-    const jowl = region('jawline', side);
-    const masseter = region('masseter', side);
-    if (jowl) {
-      // The jowl is lifted straight up; pulling it inward as well made the jaw line concave.
-      const { c, hx, hy } = extent(jowl.outline);
-      ops.push(vector('jawline', side, c, hx * 1.4, hy * 1.6, { x: 0, y: -1 }, 0.03));
-      if (masseter) {
-        // Jaw angle a little fuller outward, so the line from the angle to the chin reads straight and defined.
-        const m = extent(masseter.outline);
-        ops.push(vector('jawline', side, { x: m.c.x + s * m.hx * 0.5, y: m.c.y + m.hy * 0.8 }, m.hx * 0.9, m.hy * 0.7, { x: s, y: 0.3 }, male ? 0.03 : 0.02));
-      }
+    // Jaw operators sit on the face outline itself. The jowl and masseter regions are placed geometrically and
+    // land near the mouth corners on close-up photos (M1 open point), so operators built from them pushed the
+    // middle of the lower cheek and left a dent (owner review 2 2026-11-15).
+    const contour = contourAt(side);
+    if (contour && region('jawline', side)) {
+      // Jowl: the soft tissue just inside the jaw line is lifted; the outline itself hardly moves, so no notch.
+      const j = contour(mouth.y + (chin.y - mouth.y) * 0.55);
+      ops.push(vector('jawline', side, { x: j.x - s * 0.12, y: j.y }, 0.14, 0.18, { x: 0, y: -1 }, 0.025));
+      // Jaw angle a little fuller outward, so the line from the angle to the chin reads defined.
+      const a = contour(mouth.y);
+      ops.push(vector('jawline', side, { x: a.x - s * 0.03, y: a.y }, 0.12, 0.2, { x: s, y: 0.4 }, male ? 0.025 : 0.015));
     }
-    if (masseter) {
-      // Only the lateral contour moves in; a wide operator dragged the inner cheek along and hollowed the lower face.
-      const { c, hx, hy } = extent(masseter.outline);
-      ops.push(vector('masseter', side, { x: c.x + s * hx * 0.6, y: c.y }, hx * 1.1, hy * 1.5, { x: -s, y: 0 }, 0.03));
+    if (contour && region('masseter', side)) {
+      // Masseter: the outline at the level of the muscle moves in over a tall ellipse, so the side of the face
+      // narrows evenly instead of getting a dent.
+      const m = contour(mouth.y - 0.08);
+      ops.push(vector('masseter', side, { x: m.x - s * 0.06, y: m.y }, 0.14, 0.3, { x: -s, y: 0 }, 0.025));
     }
     const temple = region('temple', side);
     if (temple) {

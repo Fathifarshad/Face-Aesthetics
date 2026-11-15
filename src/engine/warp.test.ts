@@ -111,6 +111,45 @@ describe('warp operators on the synthetic face', () => {
     expect(mDown!.rx).toBeGreaterThan(mWide!.rx);
   });
 
+  it('jaw operators sit on the face outline, not inside the cheek (owner review 2)', () => {
+    const face = prepared.outlines.find((o) => o.concernId === 'skin-quality')!;
+    for (const id of ['jawline', 'masseter'] as const)
+      for (const p of opsOf(id, 'L')) {
+        // The outline must cross the operator's ellipse: the operator works on the contour.
+        const c = toPx(frame, p.op.c);
+        const local = { x: c.x - rect.x, y: c.y - rect.y };
+        const rxPx = p.op.rx * unit;
+        const near = face.points.some((q) => Math.hypot((q.x - local.x) / rxPx, (q.y - local.y) / (p.op.ry * unit)) < 1);
+        expect(near, id).toBe(true);
+      }
+  });
+
+  it('never moves the eyes, even with every change at full strength', () => {
+    render(prepared, W_CONCERNS.map((concernId) => ({ concernId, intensity: MAX_INTENSITY })));
+    const f = prepared.field;
+    // On the eyes the displacement is (almost) gone; compare with the same operators without the eye fade.
+    const raw = fieldOf(ops, MAX_INTENSITY);
+    let checked = 0;
+    for (let i = 0; i < f.dx.length; i++) {
+      if (prepared.still[i]! > 0.02) continue;
+      checked++;
+      expect(shiftAt(f, i)).toBeLessThanOrEqual(0.02 * shiftAt(raw, i) + 1e-9);
+    }
+    expect(checked).toBeGreaterThan(100);
+    // The fade around the eyes does not fold the picture either.
+    let minDet = Infinity;
+    for (let y = 1; y < rect.height - 1; y++)
+      for (let x = 1; x < rect.width - 1; x++) {
+        const i = y * rect.width + x;
+        const dxx = (f.dx[i + 1]! - f.dx[i - 1]!) / 2;
+        const dxy = (f.dx[i + rect.width]! - f.dx[i - rect.width]!) / 2;
+        const dyx = (f.dy[i + 1]! - f.dy[i - 1]!) / 2;
+        const dyy = (f.dy[i + rect.width]! - f.dy[i - rect.width]!) / 2;
+        minDet = Math.min(minDet, (1 - dxx) * (1 - dyy) - dxy * dyx);
+      }
+    expect(minDet).toBeGreaterThan(0.3);
+  });
+
   it('moves each change the intended way', () => {
     // Field holds p − src: a negative dy means the content moves up.
     const brow = fieldOf(opsOf('brow', 'R'));
