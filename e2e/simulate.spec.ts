@@ -95,6 +95,12 @@ function differenceAboveLabel(page: Page) {
   });
 }
 
+/** Presses a control with the keyboard: on a phone the pinned photo can cover the list, so a pointer click may not reach it. */
+async function press(page: Page, control: Locator) {
+  await control.focus();
+  await page.keyboard.press('Space');
+}
+
 async function openSimulation(page: Page, photo: string) {
   await setupVault(page);
   const caseId = await newCaseWithFrontal(page, join(ASSETS, photo));
@@ -114,6 +120,9 @@ test.describe('simulation page', () => {
     await expect(page.getByRole('switch', { name: 'خطوط پیشانی' })).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByRole('switch', { name: 'کیفیت و بافت پوست' })).toHaveAttribute('aria-checked', 'false');
     await expect(page.getByRole('slider', { name: 'شدت خطوط پیشانی' })).toHaveAttribute('max', '85');
+    // Shape changes (M4) start off.
+    await expect(page.getByRole('switch', { name: 'پهنی فک (ماستر)' })).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByRole('switch', { name: 'حجم و فرم لب' })).toHaveAttribute('aria-checked', 'false');
     expect(await differenceAboveLabel(page)).toBeGreaterThan(0);
 
     // Everything off: "after" equals "before" except for the label (zero strength returns the input).
@@ -135,6 +144,46 @@ test.describe('simulation page', () => {
     // The compare slider moves the divider.
     await page.getByRole('slider', { name: 'جابه‌جایی خط مقایسهٔ قبل و بعد' }).fill('20');
     await expect(after(page)).toHaveAttribute('style', /inset\(0px 0px 0px 20%\)/);
+
+    // M4: switching a shape change on changes the picture.
+    const masseter = page.getByRole('switch', { name: 'پهنی فک (ماستر)' });
+    await page.getByRole('button', { name: 'همه خاموش' }).click();
+    await settled(page);
+    await press(page, masseter);
+    await settled(page);
+    expect(await differenceAboveLabel(page)).toBeGreaterThan(0);
+
+    // Mirror on by default: one slider. Off: one slider per side, and «هم‌اندازه کن» copies the side moved last.
+    const mirror = page.getByRole('checkbox', { name: 'آینهٔ دو طرف برای پهنی فک (ماستر)' });
+    await expect(mirror).toBeChecked();
+    await expect(page.getByRole('slider', { name: 'شدت پهنی فک (ماستر)', exact: true })).toBeVisible();
+    await press(page, mirror);
+    const right = page.getByRole('slider', { name: 'شدت پهنی فک (ماستر)، راستِ بیمار' });
+    const left = page.getByRole('slider', { name: 'شدت پهنی فک (ماستر)، چپِ بیمار' });
+    await expect(right).toBeVisible();
+    await expect(left).toBeVisible();
+    await left.fill('0');
+    await settled(page);
+    const oneSide = await differenceAboveLabel(page);
+    expect(oneSide).toBeGreaterThan(0);
+    const matchButton = page.getByRole('button', { name: 'هم‌اندازه کردن دو طرف پهنی فک (ماستر)' });
+    await expect(matchButton).toBeEnabled();
+    await right.fill('50');
+    await press(page, matchButton);
+    await expect(left).toHaveValue('50');
+    await expect(matchButton).toBeDisabled();
+    await press(page, mirror);
+    await expect(mirror).toBeChecked();
+    await expect(page.getByRole('slider', { name: 'شدت پهنی فک (ماستر)', exact: true })).toHaveValue('50');
+
+    // Touching a region on the photo opens its change and outlines the region (F4.7). The divider is at 20 %,
+    // so a press in the middle of the picture is a tap, not a drag.
+    await page.getByRole('slider', { name: 'جابه‌جایی خط مقایسهٔ قبل و بعد' }).fill('20');
+    const box = (await before(page).boundingBox())!;
+    await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.42);
+    const current = page.locator('li[aria-current="true"]');
+    await expect(current).toHaveCount(1);
+    await expect(page.locator('svg[data-selected] polygon').first()).toBeVisible();
 
     for (const width of [360, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
@@ -171,9 +220,29 @@ test.describe('simulation page', () => {
       }
       const cap = await sheets(page);
       writeFileSync(join(OUT, `${stem}-85.jpg`), bytes(cap.pair));
+      // Smoothing at the cap is the reference for the shape changes below.
       writeFileSync(join(OUT, `${stem}-85-diff.jpg`), bytes(cap.diff));
       writeFileSync(join(OUT, `${stem}-85-zoom.jpg`), bytes(cap.zoom));
       writeFileSync(join(OUT, `${stem}-after-85.jpg`), bytes(await jpg(after(page))));
+
+      // M4: every shape change switched on as well, at the start strength, then each one alone.
+      const shapes = ['افت حجم میانهٔ صورت', 'حجم و فرم لب', 'خط فک و جول', 'پهنی فک (ماستر)', 'افت ابرو'];
+      for (const name of shapes) {
+        await press(page, page.getByRole('switch', { name }));
+        await page.getByRole('slider', { name: `شدت ${name}`, exact: true }).fill('75');
+      }
+      const warpTimes: number[] = [];
+      for (const name of shapes) {
+        for (const v of ['80', '85']) {
+          await page.getByRole('slider', { name: `شدت ${name}`, exact: true }).fill(v);
+          warpTimes.push(await settled(page));
+        }
+      }
+      const warped = await sheets(page);
+      writeFileSync(join(OUT, `${stem}-warp.jpg`), bytes(warped.pair));
+      writeFileSync(join(OUT, `${stem}-warp-diff.jpg`), bytes(warped.diff));
+      writeFileSync(join(OUT, `${stem}-warp-zoom.jpg`), bytes(warped.zoom));
+      const sortedWarp = [...warpTimes].sort((a, b) => a - b);
 
       const sorted = [...times].sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)]!;
@@ -185,10 +254,13 @@ test.describe('simulation page', () => {
           `render ms (desktop chromium, worker): median=${median.toFixed(1)} max=${sorted.at(-1)!.toFixed(1)} n=${times.length}`,
           `start 75%: mean change=${start.mean.toFixed(2)}/255, pixels changed by >=2 levels=${(start.changed * 100).toFixed(1)}%`,
           `cap 85%:   mean change=${cap.mean.toFixed(2)}/255, pixels changed by >=2 levels=${(cap.changed * 100).toFixed(1)}%`,
+          `with shape changes (warp) at 85%: render ms median=${sortedWarp[Math.floor(sortedWarp.length / 2)]!.toFixed(1)} max=${sortedWarp.at(-1)!.toFixed(1)} n=${warpTimes.length}`,
+          `with shape changes: mean change=${warped.mean.toFixed(2)}/255, pixels changed by >=2 levels=${(warped.changed * 100).toFixed(1)}%`,
           '',
         ].join('\n'),
       );
       expect(cap.mean).toBeGreaterThan(start.mean);
+      expect(warped.mean).toBeGreaterThan(cap.mean);
     });
   }
 });

@@ -5,8 +5,9 @@ import { hairMap, medianLuma } from './hair';
 import { detectHairline } from './hairline';
 import { ANCHOR } from './landmarks';
 import { buildMask, limitMask, stampMax, type Mask } from './masks';
-import { buildRegions } from './regions';
-import type { Pt } from './types';
+import { buildRegions, type Side } from './regions';
+import type { FaceFrame, Pt } from './types';
+import { addOperator, applyField, buildOperators, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator } from './warp';
 
 /** PRD F3.2: no effect is applied above 85 %, so the picture never looks artificial. */
 export const MAX_INTENSITY = 0.85;
@@ -34,7 +35,8 @@ const HAIR_MIN_SIZE = 0.06;
  * Smoothing applied for each concern: the type from the PRD §5.4 table where the table names the concern
  * (forehead, glabella, crow's feet, perioral = fine; nasolabial, marionette = deep; under-eye, temple = hollow).
  * Chin, neck and skin are not in that table: chin and neck use `fine`, skin uses a gentle `fine`
- * (PRD §6: "S, mild, whole face"). Concerns whose effect is a shape change get no smoothing; they come with M4.
+ * (PRD §6: "S, mild, whole face"). Concerns whose effect is only a shape change get no smoothing;
+ * their warp operators are in warp.ts (M4).
  */
 export const SMOOTHING: Record<ConcernId, { type: SmoothType; scale: number } | null> = {
   'forehead-lines': { type: 'fine', scale: 1 },
@@ -57,8 +59,17 @@ export const SMOOTHING: Record<ConcernId, { type: SmoothType; scale: number } | 
 
 export interface Change {
   concernId: ConcernId;
-  /** 0…1; values above MAX_INTENSITY are capped. */
+  /** 0…1; values above MAX_INTENSITY are capped. Applies to both sides unless `left` is given. */
   intensity: number;
+  /** Strength of the subject's left side when the sides are set apart (mirror off); `intensity` is then the right side. */
+  left?: number;
+}
+
+/** Region outline in pixels of the working box, for drawing and for picking a region by touch. */
+export interface Outline {
+  concernId: ConcernId;
+  side: Side;
+  points: Pt[];
 }
 
 export interface Rect {
@@ -73,10 +84,22 @@ export interface Prepared {
   /** Working box inside the photo; rendered pixels cover exactly this box. */
   rect: Rect;
   dec: Decomposition;
-  masks: Partial<Record<ConcernId, Mask[]>>;
-  /** Concerns that have a smoothing effect and a region on this photo. */
+  masks: Partial<Record<ConcernId, { side: Side; mask: Mask }[]>>;
+  /** Warp operators placed in the working box. */
+  ops: PlacedOperator[];
+  /** Face frame in pixels of the working copy (the box starts at rect.x, rect.y). */
+  frame: FaceFrame;
+  /** Concerns that have a smoothing or a warp effect and a region on this photo. */
   available: ConcernId[];
+  /** Concerns with a right and a left region (they get the mirror switch). */
+  bilateral: ConcernId[];
+  outlines: Outline[];
   att: Attenuation;
+  field: Field;
+  /** Copy of the pixels the warp samples from; reused between renders. */
+  scratch: Uint8ClampedArray;
+  /** Last smoothing result and the strengths it was made with. */
+  smoothed: { key: string; pixels: Uint8ClampedArray | null };
 }
 
 export interface PipelineInput {
@@ -144,32 +167,59 @@ export function prepare(input: PipelineInput): Prepared {
     if (broad) for (let i = 0; i < mask.data.length; i++) mask.data[i] = Math.min(1, mask.data[i]! * SHADOW_GAIN);
     // The neck lies outside the face outline by definition; everything else is clipped to it.
     limitMask(mask, rect.width, r.concernId === 'neck' ? null : face, protect);
-    (masks[r.concernId] ??= []).push(mask);
+    (masks[r.concernId] ??= []).push({ side: r.side, mask });
   }
 
-  return { rect, dec, masks, available: CONCERN_IDS.filter((id) => masks[id]?.length), att: newAttenuation(pixels) };
+  const ops = placeOperators(buildOperators(set, landmarks), set.frame, { x: rect.x, y: rect.y }, rect.width, rect.height);
+  const available = CONCERN_IDS.filter((id) => masks[id]?.length || ops.some((o) => o.op.concernId === id));
+  const outlines: Outline[] = set.regions
+    .filter((r): r is typeof r & { concernId: ConcernId } => !!r.concernId && available.includes(r.concernId))
+    .map((r) => ({ concernId: r.concernId, side: r.side, points: r.outline.map(local) }));
+  const bilateral = available.filter((id) => outlines.some((o) => o.concernId === id && o.side === 'L'));
+  return {
+    rect,
+    dec,
+    masks,
+    ops,
+    frame: set.frame,
+    available,
+    bilateral,
+    outlines,
+    att: newAttenuation(pixels),
+    field: newField(rect.width, rect.height),
+    scratch: new Uint8ClampedArray(dec.src.length),
+    smoothed: { key: '', pixels: null },
+  };
+}
+
+/** Strength of one side of a change, capped at MAX_INTENSITY. Midline regions follow the main slider. */
+export function strengthOf(change: Change, side: Side): number {
+  const v = side === 'L' && change.left !== undefined ? change.left : change.intensity;
+  return Math.min(MAX_INTENSITY, Math.max(0, v));
 }
 
 /**
  * Renders the working box with the given changes. Fast path for slider moves: only the attenuation maps and
  * the final mix are recomputed, and only inside the boxes of the active regions.
- * Returns new RGBA pixels of `prepared.rect`.
+ * Returns new RGBA pixels of `prepared.rect`. `warp: false` renders the smoothing alone (used by tests).
  */
-export function render(prepared: Prepared, changes: readonly Change[]): Uint8ClampedArray {
-  const { dec, att, masks } = prepared;
+export function render(prepared: Prepared, changes: readonly Change[], options: { warp?: boolean } = {}): Uint8ClampedArray {
+  const { dec, masks } = prepared;
   const w = dec.width;
-  const out = new Uint8ClampedArray(dec.src);
   let bx0 = w;
   let by0 = dec.height;
   let bx1 = 0;
   let by1 = 0;
-  const active: { mask: Mask; fine: number; band1: number; band2: number; band3: number; band4: number }[] = [];
+  const active: Active[] = [];
+  let key = '';
   for (const change of changes) {
     const effect = SMOOTHING[change.concernId];
-    const k = Math.min(MAX_INTENSITY, Math.max(0, change.intensity)) * (effect?.scale ?? 0);
-    if (!effect || k <= 0) continue;
+    if (!effect) continue;
     const c = SMOOTH_COEFFICIENTS[effect.type];
-    for (const mask of masks[change.concernId] ?? []) {
+    for (const { side, mask } of masks[change.concernId] ?? []) {
+      const k = strengthOf(change, side) * effect.scale;
+      if (k <= 0) continue;
+      key += `${change.concernId}:${side}:${k};`;
       active.push({ mask, fine: c.fine * k, band1: c.band1 * k, band2: c.band2 * k, band3: c.band3 * k, band4: c.band4 * k });
       bx0 = Math.min(bx0, mask.x);
       by0 = Math.min(by0, mask.y);
@@ -177,8 +227,25 @@ export function render(prepared: Prepared, changes: readonly Change[]): Uint8Cla
       by1 = Math.max(by1, mask.y + mask.height);
     }
   }
-  if (active.length === 0) return out;
+  // A slider that only warps (lips, jaw, masseter, brow) leaves the smoothing as it was: reuse it.
+  const cache = prepared.smoothed;
+  let out: Uint8ClampedArray;
+  if (cache.key === key && cache.pixels) out = new Uint8ClampedArray(cache.pixels);
+  else {
+    out = new Uint8ClampedArray(dec.src);
+    if (active.length > 0) smooth(prepared, active, out, bx0, by0, bx1, by1);
+    cache.key = key;
+    cache.pixels = active.length > 0 ? new Uint8ClampedArray(out) : dec.src;
+  }
+  if (options.warp !== false) warp(prepared, changes, out);
+  return out;
+}
 
+type Active = { mask: Mask; fine: number; band1: number; band2: number; band3: number; band4: number };
+
+function smooth(prepared: Prepared, active: Active[], out: Uint8ClampedArray, bx0: number, by0: number, bx1: number, by1: number): void {
+  const { dec, att } = prepared;
+  const w = dec.width;
   for (let row = by0; row < by1; row++) {
     att.fine.fill(0, row * w + bx0, row * w + bx1);
     att.band1.fill(0, row * w + bx0, row * w + bx1);
@@ -194,7 +261,7 @@ export function render(prepared: Prepared, changes: readonly Change[]): Uint8Cla
         const m = mask.data[row * mask.width + col]!;
         if (m <= 0) continue;
         const i = o + col;
-        att.fine[i] = 1 - (1 - att.fine[i]!) * (1 - m * fine);
+        if (fine > 0) att.fine[i] = 1 - (1 - att.fine[i]!) * (1 - m * fine);
         att.band1[i] = 1 - (1 - att.band1[i]!) * (1 - m * band1);
         att.band2[i] = 1 - (1 - att.band2[i]!) * (1 - m * band2);
         att.band3[i] = 1 - (1 - att.band3[i]!) * (1 - m * band3);
@@ -203,5 +270,39 @@ export function render(prepared: Prepared, changes: readonly Change[]): Uint8Cla
     }
   }
   compose(dec, att, out, bx0, by0, bx1, by1);
-  return out;
+}
+
+/** Warps `out` in place with the operators of the active changes (after smoothing, as the SUPERPROMPT orders). */
+function warp(prepared: Prepared, changes: readonly Change[], out: Uint8ClampedArray): void {
+  const { ops, field, scratch } = prepared;
+  const w = field.width;
+  const active: { placed: PlacedOperator; k: number }[] = [];
+  let x0 = w;
+  let y0 = field.height;
+  let x1 = 0;
+  let y1 = 0;
+  for (const change of changes) {
+    for (const placed of ops) {
+      if (placed.op.concernId !== change.concernId) continue;
+      const k = strengthOf(change, placed.op.side);
+      if (k <= 0 || placed.x1 <= placed.x0 || placed.y1 <= placed.y0) continue;
+      active.push({ placed, k });
+      x0 = Math.min(x0, placed.x0);
+      y0 = Math.min(y0, placed.y0);
+      x1 = Math.max(x1, placed.x1);
+      y1 = Math.max(y1, placed.y1);
+    }
+  }
+  if (active.length === 0) return;
+  for (let row = y0; row < y1; row++) {
+    field.dx.fill(0, row * w + x0, row * w + x1);
+    field.dy.fill(0, row * w + x0, row * w + x1);
+  }
+  for (const { placed, k } of active) addOperator(field, placed, k);
+  // Only rows a sample can reach are copied: the box of the active operators plus their summed largest shift.
+  const reach = Math.ceil(active.reduce((t, a) => t + a.k, 0) * MAX_SHIFT * prepared.frame.unit) + 2;
+  const from = Math.max(0, y0 - reach) * w * 4;
+  const to = Math.min(field.height, y1 + reach) * w * 4;
+  scratch.set(out.subarray(from, to), from);
+  applyField(scratch, out, field, x0, y0, x1, y1);
 }

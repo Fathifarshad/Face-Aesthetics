@@ -5,7 +5,7 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-15: M0, M1 and M2 done (owner confirmed the regions by eye on 2026-11-15). M3 built, e2e test and desktop render times added; waiting for the owner's look at the result on a real photo. Next: M4 (warp).
+Status 2026-11-15: M0–M3 done (owner confirmed regions and smoothing by eye). M4 (warp) built; waiting for the owner's look at the shape changes and a render time on a real phone. Next: M5.
 
 ## What the v1 kit already provides (built 2026-10-27, kept until replaced)
 
@@ -98,13 +98,20 @@ Open points from M2:
 - [x] Owner review 2 (2026-11-15, photo `20261114_001811`): "dark patches under the eye and beside the mouth look artificial; pictures a bit matte". Cause: the hair detector took the smooth shadow of a deep crease on a brightly lit face for hair, protected it, and the skin around it was lifted. Fixed:
   - `hair.ts`: hair must be dark **and** rough (local roughness ≥ 2 × the cheeks', at least 3 levels); patches smaller than (0.06 face units)² are dropped (wrinkle clusters under the eye)
   - `HIGHLIGHT_KEEP` 0.4 → 0.15 so the natural shine of the skin is not dulled (deviation from SUPERPROMPT, recorded in `bands.ts`)
-- [ ] (V) Owner looks at the corrected result (`test-results/simulate/review.html`)
+- [x] (V) Owner looked at the corrected result and accepted it (2026-11-15: «اوکی هست»). M3 done
 - [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
 - [x] M1 was still open when M3 was started, against the SUPERPROMPT rule; resolved 2026-11-15 when the owner confirmed the regions
 
 ## M4 — Warp and before/after slider
-- [ ] Inflate and vector operators summed into one displacement field; per-change toggle, slider, mirror, "match sides"; vertical before/after slider
-- [ ] (V) Re-render < 50 ms on a mid-range phone; no tearing at the face edge; zero strength returns the input
+- [x] `src/engine/warp.ts` (2026-11-15): inflate `src = c + (p − c)(1 − a·w)` (per-axis gain) and vector `src = p − v·w`, `w = (1 − (r/R)²)²` on an ellipse aligned with the face axes; displacement maps computed once per photo, a slider move scales and adds them; one bilinear sample. Max 0.06 face units per operator (SUPERPROMPT); vectors ≤ 0.5 × the smaller radius and inflate factor ≤ 0.5 (centre magnified ≤ 2×), so the picture cannot fold
+- [x] Operators (directions from the M4 plan, owner did not object): lips fill out (upper and lower lip, mostly vertically) · cheek fill + lift up/out · nasolabial: tissue beside the fold up/out · marionette: mouth corner up · chin: a little longer + slightly fuller · jowl up/in · masseter in · temple fill · brow tail up. Order: smoothing, then warp (SUPERPROMPT)
+- [x] `pipeline.ts`: per-side strength (`Change.left`), smoothing result cached while only warp sliders move, `render(..., { warp: false })` for smoothing-only tests
+- [x] Page: mirror switch per bilateral change (default on; off → right/left sliders), «هم‌اندازه کن» copies the side moved last, touching a region opens its card (smallest region under the finger wins), the open change is outlined on the photo (F4.7). Divider: drag starts on the handle or after an 8 px move; a tap picks a region. Shape-only changes (lips, jaw, masseter, brow, midface) start off until M5 sets defaults
+- [x] Unit tests (`warp.test.ts`, 7): every W concern has operators, both sides; zero strength returns the input; each operator ≤ 0.06 units and nothing outside its box; no fold (det(I − ∇d) > 0.3) and no shift on the working-box border with everything at the cap; directions; left field mirrors the right on the symmetric face; left at 0 leaves the left side untouched
+- [x] e2e (`simulate.spec.ts`): mirror, two sliders, match, tap-to-select with outline; per photo `-warp.jpg`, `-warp-diff.jpg`, `-warp-zoom.jpg` and render times. Desktop Chromium, Pixel 7 emulation (working box ≈ 490 × 750): warp slider move median 7.6–7.9 ms, smoothing slider move median 18–20 ms (max 31)
+- [ ] (V) Owner checks the shape changes on `test-results/simulate/review.html` («+ فرم و حجم»)
+- [ ] (V) Re-render < 50 ms on a real mid-range phone: not measured yet (open `/#/doctor/case/<id>/simulate`, read `data-render-ms` on the "after" canvas). Desktop numbers above leave ~2.5× headroom for smoothing moves
+- Note: the eye-bag bulge is not flattened; PRD §6 gives the under-eye concern S only. A warp for it would need an owner decision
 
 ## M5 — Grading and target age
 - [ ] Automatic 0–4 grade with confidence for the 16 concerns; doctor confirms, edits or rejects

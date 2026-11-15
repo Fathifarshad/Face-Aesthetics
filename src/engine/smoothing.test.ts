@@ -1,3 +1,4 @@
+import { CONCERN_IDS } from '../data/types';
 import { describe, expect, it } from 'vitest';
 import { compose, decompose, HIGHLIGHT_KEEP, newAttenuation, SMOOTH_COEFFICIENTS, type SmoothType } from './bands';
 import { boxBlur3 } from './blur';
@@ -218,8 +219,11 @@ describe('pipeline on the synthetic face', () => {
     return out[((Math.round(p.y) - rect.y) * rect.width + Math.round(p.x) - rect.x) * 4]!;
   };
 
-  it('offers exactly the concerns that have a smoothing effect and a region', () => {
-    expect(prepared.available).toEqual(Object.entries(SMOOTHING).filter(([, v]) => v).map(([k]) => k));
+  it('offers exactly the concerns that have a smoothing or a warp effect and a region', () => {
+    const warped = new Set(prepared.ops.map((o) => o.op.concernId));
+    expect(prepared.available).toEqual(CONCERN_IDS.filter((id) => SMOOTHING[id] || warped.has(id)));
+    expect(prepared.bilateral).toContain('masseter');
+    expect(prepared.bilateral).not.toContain('chin');
     expect(rect.x).toBeGreaterThanOrEqual(0);
     expect(rect.x + rect.width).toBeLessThanOrEqual(size.width);
     expect(rect.y + rect.height).toBeLessThanOrEqual(size.height);
@@ -233,14 +237,13 @@ describe('pipeline on the synthetic face', () => {
         expect(out[i]).toBe(pic.data[((rect.y + row) * pic.width + rect.x + col) * 4]);
       }
     expect(same(render(prepared, [{ concernId: 'forehead-lines', intensity: 0 }]), out)).toBe(true);
-    // Concerns without a smoothing effect are ignored, not an error.
-    expect(same(render(prepared, [{ concernId: 'lip-volume', intensity: 1 }]), out)).toBe(true);
+    expect(same(render(prepared, [{ concernId: 'lip-volume', intensity: 0 }, { concernId: 'masseter', intensity: 0, left: 0 }]), out)).toBe(true);
   });
 
   it('softens the forehead line and leaves the nasolabial lines alone, and the other way round', () => {
     const base = render(prepared, []);
     const forehead = render(prepared, [{ concernId: 'forehead-lines', intensity: 0.85 }]);
-    const fold = render(prepared, [{ concernId: 'nasolabial-fold', intensity: 0.85 }]);
+    const fold = render(prepared, [{ concernId: 'nasolabial-fold', intensity: 0.85 }], { warp: false });
     const onForehead = { x: 0, y: -0.5 };
     const onFold = { x: -(0.27 + 0.17 * 0.5), y: 0.47 + 0.39 * 0.5 };
     expect(at(base, onForehead)).toBe(SKIN[0] - 50);
@@ -261,7 +264,8 @@ describe('pipeline on the synthetic face', () => {
 
   it('never changes a pixel inside the eyes, brows, nostrils or lips, even with everything at full strength', () => {
     const base = render(prepared, []);
-    const everything = render(prepared, prepared.available.map((concernId) => ({ concernId, intensity: 1 })));
+    // Smoothing only: the warp moves lips and brows on purpose (lip volume, brow lift).
+    const everything = render(prepared, prepared.available.map((concernId) => ({ concernId, intensity: 1 })), { warp: false });
     const set = buildRegions(mesh, { size });
     const protectedShapes = set.regions.filter((r) => r.protect).map((r) => outlinePx(set, r));
     let changed = 0;

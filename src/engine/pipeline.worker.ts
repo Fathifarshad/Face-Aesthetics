@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { prepare, render, type Change, type Prepared, type Rect } from './pipeline';
+import { prepare, render, type Change, type Outline, type Prepared, type Rect } from './pipeline';
 import type { Pt } from './types';
 import type { ConcernId } from '../data/types';
 
@@ -12,7 +12,7 @@ export type WorkerRequest =
   | { type: 'render'; id: number; changes: Change[] };
 
 export type WorkerResponse =
-  | { type: 'ready'; rect: Rect; available: ConcernId[]; ms: number }
+  | { type: 'ready'; rect: Rect; available: ConcernId[]; bilateral: ConcernId[]; outlines: Outline[]; ms: number }
   | { type: 'frame'; id: number; rect: Rect; pixels: Uint8ClampedArray; ms: number }
   | { type: 'error'; message: string };
 
@@ -26,7 +26,8 @@ scope.onmessage = (event: MessageEvent<WorkerRequest>) => {
     const started = performance.now();
     if (request.type === 'prepare') {
       prepared = prepare(request);
-      reply({ type: 'ready', rect: prepared.rect, available: prepared.available, ms: performance.now() - started });
+      const { rect, available, bilateral, outlines } = prepared;
+      reply({ type: 'ready', rect, available, bilateral, outlines, ms: performance.now() - started });
     } else if (prepared) {
       const pixels = render(prepared, request.changes);
       reply({ type: 'frame', id: request.id, rect: prepared.rect, pixels, ms: performance.now() - started }, [pixels.buffer]);
