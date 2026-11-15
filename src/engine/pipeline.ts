@@ -1,6 +1,7 @@
 import { CONCERN_IDS, type ConcernId } from '../data/types';
 import { compose, decompose, newAttenuation, SMOOTH_COEFFICIENTS, type Attenuation, type Decomposition, type SmoothType } from './bands';
 import { toPx } from './faceFrame';
+import { hairMap, medianLuma } from './hair';
 import { detectHairline } from './hairline';
 import { ANCHOR } from './landmarks';
 import { buildMask, limitMask, stampMax, type Mask } from './masks';
@@ -16,6 +17,9 @@ const FEATHER = 0.02;
 const PROTECT_FEATHER = 0.008;
 /** Margin of the working box around the regions, in face units. */
 const BOX_MARGIN = 0.25;
+/** Hair detection: neighbourhood of the majority vote and width of the soft edge, in face units. */
+const HAIR_GRAIN = 0.012;
+const HAIR_FEATHER = 0.01;
 
 /**
  * Smoothing applied for each concern: the type from the PRD §5.4 table where the table names the concern
@@ -111,6 +115,13 @@ export function prepare(input: PipelineInput): Prepared {
   const face = new Float32Array(pixels);
   const skin = set.regions.find((r) => r.concernId === 'skin-quality');
   if (skin) stampMax(face, rect.width, buildMask(skin.outline.map(local), rect, FEATHER * unit));
+
+  // Dark hair (moustache, beard, fringe) is protected like the eyes and lips. The reference skin is the cheeks.
+  const cheeks = new Float32Array(pixels);
+  for (const r of set.regions) if (r.concernId === 'midface-volume') stampMax(cheeks, rect.width, buildMask(r.outline.map(local), rect, 0));
+  const reference = medianLuma(crop, cheeks);
+  const hair = reference === null ? null : hairMap(crop, rect.width, rect.height, reference, HAIR_GRAIN * unit, HAIR_FEATHER * unit);
+  if (hair) for (let i = 0; i < pixels; i++) protect[i] = Math.max(protect[i]!, hair[i]!);
 
   const masks: Prepared['masks'] = {};
   for (const r of set.regions) {

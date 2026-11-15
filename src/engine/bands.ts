@@ -12,7 +12,9 @@ import { boxBlur3 } from './blur';
  * The PRD describes four layers (no band3). Measured on a synthetic dark line, those four with the PRD
  * coefficients remove at most 58 % of its contrast (the engine's own acceptance test asks for 60 %), and a
  * shadow as wide as an under-eye hollow sits almost entirely in the base, where nothing could reach it.
- * Hence the extra layer and the slightly higher band2 of the fine type (changed 2026-11-13, see PRD §5.4).
+ * Hence the extra layer and higher band2/band3 coefficients. Approved by the owner on 2026-11-15 and recorded in
+ * PRD §5.4; the fine type's band2/band3 were raised once more after a real photo showed broad forehead furrows
+ * barely changing. These are engine settings, not clinical values.
  */
 
 /** Blur radii of LP1…LP4 as fractions of the face width. The first three are from PRD §5.4. */
@@ -22,7 +24,7 @@ export type SmoothType = 'fine' | 'deep' | 'hollow';
 
 /** How much of each layer a smoothing type removes at full strength. */
 export const SMOOTH_COEFFICIENTS: Record<SmoothType, { fine: number; band1: number; band2: number; band3: number }> = {
-  fine: { fine: 0.35, band1: 0.9, band2: 0.6, band3: 0 },
+  fine: { fine: 0.35, band1: 0.9, band2: 0.8, band3: 0.3 },
   deep: { fine: 0.1, band1: 0.7, band2: 0.85, band3: 0.5 },
   hollow: { fine: 0, band1: 0.6, band2: 0.9, band3: 0.8 },
 };

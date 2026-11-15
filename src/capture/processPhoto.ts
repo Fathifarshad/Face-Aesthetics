@@ -4,7 +4,8 @@ import { faceStats, toGray } from './imageStats';
 import { evaluateQc, type QcResult } from './qc';
 import type { ViewDef } from './views';
 
-const MAX_SIDE = 1600;
+/** Long side of the stored photo. Large enough that the face alone can fill the 1280 px working copy (docs/PRD.md F1.4). */
+const MAX_SIDE = 2560;
 
 export type Processed = {
   blob: Blob;

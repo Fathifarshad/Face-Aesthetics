@@ -19,6 +19,26 @@ const START_INTENSITY = 0.6;
 const START_OFF: readonly ConcernId[] = ['skin-quality', 'neck'];
 const SLIDER_STEP = 5;
 
+/**
+ * Part of the photo the engine works on: the landmark box grown on every side so the forehead up to the
+ * hairline, the temples, the jaw and the neck below the chin all stay inside. Fractions of the landmark box.
+ * The engine trims this further to its own working box (regions plus a margin).
+ */
+const CROP_GROW = { side: 0.35, top: 0.5, bottom: 0.7 } as const;
+
+function faceCrop(landmarks: readonly { x: number; y: number }[], width: number, height: number) {
+  const xs = landmarks.map((p) => p.x);
+  const ys = landmarks.map((p) => p.y);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const bw = x1 - x0;
+  const bh = y1 - y0;
+  const left = Math.max(0, Math.floor(x0 - bw * CROP_GROW.side));
+  const top = Math.max(0, Math.floor(y0 - bh * CROP_GROW.top));
+  const right = Math.min(width, Math.ceil(x1 + bw * CROP_GROW.side));
+  const bottom = Math.min(height, Math.ceil(y1 + bh * CROP_GROW.bottom));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
 type Setting = { on: boolean; value: number };
 type Status = 'loading' | 'no-photo' | 'no-face' | 'preparing' | 'ready' | 'error';
 
@@ -113,16 +133,24 @@ export function SimulatePage() {
       const bmp = await createImageBitmap(photo.blob);
       if (cancelled) return bmp.close();
       const side = window.matchMedia('(pointer: coarse)').matches ? WORK_SIDE.touch : WORK_SIDE.desktop;
-      const scale = Math.min(1, side / Math.max(bmp.width, bmp.height));
-      work.width = Math.round(bmp.width * scale);
-      work.height = Math.round(bmp.height * scale);
+      // The size limit applies to the face and its surroundings, not to the whole photo: the face often fills
+      // only a third of the frame, and limiting the whole photo would leave it a few hundred pixels wide.
+      const k0 = bmp.width / photo.width;
+      const crop = faceCrop(photo.landmarks!, bmp.width / k0, bmp.height / k0);
+      const sx = crop.x * k0;
+      const sy = crop.y * k0;
+      const sw = crop.width * k0;
+      const sh = crop.height * k0;
+      const scale = Math.min(1, side / Math.max(sw, sh));
+      work.width = Math.round(sw * scale);
+      work.height = Math.round(sh * scale);
       const ctx = work.getContext('2d', { willReadFrequently: true })!;
-      ctx.drawImage(bmp, 0, 0, work.width, work.height);
+      ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, work.width, work.height);
       bmp.close();
       const pixels = ctx.getImageData(0, 0, work.width, work.height).data;
-      // Stored landmarks are in pixels of the stored photo; the working copy may be smaller.
-      const k = work.width / photo.width;
-      const landmarks = photo.landmarks!.map((p) => ({ x: p.x * k, y: p.y * k }));
+      // Stored landmarks are in pixels of the stored photo; the working copy is a scaled crop of it.
+      const k = work.width / crop.width;
+      const landmarks = photo.landmarks!.map((p) => ({ x: (p.x - crop.x) * k, y: (p.y - crop.y) * k }));
       w.postMessage({ type: 'prepare', data: pixels, width: work.width, height: work.height, landmarks } satisfies WorkerRequest, [pixels.buffer]);
     })();
 

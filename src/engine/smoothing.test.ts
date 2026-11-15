@@ -3,6 +3,7 @@ import { compose, decompose, HIGHLIGHT_KEEP, newAttenuation, SMOOTH_COEFFICIENTS
 import { boxBlur3 } from './blur';
 import { buildFrame, toPx } from './faceFrame';
 import { FIXTURE, syntheticMesh, syntheticPicture } from './fixtures';
+import { hairMap, medianLuma } from './hair';
 import { buildMask, fillPolygon, limitMask, stampMax } from './masks';
 import { MAX_INTENSITY, prepare, render, SMOOTHING } from './pipeline';
 import { buildRegions, outlinePx } from './regions';
@@ -282,5 +283,49 @@ describe('pipeline on the synthetic face', () => {
     expect(checked).toBeGreaterThan(500);
     expect(changed).toBe(0);
     expect(changedElsewhere).toBeGreaterThan(1000);
+  });
+});
+
+describe('hair map', () => {
+  const W = 120;
+  const H = 60;
+  const all = new Float32Array(W * H).fill(1);
+
+  it('finds a dense dark patch (moustache) but not a fold that is only a little darker than the skin', () => {
+    // Left: dark hair patch, 30 levels of noise inside it. Right: a fold 25 levels darker than the skin.
+    const data = striped(W, H, []);
+    for (let y = 20; y < 40; y++) {
+      for (let x = 10; x < 50; x++) {
+        const i = (y * W + x) * 4;
+        const v = 50 + ((x * 7 + y * 13) % 30);
+        data[i] = data[i + 1] = data[i + 2] = v;
+      }
+      for (let x = 80; x < 84; x++) {
+        const i = (y * W + x) * 4;
+        data[i] = data[i]! - 25;
+        data[i + 1] = data[i + 1]! - 25;
+        data[i + 2] = data[i + 2]! - 25;
+      }
+    }
+    const skin = medianLuma(data, all)!;
+    expect(skin).toBeGreaterThan(150);
+    const hair = hairMap(data, W, H, skin, 2, 2);
+    expect(hair[30 * W + 30]).toBe(1);
+    expect(hair[30 * W + 82]).toBe(0);
+    expect(hair[5 * W + 100]).toBe(0);
+  });
+
+  it('ignores single dark specks (pores, a mole smaller than the grain)', () => {
+    const data = striped(W, H, []);
+    for (const [x, y] of [[20, 20], [60, 30], [90, 45]]) {
+      const i = (y! * W + x!) * 4;
+      data[i] = data[i + 1] = data[i + 2] = 30;
+    }
+    const hair = hairMap(data, W, H, medianLuma(data, all)!, 3, 2);
+    expect(Math.max(...hair)).toBe(0);
+  });
+
+  it('returns null for the reference skin when the reference area is empty', () => {
+    expect(medianLuma(striped(W, H, []), new Float32Array(W * H))).toBeNull();
   });
 });

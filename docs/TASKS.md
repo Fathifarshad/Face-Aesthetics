@@ -70,21 +70,21 @@ Open points from M2:
 - Only images are encrypted. Patient name, phone, intake answers, messages, findings and the clinic logo are stored in plain form (the owner did not ask for more; the admin panel says so). Encrypting them is a separate piece of work
 - The client app (`/#/client`) is not locked or encrypted; revisit in M11
 - Patient record fields were not reshaped to PRD §9 (the v1 fields — display name, file number, phone — are still used by the client app); Fitzpatrick stays in the intake form
-- Stored photos keep up to 1600 px on the long side; the image engine will work on a ≤ 1280 px copy (M3)
+- Stored photos keep up to 2560 px on the long side since 2026-11-15 (was 1600; photos saved before stay at 1600). The engine works on a crop around the face of ≤ 1280 px (1024 on touch devices)
 - Automatic deletion after the retention period is still not built (the setting exists and says so)
 - The IndexedDB database is still named `tanasob`; renaming would orphan existing data
 
 ## M3 — Band smoothing
 - [x] Built (2026-11-14): `blur.ts` (3-pass box blur), `masks.ts` (soft region masks, protection and face clipping), `bands.ts` (layer split, per-type coefficients, highlights keep 40 %), `pipeline.ts` (prepare once, render per slider move, 85 % cap), `pipeline.worker.ts` (Web Worker), page `SimulatePage.tsx` (switch + slider per region, before/after divider, burned-in simulation label)
-- [x] Deviation from PRD §5.4, found by measurement: with 4 layers and the PRD coefficients a dark line loses at most 58 % contrast (test wants 60 %) and a broad hollow sits in the base layer. Added a 5th layer (LP4 = 0.12 face width, 'band3') and raised band2 of 'fine' to 0.6, 'deep' to 0.85, 'hollow' to 0.9. **Owner/PRD must confirm this change**
+- [x] Deviation from PRD §5.4, found by measurement: with 4 layers and the PRD coefficients a dark line loses at most 58 % contrast (test wants 60 %) and a broad hollow sits in the base layer. Added a 5th layer (LP4 = 0.12 face width, 'band3') and raised band2 of 'fine' to 0.6, 'deep' to 0.85, 'hollow' to 0.9. **Approved by the owner 2026-11-15**, recorded in PRD §5.4
 - [x] Unit tests (18, `smoothing.test.ts`): exact layer sum, ≥ 60 % contrast loss per type, nothing changes outside the mask, no bright rim, nothing changes inside eyes/brows/nostrils/lips, 85 % cap
 - [x] `e2e/simulate.spec.ts` (2026-11-15, 5 tests): switches and sliders (cap 85), "all off" returns the photo unchanged above the label, the label bar is on the "after" canvas, compare divider, no horizontal scroll at 360/390/430 px. Per frontal photo it writes `<photo>-60.jpg`, `<photo>-85.jpg` (before | after), `-diff.jpg` (×8) and `<photo>.txt` into `test-results/simulate/`. Helper `newCaseWithFrontal()` in `e2e/helpers.ts`
 - [~] Render time measured in desktop Chromium with Pixel 7 emulation (worker, 18 slider moves per photo): median 2.6–6.0 ms, max 13.3 ms on four photos. Still to measure on a real mid-range phone (open `/#/doctor/case/<id>/simulate`, read `data-render-ms` on the "after" canvas)
 - [ ] (V) Owner has not yet looked at the result on a real photo. Findings from the images (2026-11-15):
   - the effect lands on the right places: under-eye, nasolabial, crow's feet, marionette, glabella
-  - forehead lines change little on `20261112_230515`
-  - moustache hair inside the nasolabial and perioral masks is smoothed too (a beard would be as well); needs a hair mask
-  - the working box is small (≈ 350 × 530 px: the 1024/1280 px limit applies to the whole photo and the face fills about a third of it), so fine detail is lost and the picture is soft when enlarged. Option: crop to the face first, then apply the size limit
+  - forehead lines change little on `20261112_230515` → fixed 2026-11-15: 'fine' band2 0.6 → 0.8, band3 0 → 0.3 (PRD §5.4)
+  - moustache hair inside the nasolabial and perioral masks is smoothed too → fixed 2026-11-15: `src/engine/hair.ts` protects pixels darker than 0.6 × the median cheek luminance (majority vote over 0.012 face units, soft edge 0.01). Light hair (blond, grey, fine stubble) is not found
+  - the working box was small (≈ 350 × 530 px) → fixed 2026-11-15: the size limit now applies to a crop around the face (`faceCrop` in `SimulatePage.tsx`) and stored photos keep 2560 px. Box on a phone ≈ 490 × 755 px; desktop render median 11 ms (was 6)
 - [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
 - [!] M1 (owner confirmation of regions by eye) was still open when M3 was started, against the SUPERPROMPT rule. Treat M3 as provisional until M1 is confirmed
 
