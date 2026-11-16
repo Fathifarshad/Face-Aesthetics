@@ -83,6 +83,10 @@ Plan approved 2026-11-16:
   operator now supports below the corner (mode A too); M1–M3 and Lp6 sit below the commissure with a wide radius
 - [x] Unit: `src/engine/mdCodes.test.ts`, `warp.test.ts` (every reshaping code, both sides), `mdMode.test.ts`. e2e:
   `simulate.spec.ts` (M5b, M5c), per-photo images: each family alone, defaults, all 51 codes
+- [x] Owner review 2026-11-16: «با زدن یک دکمه، جاهای دیگر هم تغییر می‌کند» (T on 20261114_001811). Measured: outside the
+  temples every pixel is unchanged (face colour means equal to 0.1); the side-by-side view makes the second picture look
+  lighter. The review page now has a difference map and an in-place before/after toggle, and `simulate.spec.ts` checks for
+  every family on every photo that nothing changes outside its zones (+ 0.08 × width margin)
 - [ ] (V) Owner look on `test-results/simulate/review-m5c.html` (each family alone, zones, zoom) and on the page
 - Open: on a turned head (20261114_001749) Ck4 and Ck5 sit close together on the far side; zones follow the photo, so a
   frontal photo per PRD §8 keeps them apart. Persian names and the code placement need a senior physician

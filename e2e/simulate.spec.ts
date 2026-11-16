@@ -424,6 +424,10 @@ test.describe('simulation page', () => {
 
       // (2) Each family alone with every one of its codes on at 75 % (everything else off): each code shows in its own zone.
       await press(page, page.getByRole('button', { name: 'همه خاموش' }));
+      // Everything off really is off: no switch on, and the "after" picture is the photo itself.
+      await expect(page.getByRole('switch', { checked: true })).toHaveCount(0);
+      await settled(page);
+      expect((await sheets(page)).changed, 'all off').toBeLessThan(0.001);
       for (const name of families) {
         const family = name.split(' · ')[0]!;
         await setFamily(name, '75');
@@ -434,6 +438,32 @@ test.describe('simulation page', () => {
         for (let i = 0; i < n; i++) if ((await codes.nth(i).getAttribute('aria-checked')) !== 'true') await press(page, codes.nth(i));
         await settled(page);
         const one = await sheets(page);
+        writeFileSync(join(OUT, `${stem}-md-${family}-diff.jpg`), bytes(one.diff));
+        // Owner review 2026-11-16: one family must not change anything else. Pixels changed by ≥ 2 levels outside its
+        // shaded zones, grown by a margin for the soft edge of the warp and the smoothing, as a share of the picture.
+        const outside = await page.evaluate((margin) => {
+          const b = document.querySelector<HTMLCanvasElement>('canvas[aria-label="قبل"]')!;
+          const a = document.querySelector<HTMLCanvasElement>('canvas[aria-label="بعد"]')!;
+          const w = b.width;
+          const h = b.height;
+          const boxes = [...document.querySelectorAll('svg[data-md-zones] polygon')].map((p) => {
+            const pts = p.getAttribute('points')!.split(' ').map((q) => q.split(',').map(Number) as [number, number]);
+            const m = margin * w;
+            return [Math.min(...pts.map((q) => q[0])) - m, Math.min(...pts.map((q) => q[1])) - m, Math.max(...pts.map((q) => q[0])) + m, Math.max(...pts.map((q) => q[1])) + m];
+          });
+          const pb = b.getContext('2d')!.getImageData(0, 0, w, h).data;
+          const pa = a.getContext('2d')!.getImageData(0, 0, w, h).data;
+          const bar = Math.round(Math.max(11, Math.round((w * 11) / 390)) * 2.2) + 1;
+          let n = 0;
+          for (let y = 0; y < h - bar; y++)
+            for (let x = 0; x < w; x++) {
+              const i = (y * w + x) * 4;
+              const d = (Math.abs(pa[i]! - pb[i]!) + Math.abs(pa[i + 1]! - pb[i + 1]!) + Math.abs(pa[i + 2]! - pb[i + 2]!)) / 3;
+              if (d >= 2 && !boxes.some(([x0, y0, x1, y1]) => x >= x0! && x <= x1! && y >= y0! && y <= y1!)) n++;
+            }
+          return n / (w * (h - bar));
+        }, 0.08);
+        expect(outside, `${stem} ${family}: change outside its zones`).toBeLessThan(0.002);
         writeFileSync(join(OUT, `${stem}-md-${family}.jpg`), bytes(one.pair));
         writeFileSync(join(OUT, `${stem}-md-${family}-zoom.jpg`), bytes(one.zoom));
         await split.fill('0');
@@ -448,6 +478,7 @@ test.describe('simulation page', () => {
       const all = await sheets(page);
       writeFileSync(join(OUT, `${stem}-mdall.jpg`), bytes(all.pair));
       writeFileSync(join(OUT, `${stem}-mdall-zoom.jpg`), bytes(all.zoom));
+      writeFileSync(join(OUT, `${stem}-mdall-diff.jpg`), bytes(all.diff));
 
       const sorted = [...times].sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)]!;
