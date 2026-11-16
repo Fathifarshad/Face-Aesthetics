@@ -5,14 +5,14 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select) and M5 (grading, age target) built and waiting for the owner's look; M6 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select) and M5 (grading, age target) built and waiting for the owner's look; M5b (MD Codes filler mode) next, then M6. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
 - docs/PRD.md — requirements F1–F10, milestones M0–M11. **§0 (owner decisions) overrides everything else**
 - prompts/SUPERPROMPT.md — the 17 hard rules, image-engine design, working method
 - docs/BRAND.md — tokens, components, voice, fixed glossary
-- docs/TASKS.md — milestone status and what the v1 kit already provides
+- docs/TASKS.md — open work and the next milestone. Finished milestones: docs/TASKS-done.md (history only)
 - docs/SAFETY.md, docs/ANALYSIS_SPEC.md, docs/TREATMENTS.md — v1 specs, still valid where their status note says so
 - docs/design/screens/*.dc.html — layout reference only (their teal colours do not apply)
 
@@ -20,7 +20,7 @@ is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 - Name: نوا / NEVA, written only in `src/app/config.ts`
 - Theme: black & gold. BRAND 2.0 structure, sizes and wording apply; only the colour values differ
 - The client app stays and is completed in M11; it must keep working in every milestone
-- One milestone at a time: short plan, wait for «ادامه», build, verify, report in ≤ 10 lines, commit, no push
+- One milestone at a time: short plan, wait for «ادامه», build, verify, report in ≤ 10 lines, commit; push only when asked
 
 ## Hard rules (full list in prompts/SUPERPROMPT.md)
 - Never invent a clinical number. Volumes, doses, durations and grade thresholds come only from docs/PRD.md §6–7.
@@ -80,6 +80,14 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
   Grade thresholds (`src/data/gradeThresholds.ts`) are Claude's drafts from test photos: re-measure with `npx playwright test e2e/grading.spec.ts -g indices`
 - The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored
+
+## Working economically (owner request 2026-11-16: fewer tokens, same quality)
+- One conversation per milestone. After the commit the owner starts a new chat; state lives in this file, docs/TASKS.md and memory
+- Read large files in parts (grep first, then the lines you need). Do not re-read a file you just edited
+- While building, run only the affected tests (`npx vitest run <file>`, `npx playwright test <spec> --reporter=line`).
+  Run `npm run check` and the full Playwright suite once, before the commit
+- Keep command output short (`| tail`, `--silent`, `git status --short`). Use a subagent only for the clinical-safety review
+- Before showing visual work, check the zoomed before/after yourself so the owner needs fewer review rounds
 
 ## Compact instructions
 When compacting, keep: current milestone id, files changed, failing tests, open TODO(clinical) items, the verification commands.
