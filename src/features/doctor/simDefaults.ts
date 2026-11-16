@@ -1,5 +1,7 @@
 import { defaultIntensity } from '../../data/ageNorms';
 import type { AgeTarget, ConcernId, Finding } from '../../data/types';
+import { chosenOption } from '../../data/optionSort';
+import type { FxType, TreatmentOption } from '../../data/treatmentOptions';
 import { FILLED_BY_SITES, MD_SITE_INFO, MOVED_TO_SITES, type MdSite } from '../../data/mdCodes';
 import type { SimMode, SimSetting } from '../../db/types';
 import type { Change, SiteChange } from '../../engine/pipeline';
@@ -35,6 +37,40 @@ export function effectiveSettings(
   return Object.fromEntries(available.map((id) => [id, overrides[id] ?? defaultSetting(id, findings, realAge, target)]));
 }
 
+/** Highest confirmed midface volume grade of either side: drives «اول حمایت، بعد چین» (PRD F5.6). */
+export const midfaceGradeOf = (findings: readonly Finding[]) =>
+  Math.max(0, ...findings.filter((f) => f.concernId === 'midface-volume' && usable(f)).map((f) => f.grade));
+
+/** The treatment option in force for each concern: the doctor's choice, or the first allowed default (PRD F5.1, F5.6). */
+export function chosenOptions(
+  concernIds: readonly ConcernId[],
+  choices: Partial<Record<ConcernId, string>>,
+  findings: readonly Finding[],
+  allowed?: (o: TreatmentOption) => boolean,
+): Partial<Record<ConcernId, TreatmentOption>> {
+  const midface = midfaceGradeOf(findings);
+  const out: Partial<Record<ConcernId, TreatmentOption>> = {};
+  for (const id of concernIds) {
+    const o = chosenOption(id, choices[id], midface, allowed);
+    if (o) out[id] = o;
+  }
+  return out;
+}
+
+/** PRD F5.3: a chosen option caps its concern's slider at the option's `fx.maxStrength`. */
+export function capSettings(
+  settings: Partial<Record<ConcernId, SimSetting>>,
+  options: Partial<Record<ConcernId, TreatmentOption>>,
+): Partial<Record<ConcernId, SimSetting>> {
+  const round = (v: number) => Math.round(v * 100) / 100;
+  return Object.fromEntries(
+    (Object.entries(settings) as [ConcernId, SimSetting][]).map(([id, s]) => {
+      const cap = options[id]?.fx.maxStrength;
+      return [id, cap === undefined ? s : { ...s, value: round(Math.min(s.value, cap)), left: round(Math.min(s.left, cap)) }];
+    }),
+  );
+}
+
 /**
  * MD Codes sliders (mode B, docs/TASKS.md M5b): the doctor's own where they moved one, otherwise the current
  * mode-A value of the site's concern (for example cheek volume 60 % → Ck1, Ck2 and Ck3 at 60 %). A midline site
@@ -64,7 +100,7 @@ const active = (s: SimSetting) => s.on && (s.value > 0 || (!s.mirror && s.left >
 const strengths = (s: SimSetting, k: number) => (s.mirror ? { intensity: s.value * k } : { intensity: s.value * k, left: s.left * k });
 
 /**
- * What the engine renders. Mode A: every concern with its full effect. Mode B: the concerns that give their
+ * What the engine renders. Mode A: every concern with the effect of its chosen option (`fx`; full when absent). Mode B: the concerns that give their
  * volume to sites smooth only, the masseter (toxin, no family) keeps its effect, Tt drives the under-eye shadow
  * lift (owner 2026-11-16), and every other site drives its warp operators. `scale` scales one slider (the lip type).
  */
@@ -73,12 +109,18 @@ export function engineInput(
   concerns: Partial<Record<ConcernId, SimSetting>>,
   sites: Partial<Record<MdSite, SimSetting>>,
   scale: (key: ConcernId | MdSite) => number = () => 1,
+  fx: Partial<Record<ConcernId, FxType>> = {},
 ): { changes: Change[]; sites: SiteChange[] } {
   const changes: Change[] = [];
   for (const id of concernsShown(mode, Object.keys(concerns) as ConcernId[])) {
     const s = concerns[id]!;
     if (!active(s)) continue;
-    const effect = mode === 'mdcodes' && FILLED_BY_SITES.has(id) ? { effect: 'smooth' as const } : {};
+    // The chosen option's effect type (PRD F5.3); in mode B a concern filled by sites never warps by itself.
+    const type = fx[id] ?? 'SW';
+    const smooth = type !== 'W';
+    const warp = type !== 'S' && !(mode === 'mdcodes' && FILLED_BY_SITES.has(id));
+    if (!smooth && !warp) continue;
+    const effect = smooth && warp ? {} : { effect: smooth ? ('smooth' as const) : ('warp' as const) };
     changes.push({ concernId: id, ...strengths(s, scale(id)), ...effect });
   }
   const out: SiteChange[] = [];

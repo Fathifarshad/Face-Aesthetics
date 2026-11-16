@@ -5,7 +5,8 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-16: M0–M3 done; M4, M5 and M5b (MD Codes filler mode) built, waiting for the owner's look. Next: M6.
+Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode) and M6 (knowledge base, sorting, option → image) built,
+waiting for the owner's look. Next: M7.
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -49,9 +50,23 @@ skin) stays in both modes.
 - [ ] (V) Owner look on `test-results/simulate/review.html` → «MD Codes (M5b)» (picture, zones, zoom) and on the page
 
 ## M6 — Knowledge base and sorting
-- [~] 16 concerns × options in `src/data` with every field of PRD §6, `status` and `source`
-- [ ] Sort by result, cost, onset, durability, downtime; choosing an option updates the image (`fx`)
-- [ ] (V) Each option changes the image; `draft` items carry the «تأییدنشده» badge
+Owner decisions 2026-11-16 (plan approved): result rank from the PRD §6 default order; cost tier from the modality
+(toxin < skin booster, PN, peel < filler < biostimulator < thread and devices); image caps without a PRD figure from the
+modality (toxin and filler 0.85, biostimulator and thread 0.6, RF, HIFU and laser 0.5, skin booster, PN and peel 0.35).
+All three stay `draft`; M7 replaces the cost tier with the clinic tariff.
+- [x] `src/data/treatmentOptions.ts`: 16 concerns, 41 options, every PRD §6 field plus `status`/`source`. Only the four
+  label toxin doses are verified; timings from the PRD §7.2 draft table (none for skin booster, PN, peel). No tool,
+  depth or technique (the v1 «how» text is not used)
+- [x] `src/data/optionSort.ts`: five sort keys (F5.2), «اول حمایت، بعد چین» from midface grade 2 (F5.6), session order
+  (F5.5). Risk tags F5.7 (vascular areas for filler/biostimulator, Fitzpatrick for RF, HIFU, laser)
+- [x] Choice stored in `simStates.options` (no Dexie version change), shared by the simulation and plan pages. The option
+  caps its slider and sets the effect (S smooth only, W warp only via `Change.effect: 'warp'`, SW both)
+- [x] Plan page rebuilt on the new data; the v1 intake checks (pregnancy, infection, allergy block; the rest warn) are
+  kept through `optionScreening.ts`. The client package sends the M6 plan for cases with confirmed grades (v1 plan otherwise)
+- [x] Tests: `treatmentOptions.test.ts`, `planOptions.test.ts`; e2e in `simulate.spec.ts`, `grading.spec.ts`, `smoke.spec.ts`
+- [ ] (V) Owner look: plan page (`/#/doctor/case/<id>/plan`) and the option chips on the simulation page
+- Open: the plan tiers (F5.4) are stored but do not filter options yet; in MD Codes mode the site sliders ignore the
+  chosen option (M7: the MD Codes layer only for filler options); the v1 cost section left the plan page (M7)
 
 ## M7 — MD Codes, estimates, cost
 - [~] MD Codes layer for selected filler options only; warning codes; fixed disclaimer

@@ -147,3 +147,11 @@ export async function setSimMode(caseId: string, mode: SimMode): Promise<void> {
 export async function setSiteOverride(caseId: string, site: MdSite, setting: SimSetting): Promise<void> {
   await putSimState(caseId, (s) => ({ siteOverrides: { ...s.siteOverrides, [site]: setting } }), '');
 }
+
+/**
+ * Treatment option chosen for a concern (PRD F5.1, F5.3): the simulation and the plan page both use it, so the
+ * picture always shows the option in the plan. Audited.
+ */
+export async function setOption(caseId: string, concernId: ConcernId, optionId: string): Promise<void> {
+  await putSimState(caseId, (s) => ({ options: { ...s.options, [concernId]: optionId } }), 'sim.option', { concernId, optionId });
+}

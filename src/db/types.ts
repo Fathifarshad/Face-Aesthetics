@@ -77,6 +77,8 @@ export type SimStateRow = {
   mode?: SimMode;
   /** MD Codes sliders the doctor moved; every other site follows its concern's mode-A value. */
   siteOverrides?: Partial<Record<MdSite, SimSetting>>;
+  /** Treatment option the doctor chose per concern (PRD F5, M6); absent = the first default option. */
+  options?: Partial<Record<ConcernId, string>>;
   updatedAt: number;
 };
 

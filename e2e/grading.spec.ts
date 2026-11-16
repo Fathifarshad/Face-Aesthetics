@@ -120,6 +120,27 @@ test.describe('grading and age target', () => {
       mkdirSync(OUT, { recursive: true });
       await page.screenshot({ path: join(OUT, `simulate-${width}.png`) });
     }
+    // M6: the plan page lists the confirmed concerns with their options; the choice drives the simulation.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/#/doctor/case/${caseId}/plan`);
+    const lipCard = page.locator('article[data-concern="lip-volume"]');
+    await expect(lipCard).toBeVisible();
+    await expect(page.locator('article[data-concern="neck"]')).toHaveCount(0);
+    await expect(lipCard.getByText('تأییدنشده').first()).toBeVisible();
+    const nlCard = page.locator('article[data-concern="nasolabial-fold"]');
+    const names = async () => nlCard.locator('[data-option] button[role=radio] span.font-semibold').allTextContents();
+    expect((await names())[0]).toBe('فیلر مستقیم'); // midface not graded: no cheek support first (F5.6)
+    await page.getByRole('button', { name: 'نقاهت کمتر' }).click();
+    await expect.poll(names).not.toEqual(['فیلر مستقیم', 'نخ', 'حمایت گونه']);
+    await expect(page.getByText('ترتیب جلسات')).toBeVisible();
+    await lipCard.getByRole('radio', { name: 'لیپ‌فلیپ با توکسین برای حجم و فرم لب' }).click();
+    await expect(lipCard.getByRole('radio', { name: 'لیپ‌فلیپ با توکسین برای حجم و فرم لب' })).toHaveAttribute('aria-checked', 'true');
+    mkdirSync(OUT, { recursive: true });
+    await page.screenshot({ path: join(OUT, 'plan-390.png'), fullPage: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByRole('link', { name: 'دیدن شبیه‌سازی' }).click();
+    await expect(page.locator('#change-lip-volume [data-option]')).toHaveAttribute('data-option', /lip-volume\.2\.toxin/);
+
     await page.goto(`/#/doctor/case/${caseId}/grading`);
     for (const width of [360, 390, 430]) {
       await page.setViewportSize({ width, height: 800 });

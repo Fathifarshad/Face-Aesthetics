@@ -54,7 +54,10 @@ export type FlagCode =
 
 export type BlockCode = 'pregnant_or_breastfeeding' | 'active_infection_site' | 'allergy_ha_or_component';
 
-export function hardBlocks(o: TreatmentOption, intake: Intake): BlockCode[] {
+/** What the intake checks need of an option; the M6 options are screened through an adapter (optionScreening.ts). */
+export type Screened = Pick<TreatmentOption, 'modality' | 'area' | 'productClass' | 'riskTags'>;
+
+export function hardBlocks(o: Screened, intake: Intake): BlockCode[] {
   const out: BlockCode[] = [];
   if (intake.pregnant_or_breastfeeding && INJECTABLE.includes(o.modality)) out.push('pregnant_or_breastfeeding');
   if (intake.active_infection_site.includes(o.area)) out.push('active_infection_site');
@@ -62,7 +65,7 @@ export function hardBlocks(o: TreatmentOption, intake: Intake): BlockCode[] {
   return out;
 }
 
-export function softFlags(o: TreatmentOption, intake: Intake): FlagCode[] {
+export function softFlags(o: Screened, intake: Intake): FlagCode[] {
   const f: FlagCode[] = [];
   const isRF = o.productClass.includes('RF microneedling');
   if (intake.pregnant_or_breastfeeding && !INJECTABLE.includes(o.modality)) f.push('pregnant_or_breastfeeding');

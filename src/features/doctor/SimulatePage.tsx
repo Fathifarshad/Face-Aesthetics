@@ -17,6 +17,7 @@ import {
   setRealAge,
   setSimMode,
   setSiteOverride,
+  setOption,
   DEFAULT_TARGET,
 } from '../../db/simRepo';
 import type { SimMode, SimSetting } from '../../db/types';
@@ -25,10 +26,13 @@ import { LIP_TYPE_SETTINGS, LIP_TYPES, lipTypeOf, type LipType } from '../../dat
 import { MAX_INTENSITY, type Change, type SiteChange } from '../../engine/pipeline';
 import type { WorkerRequest } from '../../engine/pipeline.worker';
 import { area, pointInPolygon } from '../../engine/shapes';
-import { useNum, useT } from '../../i18n';
+import { useBi, useNum, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { CaseSteps } from './CaseSteps';
-import { concernsShown, effectiveSettings, engineInput, siteSettings, usable } from './simDefaults';
+import { defaultOrder } from '../../data/optionSort';
+import type { FxType, TreatmentOption } from '../../data/treatmentOptions';
+import { screen } from './optionScreening';
+import { capSettings, chosenOptions, concernsShown, effectiveSettings, engineInput, midfaceGradeOf, siteSettings, usable } from './simDefaults';
 import { useCase } from './useCase';
 import { useEngine } from './useEngine';
 
@@ -68,6 +72,7 @@ export function SimulatePage() {
   const { caseId = '' } = useParams();
   const t = useT();
   const num = useNum();
+  const bi = useBi();
   const data = useCase(caseId);
   const photo = useLive(async () => (await frontalPhoto(caseId)) ?? null, [caseId]);
   const grades = useLive(() => listGrades(caseId), [caseId]);
@@ -165,14 +170,23 @@ export function SimulatePage() {
   const lipType: LipType = sim?.lipType ?? suggestedLip ?? 3;
   const target: AgeTarget = sim?.target ?? DEFAULT_TARGET;
   const mode: SimMode = sim?.mode ?? 'area';
+  const intake = data?.c.intake;
+  /** Options the intake does not contraindicate (v1 checks, optionScreening.ts). */
+  const allowed = useCallback((o: TreatmentOption) => !intake || screen(o, intake).blocks.length === 0, [intake]);
+  // The treatment option in force per concern (PRD F5.3): it caps the slider and sets the kind of effect.
+  const options = useMemo(
+    () => (ready && grades ? chosenOptions(ready.available, sim?.options ?? {}, grades, allowed) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ready, grades, JSON.stringify(sim?.options ?? {}), allowed],
+  );
   const settings = useMemo(
     () =>
-      ready && grades && overrides
-        ? effectiveSettings(ready.available, grades, realAge, target, overrides)
+      ready && grades && overrides && options
+        ? capSettings(effectiveSettings(ready.available, grades, realAge, target, overrides), options)
         : null,
     // `target` is a new object on every database read; its content is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, grades, overrides, realAge, JSON.stringify(target)],
+    [ready, grades, overrides, options, realAge, JSON.stringify(target)],
   );
 
   // MD Codes sites that can be placed on this photo, top to bottom; mode B starts each from its concern (M5b).
@@ -188,8 +202,9 @@ export function SimulatePage() {
     if (after.current) after.current.dataset.ready = 'false';
     // The lip slider is scaled by the lip type: a thin lip changes more than a full one.
     const k = (key: Key) => (key === 'lip-volume' || key === 'Lp' ? LIP_TYPE_SETTINGS.gain[lipType] : 1);
-    request(engineInput(mode, settings, sites, k));
-  }, [settings, sites, mode, request, lipType]);
+    const fx = Object.fromEntries(Object.entries(options ?? {}).map(([id, o]) => [id, o.fx.type])) as Partial<Record<ConcernId, FxType>>;
+    request(engineInput(mode, settings, sites, k, fx));
+  }, [settings, sites, mode, request, lipType, options]);
 
   useEffect(() => () => Object.values(timers.current).forEach((id) => window.clearTimeout(id)), []);
 
@@ -363,6 +378,49 @@ export function SimulatePage() {
 
   const shown = status === 'ready' && settings;
 
+  /**
+   * Treatment options of a concern (PRD F5.1, F5.3), in default order with «اول حمایت، بعد چین» (F5.6); the
+   * contraindicated ones are left out here and shown on the plan page. Choosing one re-renders at once.
+   */
+  const midface = midfaceGradeOf(grades ?? []);
+  const optionPicker = (id: ConcernId, option: TreatmentOption) => {
+    const list = defaultOrder(id, midface).filter(allowed);
+    const name = t.concerns[id];
+    return (
+      <div className="mt-2" data-option={option.id}>
+        {list.length > 1 && (
+          <div role="radiogroup" aria-label={`${t.options.option}: ${name}`} className="flex flex-wrap gap-1.5">
+            {list.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                role="radio"
+                aria-checked={o.id === option.id}
+                aria-label={t.options.choose(bi({ fa: o.nameFa, en: o.nameEn }), name)}
+                onClick={() => {
+                  setMessage(null);
+                  void setOption(caseId, id, o.id);
+                }}
+                className={`min-h-touch rounded-md border px-2.5 text-caption ${
+                  o.id === option.id ? 'border-primary bg-primary-tint font-semibold text-primary-on-tint' : 'border-border text-ink'
+                }`}
+              >
+                {bi({ fa: o.nameFa, en: o.nameEn })}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-caption text-ink-2">
+          {list.length <= 1 && <span>{bi({ fa: option.nameFa, en: option.nameEn })}</span>}
+          <span>{t.options.cap(num(pct(option.fx.maxStrength)))}</span>
+          {option.status === 'draft' && (
+            <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.options.unverified}</span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   /** One slider row: a concern, or an MD Codes site in mode B. */
   const row = (id: Key) => {
       const s = settingOf(id);
@@ -371,11 +429,13 @@ export function SimulatePage() {
       const apart = sides && !s.mirror;
       const graded = gradeText(id);
       const manual = isSite(id) ? !!siteOverrides[id] : !!overrides?.[id];
+      const option = isSite(id) ? null : (options?.[id] ?? null);
+      const max = option ? pct(option.fx.maxStrength) : maxPercent;
       const slider = (value: number, aria: string, onChange: (v: number) => void) => (
         <input
           type="range"
           min={0}
-          max={maxPercent}
+          max={max}
           step={SLIDER_STEP}
           value={pct(value)}
           disabled={!s.on}
@@ -421,6 +481,7 @@ export function SimulatePage() {
               {manual && <Tag tone="primary">{t.sim.manual}</Tag>}
             </div>
           )}
+          {option && !isSite(id) && optionPicker(id, option)}
           {apart ? (
             <>
               <div className="mt-1 text-caption text-muted">{t.sim.right}</div>

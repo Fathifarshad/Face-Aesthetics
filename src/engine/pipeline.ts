@@ -73,8 +73,11 @@ export interface Change {
   intensity: number;
   /** Strength of the subject's left side when the sides are set apart (mirror off); `intensity` is then the right side. */
   left?: number;
-  /** 'smooth': smoothing only, no warp (MD Codes mode: the volume comes from the sites). Absent = full effect. */
-  effect?: 'smooth';
+  /**
+   * 'smooth': smoothing only, no warp (MD Codes mode: the volume comes from the sites; or a chosen treatment option
+   * that only smooths, PRD F5.3). 'warp': shape only, no smoothing (an option that only reshapes). Absent = full effect.
+   */
+  effect?: 'smooth' | 'warp';
 }
 
 /** Slider of one MD Codes site (mode B, docs/TASKS.md M5b). Drives the warp operators tagged with the site. */
@@ -312,7 +315,7 @@ export function render(
   let key = '';
   for (const change of changes) {
     const effect = SMOOTHING[change.concernId];
-    if (!effect) continue;
+    if (!effect || change.effect === 'warp') continue;
     const c = SMOOTH_COEFFICIENTS[effect.type];
     for (const { side, mask } of masks[change.concernId] ?? []) {
       const k = strengthOf(change, side) * effect.scale;

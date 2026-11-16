@@ -67,6 +67,10 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.getByRole('button', { name: 'درجه‌بندی' }).last().click();
   await expect(page).toHaveURL(/grading/);
   await expect(page.getByTestId('reviewed-count')).toBeVisible();
+  // M6: the plan page works from the confirmed grades; the lip grade is set by the doctor.
+  const lipGrade = page.locator('li', { has: page.getByRole('heading', { name: 'حجم و فرم لب', exact: true }) });
+  await lipGrade.getByRole('radio', { name: '2' }).click();
+  await expect(lipGrade.getByText('ویرایش‌شده')).toBeVisible();
   await page.screenshot({ path: `${shots}/05-grading.png`, fullPage: true });
   await page.goto(page.url().replace(/grading$/, 'analysis'));
   await expect(page).toHaveURL(/analysis/);
@@ -87,6 +91,9 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   const afterCanvas = page.getByRole('img', { name: 'بعد', exact: true });
   await expect(afterCanvas).toHaveAttribute('data-ready', 'true', { timeout: 90_000 });
   await page.getByRole('button', { name: 'حدود 5 سال جوان‌تر' }).click();
+  // The lip grade is confirmed, so the lips start on and the button offers «همه خاموش» first.
+  await page.getByRole('button', { name: 'همه خاموش' }).focus();
+  await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'همه روشن' }).focus();
   await page.keyboard.press('Enter');
   await expect(afterCanvas).toHaveAttribute('data-ready', 'true', { timeout: 60_000 });
@@ -98,11 +105,9 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
 
   await page.goto(page.url().replace(/simulate$/, 'plan'));
   await expect(page).toHaveURL(/plan/);
-  await expect(page.getByText('زمان‌بندی جلسات')).toBeVisible();
-  // Only the two highest-priority findings start expanded; open the lip finding to see its flags.
-  const lipPlan = page.getByRole('button', { name: /حجم و تعریف لب/ });
-  if ((await lipPlan.getAttribute('aria-expanded')) !== 'true') await lipPlan.click();
-  await expect(page.getByText('سابقهٔ تبخال (دور دهان)').first()).toBeVisible();
+  await expect(page.getByText('ترتیب جلسات')).toBeVisible();
+  // The herpes history of the intake flags the lip options (v1 intake checks kept in M6).
+  await expect(page.locator('article[data-concern="lip-volume"]').getByText('سابقهٔ تبخال (دور دهان)').first()).toBeVisible();
   await page.screenshot({ path: `${shots}/07-plan.png`, fullPage: true });
 
   await page.getByRole('link', { name: 'MD Codes', exact: true }).click();

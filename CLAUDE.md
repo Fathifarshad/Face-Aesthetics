@@ -5,7 +5,7 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target) and M5b (MD Codes filler mode) built and waiting for the owner's look; M6 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode) and M6 (knowledge base, sorting, option → image) built and waiting for the owner's look; M7 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
@@ -78,6 +78,9 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - Grades and the age target live in Dexie v2 tables `grades` and `simStates` (`src/db/simRepo.ts`). The simulation page stores only
   the changes the doctor moved (`overrides`); every other slider is computed from confirmed grades + target (`simDefaults.ts`).
   Grade thresholds (`src/data/gradeThresholds.ts`) are Claude's drafts from test photos: re-measure with `npx playwright test e2e/grading.spec.ts -g indices`
+- Treatment options (PRD §6) live in `src/data/treatmentOptions.ts`; ordering in `src/data/optionSort.ts`. The chosen option per
+  concern is `simStates.options`; it caps the slider (`capSettings`) and sets the effect (`engineInput` `fx`). Intake checks
+  for options go through `src/features/doctor/optionScreening.ts` (rules stay in `src/plan/engine.ts`)
 - The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored
 

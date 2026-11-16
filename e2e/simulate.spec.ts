@@ -154,6 +154,27 @@ test.describe('simulation page', () => {
     await page.getByRole('slider', { name: 'جابه‌جایی خط مقایسهٔ قبل و بعد' }).fill('20');
     await expect(after(page)).toHaveAttribute('style', /inset\(0px 0px 0px 20%\)/);
 
+    // M6 (PRD F5.3): choosing a treatment option re-renders at once and caps the slider; drafts carry the badge.
+    const forehead = page.locator('#change-forehead-lines');
+    await expect(forehead.getByRole('radio', { name: 'توکسین فرونتالیس برای خطوط پیشانی' })).toHaveAttribute('aria-checked', 'true');
+    await expect(forehead.getByText('تأییدنشده')).toBeVisible();
+    await press(page, page.getByRole('button', { name: 'همه خاموش' }));
+    await press(page, page.getByRole('switch', { name: 'خطوط پیشانی' }));
+    await page.getByRole('slider', { name: 'شدت خطوط پیشانی', exact: true }).fill('85');
+    await settled(page);
+    const withToxin = await differenceAboveLabel(page);
+    await press(page, forehead.getByRole('radio', { name: 'اسکین‌بوستر برای خطوط پیشانی' }));
+    await expect(page.getByRole('slider', { name: 'شدت خطوط پیشانی', exact: true })).toHaveAttribute('max', '35');
+    await expect(forehead.locator('[data-option]')).toHaveAttribute('data-option', /forehead-lines\.2\.skinbooster/);
+    await settled(page);
+    const withBooster = await differenceAboveLabel(page);
+    expect(withBooster).toBeGreaterThan(0);
+    expect(withBooster).toBeLessThan(withToxin);
+    await press(page, forehead.getByRole('radio', { name: 'توکسین فرونتالیس برای خطوط پیشانی' }));
+    await press(page, page.getByRole('button', { name: 'همه خاموش' }));
+    await press(page, page.getByRole('button', { name: 'همه روشن' }));
+    await settled(page);
+
     // M4: switching a shape change on changes the picture.
     const masseter = page.getByRole('switch', { name: 'پهنی فک (ماستر)' });
     await press(page, page.getByRole('button', { name: 'همه خاموش' }));
