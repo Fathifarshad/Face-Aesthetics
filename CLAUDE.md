@@ -5,7 +5,7 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options) and M8 (consent levels, gallery, compare) built and waiting for the owner's look; M9 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options), M8 (consent levels, gallery, compare) and M9 (report, approval stamp) built and waiting for the owner's look; M10 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
@@ -90,6 +90,9 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - Consent (PRD F8.3) is per patient in Dexie v3 `consents`. Every output that carries a photo or the simulation asks
   `canShare()` in `src/data/consentGate.ts` (client package, report, gallery file); capture asks `canCapture()`. Add a
   new shareable output only through that gate
+- Plan numbers (estimates, cost, totals) come only from `planView` / `estimateFormat` in `src/features/doctor/planEstimates.ts`
+  (plan page and report). Approval (F9.2): `src/db/approval.ts` stamps the signed content; report, print and the client
+  package need `approvalOf(...) === 'fresh'`. New data shown in a report must be added to `approvalStamp`
 - Default sliders: every graded change improves by at least one grade (PRD §0 item 6, `defaultIntensity` in `ageNorms.ts`)
 - The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored

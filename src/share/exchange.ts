@@ -1,5 +1,6 @@
 import { canShare } from '../data/consentGate';
 import { CATALOG } from '../analysis/catalog';
+import { approvalOf, approvalStamp } from '../db/approval';
 import { db, getSettings, uid } from '../db/db';
 import { addPhoto, latestSimulation, listPhotos } from '../db/images';
 import type { PtCase, PtRecord } from '../db/types';
@@ -29,6 +30,8 @@ export async function toPtCase(caseId: string): Promise<PtCase | null> {
   const c = await db.cases.get(caseId);
   const sign = await db.signoffs.get(caseId);
   if (!c || !sign) return null;
+  // PRD F9.2 / hard rule: only content the doctor approved, unchanged since the sign-off, leaves the device.
+  if (approvalOf(sign, await approvalStamp(caseId)) !== 'fresh') return null;
   const settings = await getSettings();
   const findings = (await db.findings.where('caseId').equals(caseId).toArray())
     .filter((f) => f.status !== 'rejected' && (f.severity ?? 0) >= 1 && CATALOG[f.key]?.graded)

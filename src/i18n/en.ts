@@ -381,6 +381,16 @@ export const en: Dict = {
     technical: 'Technical appendix',
     exported: 'File ready',
     notSigned: 'This visit has not been signed off yet.',
+    stale:
+      'Grades, simulation, options, estimates, tariff or the doctor’s note changed after the sign-off. The report and the patient package are not made until it is signed again.',
+    noteTitle: 'Doctor’s note',
+    noteHint: 'Printed in the report. Changing it after the sign-off needs a new signature.',
+    itemsTitle: 'Treatment items',
+    cols: { area: 'Area', option: 'Option', codes: 'MD Codes', amount: 'Volume or dose range', cost: 'Cost' },
+    total: 'Total',
+    noSimulation: 'No simulation image has been saved.',
+    draftNote: 'Numbers marked “unverified” are drafts not yet confirmed by a senior physician.',
+    noItems: 'No treatment option chosen.',
   },
   compare: {
     title: 'Compare',

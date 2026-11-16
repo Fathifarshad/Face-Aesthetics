@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { SignaturePad } from '../../components/SignaturePad';
 import { Button, Header, LinkButton, Notice, Page, Section, Toggle } from '../../components/ui';
-import { audit, getSettings } from '../../db/db';
+import { approvalOf, approvalStamp } from '../../db/approval';
+import { audit, db, getSettings } from '../../db/db';
 import { getSignoff, saveSignoff } from '../../db/images';
 import { updateCase } from '../../db/repo';
+import { setReportNote } from '../../db/simRepo';
 import type { ClinicSettings } from '../../db/types';
 import { formatDate, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
@@ -21,7 +23,13 @@ export function ReportPage() {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const data = useCase(caseId);
-  const signoff = useLive(() => getSignoff(caseId), [caseId]);
+  // Stamp first (Dexie reads only), the sign-off last: it decrypts, which ends Dexie's tracking of this query.
+  const approval = useLive(async () => {
+    const [stamp, planRow] = await Promise.all([approvalStamp(caseId), db.plans.get(caseId)]);
+    const signoff = await getSignoff(caseId);
+    return { stamp, signoff, savedNote: planRow?.reportNote ?? '' };
+  }, [caseId]);
+  const [noteDraft, setNoteDraft] = useState<string | null>(null);
   const [checks, setChecks] = useState<Record<string, boolean>>({});
   const [signature, setSignature] = useState<string | null>(null);
   const [appendix, setAppendix] = useState(false);
@@ -30,14 +38,40 @@ export function ReportPage() {
   useEffect(() => {
     void getSettings().then(setSettings);
   }, []);
-  if (!data || signoff === undefined || !settings) return null;
+  // A stale approval no longer counts: the case goes back to «منتظر تأیید», which also unlocks the simulation page.
+  const staleSigned = !!approval && !!data && data.c.status === 'signed' && approvalOf(approval.signoff, approval.stamp) === 'stale';
+  useEffect(() => {
+    if (staleSigned) void updateCase(caseId, { status: 'awaiting-signoff' }, 'case.approvalStale');
+  }, [staleSigned, caseId]);
+  if (!data || !approval || !settings) return null;
   const { c, patient } = data;
+  const { signoff, stamp, savedNote } = approval;
+  // PRD F9.2: a sign-off counts only for the content it approved; any later change needs a new signature.
+  const state = approvalOf(signoff, stamp);
+  const fresh = state === 'fresh';
+  const noteText = noteDraft ?? savedNote;
+  const saveNote = async () => {
+    if (noteDraft !== null && noteDraft.trim() !== savedNote) await setReportNote(caseId, noteDraft.trim());
+    setNoteDraft(null);
+  };
 
   const ready = ITEMS.every((k) => checks[k]) && !!signature && !!settings.doctorName && !!settings.licence;
 
   const sign = async () => {
     if (!signature) return;
-    await saveSignoff({ caseId, checklist: checks, signature, signedAt: Date.now(), doctorName: settings.doctorName, licence: settings.licence });
+    await saveNote();
+    const approved = await approvalStamp(caseId);
+    await saveSignoff({
+      caseId,
+      checklist: checks,
+      signature,
+      signedAt: Date.now(),
+      doctorName: settings.doctorName,
+      licence: settings.licence,
+      stamp: approved,
+    });
+    setChecks({});
+    setSignature(null);
     await updateCase(caseId, { status: 'signed' }, 'case.sign');
     await audit(caseId, 'signoff');
   };
@@ -47,10 +81,29 @@ export function ReportPage() {
       <Header title={`${t.report.title} — ${patient.displayName}`} back={`/doctor/case/${caseId}/plan`} />
       <Page>
         <CaseSteps caseId={caseId} />
-        {signoff ? (
-          <Notice tone="primary">
-            {t.report.signed} {formatDate(signoff.signedAt, lang)} — {signoff.doctorName}
-          </Notice>
+        <Section title={t.report.noteTitle}>
+          <textarea
+            rows={3}
+            className="w-full"
+            value={noteText}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            onBlur={() => void saveNote()}
+            aria-label={t.report.noteTitle}
+            data-report-note
+          />
+          <p className="mt-1 text-caption text-muted">{t.report.noteHint}</p>
+        </Section>
+        {state === 'stale' && (
+          <div className="mb-3" data-approval="stale">
+            <Notice tone="warn">{t.report.stale}</Notice>
+          </div>
+        )}
+        {fresh && signoff ? (
+          <div data-approval="fresh">
+            <Notice tone="primary">
+              {t.report.signed} {formatDate(signoff.signedAt, lang)} — {signoff.doctorName}
+            </Notice>
+          </div>
         ) : (
           <>
             <Section title={t.report.checklist}>
@@ -76,7 +129,7 @@ export function ReportPage() {
           </>
         )}
 
-        {signoff && (
+        {fresh && (
           <div className="mt-4 flex flex-col gap-2">
             <Toggle label={t.report.appendix} checked={appendix} onChange={setAppendix} />
             <LinkButton to={`/doctor/case/${caseId}/print?lang=fa${appendix ? '&appendix=1' : ''}`}>

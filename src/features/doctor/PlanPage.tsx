@@ -4,15 +4,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BottomBar, Button, Chip, Field, Header, LinkButton, Notice, Page, Section, Tag } from '../../components/ui';
 import { defaultOrder, sessionsOf, sortOptions, SORT_KEYS, SUPPORT_FROM_GRADE, type SortKey } from '../../data/optionSort';
 import type { OpenRange, Range, TreatmentOption } from '../../data/treatmentOptions';
-import { CONCERN_IDS, type ConcernId } from '../../data/types';
+import type { ConcernId } from '../../data/types';
 import {
   costOf,
-  estimateOption,
-  planTotals,
   unitOf,
-  type Estimate,
-  type EstimateResult,
-  type Sides,
   type ToxinBrand,
 } from '../../data/estimates';
 import { db, getSettings } from '../../db/db';
@@ -24,7 +19,8 @@ import { TIERS, type Tier } from '../../plan/data/treatments';
 import { tierFromGap } from '../../plan/engine';
 import { CaseSteps } from './CaseSteps';
 import { screen } from './optionScreening';
-import { chosenOptions, effectiveSettings, midfaceGradeOf, usable } from './simDefaults';
+import { estimateFormat, planView } from './planEstimates';
+import { usable } from './simDefaults';
 import { useCase } from './useCase';
 
 /** Concerns whose cheek-support option leads from midface grade 2 (PRD F5.6). */
@@ -57,52 +53,12 @@ export function PlanPage() {
   if (!data || !grades || !sim || planRow === undefined || !clinic) return null;
   const { patient, c } = data;
   const tier: Tier = planRow?.tier ?? c.tier ?? tierFromGap(c.actualAge, c.targetAge);
-  const allowed = (o: TreatmentOption) => screen(o, c.intake).blocks.length === 0;
-  const concerns = CONCERN_IDS.filter((id) => grades.some((g) => g.concernId === id && usable(g) && g.grade >= 1));
-  const chosen = chosenOptions(concerns, sim.options ?? {}, grades, allowed);
-  const midface = midfaceGradeOf(grades);
-  const picked = concerns.map((id) => chosen[id]).filter((o): o is TreatmentOption => !!o);
-  const name = (o: TreatmentOption) => bi({ fa: o.nameFa, en: o.nameEn });
-
-  // Estimates (PRD F7): each option at its concern's slider in the simulation, capped by the option's own cap.
   const tariff = clinic.tariff;
   const brand = planRow?.toxinBrand;
-  const sliders = effectiveSettings(concerns, grades, c.actualAge, sim.target, sim.overrides);
-  const sidesOf = (o: TreatmentOption): Sides => {
-    const sl = sliders[o.concernId];
-    const at = (v: number) => (sl?.on ? Math.min(v, o.fx.maxStrength) : 0);
-    const own = grades.filter((g) => g.concernId === o.concernId && usable(g));
-    const grade = (side: 'R' | 'L' | 'both') => own.find((g) => g.side === side)?.grade ?? 0;
-    const right = at(sl?.value ?? 0);
-    if (own.some((g) => g.side === 'both')) return { both: { grade: grade('both'), intensity: right } };
-    const left = at(sl?.mirror ? (sl?.value ?? 0) : (sl?.left ?? 0));
-    return { R: { grade: grade('R'), intensity: right }, L: { grade: grade('L'), intensity: left } };
-  };
-  const estimateOf = (o: TreatmentOption): EstimateResult => estimateOption(o, sidesOf(o), brand, planRow?.estOverrides?.[o.id]);
-  const costMid = (o: TreatmentOption) => {
-    const r = estimateOf(o);
-    const cost = r.ok ? costOf(o, r.est, tariff) : null;
-    return cost ? (cost.min + cost.max) / 2 : null;
-  };
-  const hasTariff =
-    Object.values(tariff.filler).some((v) => !!v) || !!tariff.toxinUnit || !!tariff.thread || Object.values(tariff.session).some((v) => !!v);
-  const anyToxin = concerns.some((id) => defaultOrder(id, midface).some((o) => o.modality === 'toxin'));
-  const totals = planTotals(
-    picked.map((o) => ({ option: o, result: estimateOf(o) })),
-    tariff,
-  );
-
-  /** Volumes keep their decimal (0.3 mL); units and sessions are whole numbers. */
-  const amount = (v: number) => num(v, Number.isInteger(v) ? 0 : 1);
-  const span = (a: number, b: number) => (a === b ? amount(a) : t.options.range(amount(a), amount(b)));
-  const money = (r: { min: number; max: number }) =>
-    `${r.min === r.max ? num(r.min) : t.options.range(num(r.min), num(r.max))} ${tariff.currency}`;
-  const estText = (e: Estimate) => {
-    const unit = t.options.units[e.unit];
-    const main = e.steps ? e.steps.map(amount).join(` ${t.options.or} `) : span(e.min, e.max);
-    if (e.perSide && e.left) return `${t.est.right} ${main} · ${t.est.left} ${span(e.left.min, e.left.max)} ${unit}`;
-    return `${main} ${unit} ${e.perSide ? t.options.perSide : t.options.total}`;
-  };
+  // Estimates (PRD F7) come from the same function as the report (F9.1).
+  const { concerns, chosen, picked, midface, estimateOf, costMid, totals, hasTariff, anyToxin } = planView({ c, grades, sim, planRow, tariff });
+  const name = (o: TreatmentOption) => bi({ fa: o.nameFa, en: o.nameEn });
+  const { span, money, estText } = estimateFormat(t, num, tariff.currency);
   const openDraft = (o: TreatmentOption) => {
     const r = estimateOf(o);
     setDraft({
@@ -128,7 +84,8 @@ export function PlanPage() {
   };
 
   const saveTier = (k: Tier) => {
-    void db.plans.put({ caseId, tier: k, selections: planRow?.selections ?? {}, updatedAt: Date.now() });
+    // Keep the rest of the row (brand, estimates, report note).
+    void db.plans.put({ ...planRow, caseId, tier: k, selections: planRow?.selections ?? {}, updatedAt: Date.now() });
     void updateCase(caseId, { tier: k }, 'plan.tier');
   };
 

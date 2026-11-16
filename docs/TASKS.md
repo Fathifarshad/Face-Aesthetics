@@ -6,8 +6,8 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
 Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set), M6 (knowledge base,
-sorting, option → image), M7 (estimates, tariff, MD Codes layer) and M8 (gallery, consent) built, waiting for the
-owner's look. Next: M9.
+sorting, option → image), M7 (estimates, tariff, MD Codes layer), M8 (gallery, consent) and M9 (report) built,
+waiting for the owner's look. Next: M10.
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -176,8 +176,22 @@ gives the patient their photos.
   The report (M9) shows a line instead of photos without level 3
 
 ## M9 — Report
-- [~] PDF report with clinic branding, simulation with burned-in label, line items, sessions, disclaimer
-- [ ] (V) No report without doctor approval; the simulation label is on the image
+Plan approved by the owner 2026-11-16 («ادامه»), built 2026-11-16. Owner decisions in the plan: (a) any change after
+the sign-off makes it stale; (b) cost is always in the patient report, no cost column without a tariff.
+- [x] One source for the plan's numbers: `planView` / `estimateFormat` in `src/features/doctor/planEstimates.ts`, used
+  by the plan page and the report (they cannot disagree)
+- [x] Report (F9.1): clinic branding, before photos and the saved simulation (level 3 only; images no longer cropped, so
+  the burned-in label is never cut), items table (area, option, MD Codes, volume/dose range, cost) with totals, the
+  «تأییدنشده» / «ویرایش پزشک» tags, doctor's note (`plans.reportNote`), sessions, disclaimer; a line when no simulation
+  is saved. Empty v1 findings section hidden
+- [x] Approval (F9.2): `src/db/approval.ts` stamps the approved content (age, intake, grades, simulation state, plan
+  row with note, saved simulation id, tariff). The report, the print route and the client package (`toPtCase`) need a
+  fresh stamp; a stale one shows a warning, puts the case back to «منتظر تأیید» (unlocks the simulation page) and asks
+  for a new signature. v1 sign-offs without a stamp count as stale
+- [x] Fixed on the way: choosing a tier on the plan page dropped the toxin brand and the doctor's estimates
+- [x] (V) Unit `approval.test.ts`; e2e `report.spec.ts` (no report unsigned; same numbers as the plan page; label band
+  on the report's simulation image; note printed; change after signing → stale, blocked, re-sign restores)
+- [ ] (V) Owner look: report page (note, stale warning) and the printed report (fa and en)
 
 ## M10 — Cloud render stub, PWA, privacy review
 - [ ] `RenderProvider` interface with `MockRenderProvider` only; gated by the cloud-render consent

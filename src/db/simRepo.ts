@@ -195,3 +195,7 @@ export const setEstimateOverride = (caseId: string, optionId: string, value: Est
     'plan.estimate',
     { optionId, value },
   );
+
+/** The doctor's note for the report (PRD F9.1). Audited by length only: the text stays out of the audit log. */
+export const setReportNote = (caseId: string, note: string) =>
+  putPlan(caseId, () => ({ reportNote: note }), 'plan.reportNote', { length: note.length });

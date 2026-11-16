@@ -5,13 +5,18 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { CATALOG } from '../../analysis/catalog';
 import { viewById } from '../../capture/views';
 import { Button } from '../../components/ui';
+import { approvalOf, approvalStamp } from '../../db/approval';
 import { db, getSettings } from '../../db/db';
+import { getSimState, listGrades } from '../../db/simRepo';
 import { getSignoff, latestSimulation, listPhotos } from '../../db/images';
 import type { ClinicSettings, FindingRow, Photo, PtCase, Simulation } from '../../db/types';
 import { dictFor, formatDate, numberFormatter } from '../../i18n';
 import { useLive, useObjectUrl } from '../../lib/hooks';
 import { safeAccent } from '../../lib/color';
 import { toPtCase } from '../../share/exchange';
+import { costOf, type Tariff } from '../../data/estimates';
+import type { Dict } from '../../i18n/fa';
+import { estimateFormat, planView, type PlanView } from './planEstimates';
 import type { Lang } from '../../store/app';
 
 export function PrintPage() {
@@ -32,18 +37,31 @@ export function PrintPage() {
     const patient = c && (await db.patients.get(c.patientId));
     const findings = await db.findings.where('caseId').equals(caseId).toArray();
     const consents = c ? await db.consents.where('patientId').equals(c.patientId).toArray() : [];
+    const [grades, simState, planRow, stamp] = await Promise.all([listGrades(caseId), getSimState(caseId), db.plans.get(caseId), approvalStamp(caseId)]);
     // Image reads last and together: they decrypt, which ends Dexie's tracking of this query.
     const [photos, sim, signoff] = await Promise.all([listPhotos(caseId, 'before'), latestSimulation(caseId), getSignoff(caseId)]);
-    return c && patient ? { c, patient, photos, sim, signoff, findings, photosAllowed: canShare(consents, 'patient') } : null;
+    if (!c || !patient) return null;
+    const approved = approvalOf(signoff, stamp) === 'fresh';
+    return { c, patient, photos, sim, signoff, approved, findings, grades, simState, planRow, photosAllowed: canShare(consents, 'patient') };
   }, [caseId]);
 
   if (!data || !settings || pt === undefined) return null;
-  const { patient, photos, sim, signoff, findings, photosAllowed } = data;
+  const { c, patient, photos, sim, signoff, approved, findings, grades, simState, planRow, photosAllowed } = data;
   const accent = safeAccent(settings.accent);
   const dir = lang === 'fa' ? 'rtl' : 'ltr';
   const shown = photos.filter((p) => ['frontal', 'oblique-r', 'oblique-l', 'profile-r'].includes(p.view)).slice(0, 4);
 
-  if (!signoff || !pt) return <div className="p-6 text-ink">{t.report.notSigned}</div>;
+  // PRD F9.2: no report without the doctor's approval of exactly this content.
+  if (!signoff || !pt || !approved)
+    return (
+      <div className="p-6 text-ink" data-report-blocked>
+        {signoff ? t.report.stale : t.report.notSigned}
+      </div>
+    );
+  const tariff = settings.tariff;
+  const plan = planView({ c, grades, sim: simState, planRow, tariff });
+  const fmt = estimateFormat(t, num, tariff.currency);
+  const note = planRow?.reportNote?.trim() ?? '';
 
   return (
     <div dir={dir} lang={lang} className="min-h-screen bg-paper text-paper-ink">
@@ -85,12 +103,19 @@ export function PrintPage() {
           {t.report.photos}
         </h2>
         {photosAllowed ? (
-          <div className="mt-2 grid grid-cols-4 gap-2">
-            {shown.map((p) => (
-              <PrintPhoto key={p.id} photo={p} label={viewById(p.view)?.label[lang] ?? p.view} />
-            ))}
-            {sim && <PrintSim sim={sim} label={`${t.client.simulation} · ${num(sim.targetAge)}`} />}
-          </div>
+          <>
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {shown.map((p) => (
+                <PrintPhoto key={p.id} photo={p} label={viewById(p.view)?.label[lang] ?? p.view} />
+              ))}
+              {sim && <PrintSim sim={sim} label={`${t.client.simulation} · ${num(sim.targetAge)}`} />}
+            </div>
+            {!sim && (
+              <p className="mt-2 text-[12px]" data-no-simulation>
+                {t.report.noSimulation}
+              </p>
+            )}
+          </>
         ) : (
           // PRD F8.4: without level-3 consent the report carries no photo.
           <p className="mt-2 text-[12px]" data-photos-withheld>
@@ -98,16 +123,34 @@ export function PrintPage() {
           </p>
         )}
 
-        <h2 className="mt-4 text-[15px] font-bold" style={{ color: accent }}>
-          {t.report.findingsTitle}
-        </h2>
-        <ul className="mt-1 list-disc ps-5">
-          {pt.findings.map((f) => (
-            <li key={f.key}>
-              <b>{f.label[lang]}</b> — {f.patient[lang]}
-            </li>
-          ))}
-        </ul>
+        <ItemsTable plan={plan} fmt={fmt} tariff={tariff} t={t} lang={lang} accent={accent} />
+
+        {note && (
+          <>
+            <h2 className="mt-4 text-[15px] font-bold" style={{ color: accent }}>
+              {t.report.noteTitle}
+            </h2>
+            <p className="mt-1 whitespace-pre-line" data-report-note>
+              {note}
+            </p>
+          </>
+        )}
+
+        {/* v1 analysis findings; the PRD 2.0 concerns are the rows of the items table above. */}
+        {pt.findings.length > 0 && (
+          <>
+            <h2 className="mt-4 text-[15px] font-bold" style={{ color: accent }}>
+              {t.report.findingsTitle}
+            </h2>
+            <ul className="mt-1 list-disc ps-5">
+              {pt.findings.map((f) => (
+                <li key={f.key}>
+                  <b>{f.label[lang]}</b> — {f.patient[lang]}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
 
         <h2 className="mt-4 text-[15px] font-bold" style={{ color: accent }}>
           {t.report.planTitle}
@@ -157,7 +200,7 @@ function PrintPhoto({ photo, label }: { photo: Photo; label: string }) {
   const url = useObjectUrl(photo.blob);
   return (
     <figure>
-      {url && <img src={url} alt={label} className="aspect-[3/4] w-full rounded object-cover" />}
+      {url && <img src={url} alt={label} className="aspect-[3/4] w-full rounded bg-paper-2 object-contain" />}
       <figcaption className="text-center text-[10px] text-paper-muted">{label}</figcaption>
     </figure>
   );
@@ -167,7 +210,7 @@ function PrintSim({ sim, label }: { sim: Simulation; label: string }) {
   const url = useObjectUrl(sim.blob);
   return (
     <figure>
-      {url && <img src={url} alt={label} className="aspect-[3/4] w-full rounded object-cover" />}
+      {url && <img src={url} alt={label} data-sim-image className="aspect-[3/4] w-full rounded bg-paper-2 object-contain" />}
       <figcaption className="text-center text-[10px] text-paper-muted">{label}</figcaption>
     </figure>
   );
@@ -206,5 +249,134 @@ function Appendix({ findings, lang }: { findings: FindingRow[]; lang: Lang }) {
       </table>
       <p className="mt-1 text-[10px] text-paper-muted">{t.analysis.approxNote}</p>
     </section>
+  );
+}
+
+/**
+ * PRD F9.1 line items: area, chosen option, MD Codes, volume or dose range, cost. The same numbers as the plan page
+ * (`planView`); drafts carry the «تأییدنشده» tag, the doctor's own estimates «ویرایش پزشک». No cost column without a tariff.
+ */
+function ItemsTable({
+  plan,
+  fmt,
+  tariff,
+  t,
+  lang,
+  accent,
+}: {
+  plan: PlanView;
+  fmt: ReturnType<typeof estimateFormat>;
+  tariff: Tariff;
+  t: Dict;
+  lang: Lang;
+  accent: string;
+}) {
+  const { picked, estimateOf, totals, hasTariff } = plan;
+  const { span, money, estText } = fmt;
+  const rows = picked.map((o) => {
+    const r = estimateOf(o);
+    return { o, r, cost: r.ok ? costOf(o, r.est, tariff) : null };
+  });
+  const anyDraft = rows.some(({ r }) => r.ok && r.est.status === 'draft' && !r.est.overridden);
+  const cell = 'border border-paper-border p-1';
+  return (
+    <>
+      <h2 className="mt-4 text-[15px] font-bold" style={{ color: accent }}>
+        {t.report.itemsTitle}
+      </h2>
+      {rows.length === 0 ? (
+        <p className="mt-1 text-[12px]">{t.report.noItems}</p>
+      ) : (
+        <table className="mt-1 w-full border-collapse text-[11.5px]" data-report-items>
+          <thead>
+            <tr className="bg-paper-2">
+              <th className={`${cell} text-start`}>{t.report.cols.area}</th>
+              <th className={`${cell} text-start`}>{t.report.cols.option}</th>
+              <th className={`${cell} text-start`}>{t.report.cols.codes}</th>
+              <th className={`${cell} text-start`}>{t.report.cols.amount}</th>
+              {hasTariff && <th className={`${cell} text-start`}>{t.report.cols.cost}</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ o, r, cost }) => (
+              <tr key={o.id} data-item={o.id}>
+                <td className={cell}>{t.concerns[o.concernId]}</td>
+                <td className={cell}>{lang === 'fa' ? o.nameFa : o.nameEn}</td>
+                <td className={cell}>
+                  <bdi dir="ltr">{o.mdCodes.length ? o.mdCodes.join(', ') : '—'}</bdi>
+                </td>
+                <td className={cell} data-amount={r.ok ? `${r.est.min}-${r.est.max}` : r.missing}>
+                  {r.ok ? (
+                    <>
+                      <bdi>{estText(r.est)}</bdi>
+                      {r.est.overridden ? (
+                        <span className="ms-1 text-paper-muted">({t.est.edited})</span>
+                      ) : (
+                        r.est.status === 'draft' && (
+                          <span className="ms-1 text-paper-muted" data-draft>
+                            ({t.options.unverified})
+                          </span>
+                        )
+                      )}
+                    </>
+                  ) : (
+                    t.est.missing[r.missing]
+                  )}
+                </td>
+                {hasTariff && (
+                  <td className={cell} data-cost={cost ? `${cost.min}-${cost.max}` : 'none'}>
+                    <bdi>{cost ? money(cost) : '—'}</bdi>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold">
+              <td className={cell} colSpan={3}>
+                {t.report.total}
+              </td>
+              <td className={cell}>
+                {totals.fillerMl.max > 0 && (
+                  <div>
+                    {t.est.filler}{' '}
+                    <bdi>
+                      {span(totals.fillerMl.min, totals.fillerMl.max)} mL · {t.est.syringes(span(totals.syringes.min, totals.syringes.max))}
+                    </bdi>
+                  </div>
+                )}
+                {totals.toxinU.max > 0 && (
+                  <div>
+                    {t.est.toxin}{' '}
+                    <bdi>
+                      {span(totals.toxinU.min, totals.toxinU.max)} U · {t.est.vials(span(totals.vials.min, totals.vials.max))}
+                    </bdi>
+                  </div>
+                )}
+                {totals.threads.max > 0 && (
+                  <div>
+                    {t.est.threads} <bdi>{span(totals.threads.min, totals.threads.max)}</bdi>
+                  </div>
+                )}
+                {totals.sessions.max > 0 && (
+                  <div>
+                    {t.est.sessions} <bdi>{span(totals.sessions.min, totals.sessions.max)}</bdi>
+                  </div>
+                )}
+              </td>
+              {hasTariff && (
+                <td className={cell} data-total-cost={`${totals.cost.min}-${totals.cost.max}`}>
+                  <bdi>{money(totals.cost)}</bdi>
+                </td>
+              )}
+            </tr>
+          </tfoot>
+        </table>
+      )}
+      {hasTariff && totals.costMissing > 0 && rows.length > 0 && (
+        <p className="mt-1 text-[11px] text-paper-muted">{t.est.costMissing(span(totals.costMissing, totals.costMissing))}</p>
+      )}
+      {anyDraft && <p className="mt-1 text-[11px] text-paper-muted">{t.report.draftNote}</p>}
+    </>
   );
 }

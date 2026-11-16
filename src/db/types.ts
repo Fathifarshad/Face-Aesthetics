@@ -99,6 +99,8 @@ export type PlanRow = {
   toxinBrand?: ToxinBrand;
   /** Estimates the doctor entered per option id (PRD F7.5, «ویرایش پزشک»). */
   estOverrides?: Record<string, EstimateOverride>;
+  /** The doctor's note printed in the report (PRD F9.1); part of the approved content. */
+  reportNote?: string;
   updatedAt: number;
 };
 
@@ -119,6 +121,8 @@ export type SignOff = {
   signedAt: number;
   doctorName: string;
   licence: string;
+  /** `approvalStamp` of the content the doctor approved (PRD F9.2). Absent on v1 sign-offs = stale. */
+  stamp?: string;
 };
 
 export type Message = {
