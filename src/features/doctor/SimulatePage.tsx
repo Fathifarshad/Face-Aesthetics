@@ -126,6 +126,8 @@ export function SimulatePage() {
   const [customOpen, setCustomOpen] = useState(false);
   const [customText, setCustomText] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  // Save feedback sits next to the save button: a message at the top of the page is out of view on a phone.
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'notReady' | 'error'>('idle');
   const label = t.sim.label;
 
   const engine = useEngine(
@@ -369,9 +371,19 @@ export function SimulatePage() {
 
   /** Saves the current "after" picture over the whole photo, with the label burned in (for the report and client app). */
   const save = async () => {
+    setSaveState('saving');
+    try {
+      setSaveState((await saveImage()) ? 'saved' : 'notReady');
+    } catch {
+      setSaveState('error');
+    }
+  };
+
+  /** False when nothing is rendered yet; throws when storing fails. */
+  const saveImage = async (): Promise<boolean> => {
     const image = frames.current.last;
     const place = placement.current;
-    if (!photo || !image || !rect || !place) return;
+    if (!photo || !image || !rect || !place) return false;
     const bmp = await createImageBitmap(photo.blob);
     const canvas = document.createElement('canvas');
     canvas.width = bmp.width;
@@ -392,7 +404,7 @@ export function SimulatePage() {
     );
     burnSimulationLabel(ctx, label);
     const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/jpeg', 0.92));
-    if (!blob) return;
+    if (!blob) return false;
     await replaceSimulation({
       id: uid(),
       caseId,
@@ -407,7 +419,8 @@ export function SimulatePage() {
       mode,
       changes: [...concernIds, ...shownSites].filter((id) => settingOf(id).on),
     });
-    setMessage(t.sim.saved);
+    setMessage(null);
+    return true;
   };
 
   const maxPercent = Math.round(MAX_INTENSITY * 100);
@@ -965,9 +978,17 @@ export function SimulatePage() {
                 </ul>
               </>
             )}
-            <Button variant="primary" className="mt-3 w-full" onClick={() => void save()} disabled={signed}>
-              {t.sim.save}
+            <Button variant="primary" className="mt-3 w-full" onClick={() => void save()} disabled={signed || saveState === 'saving'}>
+              {saveState === 'saving' ? t.sim.saving : t.sim.save}
             </Button>
+            {signed && <p className="mt-2 text-caption text-ink-2">{t.sim.signedLocked}</p>}
+            {(saveState === 'saved' || saveState === 'notReady' || saveState === 'error') && (
+              <div className="mt-2" role="status" data-save-state={saveState}>
+                <Notice tone={saveState === 'saved' ? 'primary' : saveState === 'error' ? 'danger' : 'warn'}>
+                  {saveState === 'saved' ? t.sim.saved : saveState === 'error' ? t.sim.saveError : t.sim.notReady}
+                </Notice>
+              </div>
+            )}
             <p className="mt-3 text-caption text-muted">{t.sim.capNote(num(maxPercent))}</p>
             <p className="mt-1 text-caption text-muted">{t.sim.manualNote}</p>
             {rect && (
