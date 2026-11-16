@@ -5,6 +5,10 @@
  *   target       = allowed(target age)                              target age = real age − offset, or typed
  *   intensity    = grade > target ? (grade − target) / grade : 0    0…1, default value of the slider
  *
+ * Owner decision 2026-11-16: the default always improves a graded change by at least one grade, even when the
+ * grade is normal for the target age (otherwise a 55-year-old's grade-2 lines start at 0 % and the "after"
+ * picture looks unchanged). So the default uses target' = min(allowed(target age), grade − 1).
+ *
  * Pure data and arithmetic: no React, no DOM.
  */
 import type { AgeOffset, AgeTarget, ConcernId, Grade, Status } from './types';
@@ -65,8 +69,9 @@ export function targetAgeOf(realAge: number, target: AgeTarget): number {
   return clamp(Math.round(target.age), Math.min(TARGET_AGE_MIN, realAge), realAge);
 }
 
-/** Default slider value of one side of a concern: `intensity`, capped at the safety ceiling. */
+/** Default slider value of one side of a concern: at least one grade better, capped at the safety ceiling. */
 export function defaultIntensity(concernId: ConcernId, grade: Grade, realAge: number, target: AgeTarget): number {
-  const t = allowed(targetAgeOf(realAge, target), AGE_NORMS[concernId]);
+  if (grade <= 0) return 0;
+  const t = Math.min(allowed(targetAgeOf(realAge, target), AGE_NORMS[concernId]), grade - 1);
   return Math.min(SAFETY_CEILING, intensity(grade, t));
 }

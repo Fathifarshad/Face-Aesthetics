@@ -92,8 +92,12 @@ describe('default slider settings', () => {
     expect(defaultSetting('neck', [finding('neck', 'both', 4, 'edited')], 50, offset0).on).toBe(true);
   });
 
-  it('is off when the grade is already age-appropriate', () => {
-    expect(defaultSetting('neck', [finding('neck', 'both', 2)], 50, offset0)).toMatchObject({ on: false, value: 0 });
+  it('improves an age-appropriate grade by one grade all the same (owner decision 2026-11-16)', () => {
+    // Real age 50 → allowed 2; grade 2 is normal for the age, yet the default takes it to grade 1 → 0.5.
+    expect(defaultSetting('neck', [finding('neck', 'both', 2)], 50, offset0)).toMatchObject({ on: true, value: 0.5 });
+    // Grade 1 → grade 0 would be 100 %: capped at the safety ceiling. Grade 0 stays off.
+    expect(defaultIntensity('neck', 1, 50, offset0)).toBe(SAFETY_CEILING);
+    expect(defaultSetting('neck', [finding('neck', 'both', 0)], 50, offset0)).toMatchObject({ on: false, value: 0 });
   });
 
   it('changing the target moves the defaults but never a change the doctor moved', () => {
