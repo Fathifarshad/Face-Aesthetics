@@ -159,3 +159,23 @@ export const FILLED_BY_SITES: ReadonlySet<ConcernId> = new Set(
  * shadow lift moves to Tt1–Tt3 (owner decision 2026-11-16).
  */
 export const MOVED_TO_SITES: ReadonlySet<ConcernId> = new Set<ConcernId>(['tear-trough', 'midface-volume', 'lip-volume', 'jawline', 'brow']);
+
+/**
+ * Warning codes (PRD F6.2, F5.7 vascular high-risk areas): glabella, nose, tear trough, temple and upper
+ * nasolabial fold. Shown in the risk colour with «کانولا توصیه می‌شود». The list is a draft from PRD F5.7 until a
+ * senior physician enters the PMC8012343 warning list (PRD §7.2). // TODO(clinical)
+ */
+export const WARNING_CODES: ReadonlySet<MdCode> = new Set<MdCode>(['G1', 'G2', 'N1', 'N2', 'N3', 'N4', 'N5', 'Tt1', 'Tt2', 'Tt3', 'T1', 'T2', 'NL1']);
+export const WARNING_STATUS = 'draft' as const;
+/** A family is a warning family when any of its codes is one. */
+export const familyWarns = (family: MdFamily) => codesOf(family).some((c) => WARNING_CODES.has(c));
+
+/** MD Codes families and codes named by an option (`Ck1`, `NL`, `Ck`): the codes they stand for, in table order. */
+export function codesNamed(names: readonly string[]): MdCode[] {
+  const out = new Set<MdCode>();
+  for (const n of names) {
+    if (isMdCode(n)) out.add(n);
+    else if (isMdFamily(n)) codesOf(n).forEach((c) => out.add(c));
+  }
+  return MD_CODES.filter((c) => out.has(c));
+}

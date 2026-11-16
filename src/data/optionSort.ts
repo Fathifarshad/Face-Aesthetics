@@ -27,13 +27,13 @@ export function defaultOrder(concernId: ConcernId, midfaceGrade: number): Treatm
 const mid = (r: Range | null) => (r ? (r.min + r.max) / 2 : null);
 const midOpen = (r: OpenRange | null) => (r ? (r.max === null ? r.min : (r.min + r.max) / 2) : null);
 
-/** Sort value, smaller first; null = not known, always last. */
-function value(o: TreatmentOption, key: SortKey): number | null {
+/** Sort value, smaller first; null = not known, always last. `cost`: the tariff cost when every option has one. */
+function value(o: TreatmentOption, key: SortKey, cost?: (o: TreatmentOption) => number | null): number | null {
   switch (key) {
     case 'result':
       return -o.efficacy;
     case 'cost':
-      return o.costTier;
+      return cost ? cost(o) : o.costTier;
     case 'onset':
       return mid(o.onsetDays);
     case 'durability': {
@@ -45,10 +45,18 @@ function value(o: TreatmentOption, key: SortKey): number | null {
   }
 }
 
-/** Sorted copy; ties and unknown values keep the given (default) order. */
-export function sortOptions(options: readonly TreatmentOption[], key: SortKey): TreatmentOption[] {
+/**
+ * Sorted copy; ties and unknown values keep the given (default) order. `cost` gives the clinic-tariff cost of an
+ * option (PRD F7.4); it is used only when every option has one, otherwise the relative cost tier sorts.
+ */
+export function sortOptions(
+  options: readonly TreatmentOption[],
+  key: SortKey,
+  cost?: (o: TreatmentOption) => number | null,
+): TreatmentOption[] {
+  const byTariff = cost && options.every((o) => cost(o) !== null) ? cost : undefined;
   return options
-    .map((o, i) => ({ o, i, v: value(o, key) }))
+    .map((o, i) => ({ o, i, v: value(o, key, byTariff) }))
     .sort((a, b) => {
       if (a.v === null || b.v === null) return a.v === b.v ? a.i - b.i : a.v === null ? 1 : -1;
       return a.v - b.v || a.i - b.i;

@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import { REPORT_ACCENT_FALLBACK } from '../lib/color';
+import { DEFAULT_TARIFF } from '../data/estimates';
 import type {
   AuditEntry,
   Case,
@@ -72,6 +73,7 @@ export const DEFAULT_SETTINGS: ClinicSettings = {
   logo: '',
   accent: REPORT_ACCENT_FALLBACK,
   prices: {},
+  tariff: DEFAULT_TARIFF,
   maxHighRiskPerSession: 1,
   retentionMonths: 24,
   aftercare: {},
@@ -79,7 +81,9 @@ export const DEFAULT_SETTINGS: ClinicSettings = {
 
 export async function getSettings(): Promise<ClinicSettings> {
   const row = await db.settings.get('clinic');
-  return { ...DEFAULT_SETTINGS, ...((row?.value as Partial<ClinicSettings>) ?? {}) };
+  const stored = (row?.value as Partial<ClinicSettings>) ?? {};
+  // Settings saved before M7 have no tariff; a partial one gets the defaults it lacks.
+  return { ...DEFAULT_SETTINGS, ...stored, tariff: { ...DEFAULT_TARIFF, ...stored.tariff } };
 }
 
 export const saveSettings = (s: ClinicSettings) => db.settings.put({ key: 'clinic', value: s });

@@ -6,8 +6,9 @@ import { BottomBar, Button, Chip, Field, Header, Notice, Page, Section } from '.
 import { MIN_PASSPHRASE_LENGTH, WrongSecretError } from '../../db/crypto';
 import { db, getSettings, saveSettings } from '../../db/db';
 import type { ClinicSettings } from '../../db/types';
+import { FILLER_TYPES, SESSION_MODALITIES, type Tariff } from '../../data/estimates';
 import { changePassphrase, lock, renewRecoveryCode } from '../../db/vault';
-import { useBi, useNum, useT } from '../../i18n';
+import { useNum, useT } from '../../i18n';
 import { contrastOnWhite } from '../../lib/color';
 import { useLive } from '../../lib/hooks';
 import { TREATMENTS, type Modality } from '../../plan/data/treatments';
@@ -230,7 +231,40 @@ function ClinicTab({ s, set }: TabProps) {
 
 function PricingTab({ s, set }: TabProps) {
   const t = useT();
-  const bi = useBi();
+  const tariff = s.tariff;
+  const put = (patch: Partial<Tariff>) => set({ tariff: { ...tariff, ...patch } });
+  /** Whole prices; an empty field removes the price («تعرفه وارد نشده»). */
+  const price = (label: string, value: number | undefined, onChange: (v: number | undefined) => void, testId: string) => (
+    <label className="flex items-center gap-2">
+      <span className="min-w-0 flex-1 text-control">{label}</span>
+      <input
+        className="w-36"
+        inputMode="numeric"
+        value={value ?? ''}
+        onChange={(e) => {
+          const v = e.target.value.replace(/\D/g, '');
+          onChange(v ? Number(v) : undefined);
+        }}
+        dir="ltr"
+        aria-label={label}
+        data-tariff={testId}
+      />
+    </label>
+  );
+  const size = (label: string, value: number, onChange: (v: number) => void, decimal: boolean) => (
+    <Field label={label}>
+      <input
+        className="w-full"
+        inputMode={decimal ? 'decimal' : 'numeric'}
+        defaultValue={value}
+        onChange={(e) => {
+          const v = Number(e.target.value.replace(/[^\d.]/g, ''));
+          if (Number.isFinite(v) && v > 0) onChange(v);
+        }}
+        dir="ltr"
+      />
+    </Field>
+  );
   return (
     <>
       <Section title={t.settings.safety}>
@@ -246,27 +280,36 @@ function PricingTab({ s, set }: TabProps) {
           </Field>
         </div>
       </Section>
-      <Section title={t.settings.prices}>
+      <Section title={t.est.tariff}>
+        <p className="mb-2 text-control text-ink-2">{t.est.tariffHint}</p>
         <div className="card flex flex-col gap-2">
-          {TREATMENTS.map((o) => (
-            <label key={o.id} className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 text-control">{bi(o.title)}</span>
-              <input
-                className="w-32"
-                inputMode="numeric"
-                value={s.prices[o.id] ?? ''}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '');
-                  const prices = { ...s.prices };
-                  if (v) prices[o.id] = Number(v);
-                  else delete prices[o.id];
-                  set({ prices });
-                }}
-                dir="ltr"
-                aria-label={bi(o.title)}
-              />
-            </label>
-          ))}
+          <Field label={t.est.currency}>
+            <input className="w-full" value={tariff.currency} onChange={(e) => put({ currency: e.target.value })} />
+          </Field>
+          {FILLER_TYPES.map((k) =>
+            price(t.est.fillerTypes[k], tariff.filler[k], (v) => {
+              const filler = { ...tariff.filler };
+              if (v === undefined) delete filler[k];
+              else filler[k] = v;
+              put({ filler });
+            }, `filler.${k}`),
+          )}
+          {price(t.est.toxinUnit, tariff.toxinUnit, (v) => put({ toxinUnit: v }), 'toxinUnit')}
+          {price(t.est.thread, tariff.thread, (v) => put({ thread: v }), 'thread')}
+          {SESSION_MODALITIES.map((m) =>
+            price(t.est.perSession(t.options.modality[m]), tariff.session[m], (v) => {
+              const session = { ...tariff.session };
+              if (v === undefined) delete session[m];
+              else session[m] = v;
+              put({ session });
+            }, `session.${m}`),
+          )}
+        </div>
+      </Section>
+      <Section title={t.est.sizes}>
+        <div className="card grid gap-3 sm:grid-cols-2">
+          {size(t.est.syringeMl, tariff.syringeMl, (v) => put({ syringeMl: v }), true)}
+          {size(t.est.vialUnits, tariff.vialUnits, (v) => put({ vialUnits: Math.round(v) }), false)}
         </div>
       </Section>
     </>

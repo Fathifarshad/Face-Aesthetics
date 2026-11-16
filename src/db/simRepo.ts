@@ -4,7 +4,8 @@ import { targetAgeOf } from '../data/ageNorms';
 import { CONCERN_IDS, type AgeTarget, type ConcernId, type Confidence, type FindingSide, type Grade, type Review } from '../data/types';
 import { audit, db } from './db';
 import type { MdCode, MdKey } from '../data/mdCodes';
-import type { GradeRow, SimMode, SimSetting, SimStateRow } from './types';
+import type { EstimateOverride, ToxinBrand } from '../data/estimates';
+import type { GradeRow, PlanRow, SimMode, SimSetting, SimStateRow } from './types';
 
 /**
  * Grades (PRD F2) and simulation state (PRD F3) of a case. Plain rows: no image data.
@@ -160,3 +161,37 @@ export async function setCodeOn(caseId: string, codeOn: Partial<Record<MdCode, b
 export async function setOption(caseId: string, concernId: ConcernId, optionId: string): Promise<void> {
   await putSimState(caseId, (s) => ({ options: { ...s.options, [concernId]: optionId } }), 'sim.option', { concernId, optionId });
 }
+
+/** The plan row of a case, created with the case's tier when there is none yet. */
+async function putPlan(caseId: string, patch: (p: PlanRow) => Partial<PlanRow>, action: string, detail: unknown) {
+  await db.transaction('rw', [db.plans, db.cases, db.audit], async () => {
+    const old = await db.plans.get(caseId);
+    const c = old ? null : await db.cases.get(caseId);
+    const base: PlanRow = old ?? {
+      caseId,
+      tier: c?.tier ?? tierFromGap(c?.actualAge ?? 0, c?.targetAge ?? 0),
+      selections: {},
+      updatedAt: 0,
+    };
+    await db.plans.put({ ...base, ...patch(base), updatedAt: Date.now() });
+    await audit(caseId, action, undefined, detail);
+  });
+}
+
+/** Toxin brand of the plan (PRD §7.1): label numbers are given only for OnabotulinumtoxinA. Audited. */
+export const setToxinBrand = (caseId: string, toxinBrand: ToxinBrand) =>
+  putPlan(caseId, () => ({ toxinBrand }), 'plan.toxinBrand', { toxinBrand });
+
+/** The doctor's own estimate for an option (PRD F7.5); null goes back to the computed one. Audited. */
+export const setEstimateOverride = (caseId: string, optionId: string, value: EstimateOverride | null) =>
+  putPlan(
+    caseId,
+    (p) => {
+      const next = { ...p.estOverrides };
+      if (value) next[optionId] = value;
+      else delete next[optionId];
+      return { estOverrides: next };
+    },
+    'plan.estimate',
+    { optionId, value },
+  );

@@ -32,6 +32,7 @@ import {
   MD_CODES_SOURCE,
   MD_FAMILIES,
   MD_FAMILY_INFO,
+  WARNING_CODES,
   type MdCode,
   type MdFamily,
   type MdKey,
@@ -46,7 +47,19 @@ import { CaseSteps } from './CaseSteps';
 import { defaultOrder } from '../../data/optionSort';
 import type { FxType, TreatmentOption } from '../../data/treatmentOptions';
 import { screen } from './optionScreening';
-import { capSettings, chosenOptions, codeSettings, concernsShown, effectiveSettings, engineInput, familySettings, midfaceGradeOf, usable } from './simDefaults';
+import {
+  capSettings,
+  chosenOptions,
+  codeSettings,
+  concernsShown,
+  effectiveSettings,
+  engineInput,
+  familiesOff,
+  familySettings,
+  midfaceGradeOf,
+  usable,
+} from './simDefaults';
+import { codeRange } from '../../data/estimates';
 import { useCase } from './useCase';
 import { useEngine } from './useEngine';
 
@@ -198,6 +211,12 @@ export function SimulatePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ready, grades, JSON.stringify(sim?.options ?? {}), allowed],
   );
+  // PRD F6.1: families whose concern has a chosen non-filler option are off in mode B (M7).
+  const off = useMemo(
+    () => familiesOff(sim?.options ?? {}, options ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(sim?.options ?? {}), options],
+  );
   const settings = useMemo(
     () =>
       ready && grades && overrides && options
@@ -228,16 +247,20 @@ export function SimulatePage() {
     // The lip slider is scaled by the lip type: a thin lip changes more than a full one.
     const k = (key: Key) => (LIP_FILL.has(key) ? LIP_TYPE_SETTINGS.gain[lipType] : 1);
     const fx = Object.fromEntries(Object.entries(options ?? {}).map(([id, o]) => [id, o.fx.type])) as Partial<Record<ConcernId, FxType>>;
-    request(engineInput(mode, settings, sites, k, fx));
-  }, [settings, sites, mode, request, lipType, options]);
+    const live = Object.fromEntries(
+      (Object.entries(sites) as [MdCode, SimSetting][]).filter(([c]) => !off.families.has(MD_CODE_INFO[c].family)),
+    ) as Partial<Record<MdCode, SimSetting>>;
+    request(engineInput(mode, settings, live, k, fx, off.concerns));
+  }, [settings, sites, mode, request, lipType, options, off]);
 
   useEffect(() => () => Object.values(timers.current).forEach((id) => window.clearTimeout(id)), []);
 
   if (!data) return null;
   const { patient } = data;
-  const concernIds = settings ? concernsShown(mode, Object.keys(settings) as ConcernId[]) : [];
-  const shownSites = mode === 'mdcodes' ? codeIds : [];
-  const shownFamilies = mode === 'mdcodes' ? familyIds : [];
+  const concernIds = settings ? concernsShown(mode, Object.keys(settings) as ConcernId[], off.concerns) : [];
+  const shownSites = mode === 'mdcodes' ? codeIds.filter((c) => !off.families.has(MD_CODE_INFO[c].family)) : [];
+  const shownFamilies = mode === 'mdcodes' ? familyIds.filter((f) => !off.families.has(f)) : [];
+  const offFamilies = mode === 'mdcodes' ? familyIds.filter((f) => off.families.has(f)) : [];
   /** The sliders «همه روشن / همه خاموش» acts on: the concerns and, in mode B, the families (codes follow them). */
   const ids: Key[] = [...concernIds, ...shownFamilies];
   const settingOf = (key: Key): SimSetting =>
@@ -252,6 +275,7 @@ export function SimulatePage() {
   /** A code zone is shaded while its slider gives that side something. */
   const filled = (site: MdCode, side: 'R' | 'L' | 'M') => {
     const s = sites?.[site];
+    if (off.families.has(MD_CODE_INFO[site].family)) return false;
     return !!s && s.on && (side === 'L' && !s.mirror ? s.left : s.value) > 0;
   };
   const anyGrade = (grades ?? []).some(usable);
@@ -549,6 +573,28 @@ export function SimulatePage() {
             <div className="mt-1 flex flex-wrap gap-1.5 text-caption">
               {graded && <Tag>{t.sim.gradeOf(graded)}</Tag>}
               {manual && <Tag tone="primary">{t.sim.manual}</Tag>}
+            </div>
+          )}
+          {code && (
+            // M7: approximate range per code (0 to the bolus cap × slider) and the warning codes (PRD F6.2).
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-caption" data-code-range={s.on ? codeRange(id, s.value).max : 0}>
+              {s.on && (
+                <Tag>
+                  <bdi>
+                    {apart
+                      ? `${t.est.right} ${t.est.codeRange(t.options.range(num(0), num(codeRange(id, s.value).max, 1)))} · ${t.est.left} ${t.est.codeRange(t.options.range(num(0), num(codeRange(id, s.left).max, 1)))}`
+                      : `${t.est.codeRange(t.options.range(num(0), num(codeRange(id, s.value).max, 1)))} ${MD_CODE_INFO[id].bilateral ? t.options.perSide : ''}`}
+                  </bdi>
+                </Tag>
+              )}
+              {s.on && (
+                <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.options.unverified}</span>
+              )}
+              {WARNING_CODES.has(id) && (
+                <span data-warning-code={id}>
+                  <Tag tone="danger">{t.est.warning}</Tag>
+                </span>
+              )}
             </div>
           )}
           {option && !isSite(id) && optionPicker(id, option)}
@@ -906,6 +952,11 @@ export function SimulatePage() {
                   <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.grading.unverified}</span>
                   <span dir="ltr">{t.sim.mdSource(MD_CODES_SOURCE)}</span>
                 </p>
+                {offFamilies.length > 0 && (
+                  <p className="mb-2 text-caption text-ink-2" data-families-off={offFamilies.join(',')}>
+                    {t.est.nonFiller(offFamilies.map((f) => nameOf(f)).join('، '))}
+                  </p>
+                )}
                 <ul className="flex flex-col gap-1.5">
                   {shownFamilies.flatMap((f) => [
                     row(f),

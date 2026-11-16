@@ -5,8 +5,8 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set) and M6 (knowledge base,
-sorting, option → image) built, waiting for the owner's look. Next: M7.
+Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set), M6 (knowledge base,
+sorting, option → image) and M7 (estimates, tariff, MD Codes layer) built, waiting for the owner's look. Next: M8.
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -117,9 +117,35 @@ All three stay `draft`; M7 replaces the cost tier with the clinic tariff.
   chosen option (M7: the MD Codes layer only for filler options); the v1 cost section left the plan page (M7)
 
 ## M7 — MD Codes, estimates, cost
-- [~] MD Codes layer for selected filler options only; warning codes; fixed disclaimer
-- [ ] Volume and dose ranges (PRD §5.7), plan totals in syringes and vials, clinic tariff, doctor override
-- [ ] (V) Unit tests for estimates and totals; high-risk zone warnings visible
+Owner decisions 2026-11-16 (plan approved with «ادامه», built 2026-11-16):
+- Syringe size and vial units are set in the admin pricing tab (defaults 1 mL and 100 U, editable); plan totals count
+  syringes and vials from them (rounded up)
+- MD Codes mode shows a range per code: 0 to 0.3 mL × slider (T1, T2 and Jw1 up to 0.5 mL; PMID 32445044 bolus caps,
+  PRD §7.1), badge «تأییدنشده»
+- Plan: `src/data/estimates.ts` (PRD §5.7 formula, ranges with unit and per side/total, rounding 0.1 mL / 2 U; no base →
+  «پزشک وارد کند»); toxin numbers only for OnabotulinumtoxinA (brand asked in the plan); tariff per filler type, toxin
+  unit, thread, device session and currency; cost = estimate × tariff, else the M6 cost tier; doctor override with
+  «ویرایش پزشک»; MD Codes layer only for chosen filler options; warning codes (G, N, Tt, T, NL1; F5.7, draft) in the risk
+  colour with «کانولا توصیه می‌شود»
+- [x] MD Codes layer for chosen filler options only (built 2026-11-16): the MD Codes page lists the codes of the chosen
+  filler options with warning codes (`WARNING_CODES` in `mdCodes.ts`: G, N, Tt, T1–T2, NL1; draft) in the risk colour
+  with «کانولا توصیه می‌شود», the source and the F6.4 text. On the simulation page (mode B) a family is off when the doctor
+  explicitly chose a non-filler option for its concern (`familiesOff` in `simDefaults.ts`); that concern then keeps its own
+  slider and effect as in mode A. Defaults without an explicit choice keep the reviewed M5b–M5c picture. Each code row
+  shows «0 تا X mL» (bolus cap × slider, draft) and the warning tag
+- [x] `src/data/estimates.ts`: PRD §5.7 formula (grade factor, 0.1 mL / 2 U), per side or total, sides apart when they
+  differ; label doses shown as on the label and never scaled; toxin numbers only after the doctor picks
+  OnabotulinumtoxinA on the plan page (`plans.toxinBrand`); no base → «پزشک وارد کند». Intensity = the concern's mode-A
+  slider capped by the option. Tariff in the admin pricing tab (`settings.tariff`: currency, filler per mL by type
+  structural / soft / lip, toxin unit, thread, session per modality, syringe mL, vial units; replaces the v1 price list).
+  Cost = estimate × tariff, else the cost tier; cost sorting uses the tariff only when every option of a concern has a
+  cost. Doctor override with «ویرایش پزشک» (`plans.estOverrides`, audited). Plan totals: filler mL and syringes, toxin U
+  and vials (rounded up), threads, sessions, cost
+- [x] (V) Unit tests `estimates.test.ts`, `planOptions.test.ts` (families off); e2e: brand, estimate, doctor edit and
+  totals in `grading.spec.ts`, code range and warning codes in `simulate.spec.ts`
+- [ ] (V) Owner look: plan page (estimates, brand, «ویرایش پزشک», totals), admin pricing tab, mode-B code rows
+- Open: in mode B the plan still estimates from the mode-A concern sliders (code ranges are shown only beside the codes);
+  estimates are not yet in the report or the client package (M9, M11; doctor approval first)
 
 ## M8 — Before/after gallery and consent
 - [~] Photo sets per procedure (PRD §8), ghost overlay from the before photo

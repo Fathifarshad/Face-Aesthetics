@@ -296,10 +296,17 @@ test.describe('simulation page', () => {
     await page.getByRole('slider', { name: 'شدت Ck · گونه', exact: true }).fill('70');
     await expect(page.getByRole('slider', { name: 'شدت Ck1 · قوس زایگوما', exact: true })).toHaveValue('70');
     await expect(page.getByRole('slider', { name: 'شدت Ck2 · برجستگی زایگوما', exact: true })).toHaveValue('30');
+    // M7: range per code, 0 to 0.3 mL × slider (draft); no warning on the cheek.
+    await expect(page.locator('#change-Ck1 [data-code-range]')).toHaveAttribute('data-code-range', '0.2');
+    await expect(page.locator('#change-Ck2 [data-code-range]')).toHaveAttribute('data-code-range', '0.1');
+    await expect(page.locator('#change-Ck1 [data-warning-code]')).toHaveCount(0);
     // Nose: off at first; switching the family on switches its five codes on.
     await press(page, page.getByRole('switch', { name: 'N · بینی', exact: true }));
     await settled(page);
     await expect(page.getByRole('button', { name: /^کدهای N \(5 روشن از 5\)/ })).toBeVisible();
+    // Nose codes are warning codes (PRD F6.2): risk colour with «کانولا توصیه می‌شود».
+    await press(page, page.getByRole('button', { name: /^کدهای N / }));
+    await expect(page.locator('#change-N2 [data-warning-code]')).toContainText('کانولا توصیه می‌شود');
     await expect(zones(11)).toBeVisible();
     // Midline codes have no mirror switch; E3 (brow head) has its own switch.
     await press(page, page.getByRole('button', { name: /^کدهای E / }));

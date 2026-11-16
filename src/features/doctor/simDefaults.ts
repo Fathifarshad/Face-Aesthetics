@@ -115,9 +115,36 @@ export function codeSettings(
   );
 }
 
-/** Concern sliders shown in a mode: in mode B the ones whose whole effect moved to an MD Codes site are hidden. */
-export const concernsShown = (mode: SimMode, available: readonly ConcernId[]) =>
-  mode === 'mdcodes' ? available.filter((id) => !MOVED_TO_SITES.has(id)) : [...available];
+/**
+ * Concern sliders shown in a mode: in mode B the ones whose whole effect moved to an MD Codes site are hidden,
+ * except the concerns in `byArea` (their family is off, see `familiesOff`): they keep their own slider and effect.
+ */
+export const concernsShown = (mode: SimMode, available: readonly ConcernId[], byArea: ReadonlySet<ConcernId> = new Set()) =>
+  mode === 'mdcodes' ? available.filter((id) => !MOVED_TO_SITES.has(id) || byArea.has(id)) : [...available];
+
+/**
+ * PRD F6.1 (M7): the MD Codes layer is only for filler options. A family is off in mode B when the doctor chose
+ * an option for its concern that is not a filler (lip flip, mentalis toxin, threads…); that concern is then
+ * simulated by its own slider, as in mode A. Families whose concern has no explicit choice keep the reviewed
+ * M5b–M5c behaviour.
+ */
+export function familiesOff(
+  choices: Partial<Record<ConcernId, string>>,
+  options: Partial<Record<ConcernId, TreatmentOption>>,
+): { families: ReadonlySet<MdFamily>; concerns: ReadonlySet<ConcernId> } {
+  const families = new Set<MdFamily>();
+  const concerns = new Set<ConcernId>();
+  for (const [family, info] of Object.entries(MD_FAMILY_INFO) as [MdFamily, (typeof MD_FAMILY_INFO)[MdFamily]][]) {
+    const id = info.from;
+    if (!id || !choices[id]) continue;
+    const o = options[id];
+    if (o && o.modality !== 'filler') {
+      families.add(family);
+      concerns.add(id);
+    }
+  }
+  return { families, concerns };
+}
 
 const active = (s: SimSetting) => s.on && (s.value > 0 || (!s.mirror && s.left > 0));
 const strengths = (s: SimSetting, k: number) => (s.mirror ? { intensity: s.value * k } : { intensity: s.value * k, left: s.left * k });
@@ -134,15 +161,17 @@ export function engineInput(
   codes: Partial<Record<MdCode, SimSetting>>,
   scale: (key: ConcernId | MdCode) => number = () => 1,
   fx: Partial<Record<ConcernId, FxType>> = {},
+  byArea: ReadonlySet<ConcernId> = new Set(),
 ): { changes: Change[]; sites: SiteChange[] } {
   const changes: Change[] = [];
-  for (const id of concernsShown(mode, Object.keys(concerns) as ConcernId[])) {
+  for (const id of concernsShown(mode, Object.keys(concerns) as ConcernId[], byArea)) {
     const s = concerns[id]!;
     if (!active(s)) continue;
-    // The chosen option's effect type (PRD F5.3); in mode B a concern filled by sites never warps by itself.
+    // The chosen option's effect type (PRD F5.3); in mode B a concern filled by sites never warps by itself,
+    // unless its family is off (`byArea`, non-filler option).
     const type = fx[id] ?? 'SW';
     const smooth = type !== 'W';
-    const warp = type !== 'S' && !(mode === 'mdcodes' && FILLED_BY_SITES.has(id));
+    const warp = type !== 'S' && !(mode === 'mdcodes' && FILLED_BY_SITES.has(id) && !byArea.has(id));
     if (!smooth && !warp) continue;
     const effect = smooth && warp ? {} : { effect: smooth ? ('smooth' as const) : ('warp' as const) };
     changes.push({ concernId: id, ...strengths(s, scale(id)), ...effect });

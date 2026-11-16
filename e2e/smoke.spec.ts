@@ -111,7 +111,9 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.screenshot({ path: `${shots}/07-plan.png`, fullPage: true });
 
   await page.getByRole('link', { name: 'MD Codes', exact: true }).click();
-  await expect(page.getByText('دادهٔ دارای مجوز MD Codes نصب نشده است', { exact: false })).toBeVisible();
+  // M7: codes of the chosen filler options only (lips → Lp), with the fixed F6.4 text.
+  await expect(page.getByText('MD Codes™ نشان تجاری است. جانمایی تقریبی است و راهنمای تزریق نیست.')).toBeVisible();
+  await expect(page.locator('[data-md-option="lip-volume.1.filler"] [data-md-code="Lp1"]')).toBeVisible();
   await page.screenshot({ path: `${shots}/08-mdcodes.png`, fullPage: true });
   await page.goBack();
 

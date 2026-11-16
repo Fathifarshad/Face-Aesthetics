@@ -1,4 +1,5 @@
 import type { MdCode, MdKey } from '../data/mdCodes';
+import type { EstimateOverride, Tariff, ToxinBrand } from '../data/estimates';
 import type { Bi } from '../analysis/catalog';
 import type { Finding, Point, Pose } from '../analysis/types';
 import type { QcResult } from '../capture/qc';
@@ -90,7 +91,16 @@ export type SimStateRow = {
 
 export type SimMode = 'area' | 'mdcodes';
 
-export type PlanRow = { caseId: string; tier: Tier; selections: Record<string, string[]>; updatedAt: number };
+export type PlanRow = {
+  caseId: string;
+  tier: Tier;
+  selections: Record<string, string[]>;
+  /** Toxin brand asked on the plan page (PRD §7.1): label numbers only for OnabotulinumtoxinA. Absent = not asked. */
+  toxinBrand?: ToxinBrand;
+  /** Estimates the doctor entered per option id (PRD F7.5, «ویرایش پزشک»). */
+  estOverrides?: Record<string, EstimateOverride>;
+  updatedAt: number;
+};
 
 export type Simulation = {
   id: string;
@@ -151,7 +161,10 @@ export type ClinicSettings = {
   footer: string;
   logo: string;
   accent: string;
+  /** v1 price per v1 treatment id; replaced by `tariff` in M7, kept so older settings still read. */
   prices: Record<string, number>;
+  /** Clinic tariff, syringe size and vial units (PRD F7.4, M7). */
+  tariff: Tariff;
   maxHighRiskPerSession: number;
   retentionMonths: number;
   /** Doctor-written aftercare per modality; shown to the patient. */

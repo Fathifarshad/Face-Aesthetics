@@ -135,6 +135,26 @@ test.describe('grading and age target', () => {
     await expect(page.getByText('ترتیب جلسات')).toBeVisible();
     await lipCard.getByRole('radio', { name: 'لیپ‌فلیپ با توکسین برای حجم و فرم لب' }).click();
     await expect(lipCard.getByRole('radio', { name: 'لیپ‌فلیپ با توکسین برای حجم و فرم لب' })).toHaveAttribute('aria-checked', 'true');
+
+    // M7: estimates. No toxin number until the brand is OnabotulinumtoxinA (PRD §7.1); filler in mL.
+    const flip = lipCard.locator('[data-option="lip-volume.2.toxin"]');
+    await expect(flip.locator('[data-estimate]')).toHaveAttribute('data-estimate', 'brand');
+    await expect(lipCard.locator('[data-option="lip-volume.1.filler"] [data-estimate]')).toHaveAttribute('data-estimate', /^\d+(\.\d)?-\d+(\.\d)?$/);
+    await page.getByRole('radio', { name: 'OnabotulinumtoxinA' }).click();
+    await expect(flip.locator('[data-estimate]')).toHaveAttribute('data-estimate', /^\d+-\d+$/);
+    await expect(page.locator('[data-total="toxin"]')).toContainText('ویال');
+    await expect(page.locator('[data-total="filler"]')).toContainText('سرنگ');
+    // The doctor's own estimate (F7.5).
+    await flip.getByRole('button', { name: /^ویرایش پزشک/ }).click();
+    const form = flip.locator('[data-override-form]');
+    await form.getByLabel(/کمینه/).fill('6');
+    await form.getByLabel(/بیشینه/).fill('4');
+    await form.getByRole('button', { name: 'ذخیره' }).click();
+    await expect(form.getByText('بازه درست نیست', { exact: false })).toBeVisible();
+    await form.getByLabel(/بیشینه/).fill('8');
+    await form.getByRole('button', { name: 'ذخیره' }).click();
+    await expect(flip.locator('[data-estimate]')).toHaveAttribute('data-estimate', '6-8');
+    await expect(flip.getByText('ویرایش پزشک').first()).toBeVisible();
     mkdirSync(OUT, { recursive: true });
     await page.screenshot({ path: join(OUT, 'plan-390.png'), fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
