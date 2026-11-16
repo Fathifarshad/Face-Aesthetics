@@ -2,7 +2,7 @@ import { defaultIntensity } from '../../data/ageNorms';
 import type { AgeTarget, ConcernId, Finding } from '../../data/types';
 import { chosenOption } from '../../data/optionSort';
 import type { FxType, TreatmentOption } from '../../data/treatmentOptions';
-import { FILLED_BY_SITES, MD_SITE_INFO, MOVED_TO_SITES, type MdSite } from '../../data/mdCodes';
+import { familyBilateral, FILLED_BY_SITES, MD_CODE_INFO, MD_FAMILY_INFO, MOVED_TO_SITES, type MdCode, type MdFamily, type MdKey } from '../../data/mdCodes';
 import type { SimMode, SimSetting } from '../../db/types';
 import type { Change, SiteChange } from '../../engine/pipeline';
 
@@ -71,23 +71,46 @@ export function capSettings(
   );
 }
 
+const OFF: SimSetting = { on: false, value: 0, left: 0, mirror: true, last: 'R' };
+
 /**
- * MD Codes sliders (mode B, docs/TASKS.md M5b): the doctor's own where they moved one, otherwise the current
- * mode-A value of the site's concern (for example cheek volume 60 % → Ck1, Ck2 and Ck3 at 60 %). A midline site
- * (lips, chin) has one slider. Only sites that can be placed on this photo are returned.
+ * MD Codes family sliders (mode B, docs/TASKS.md M5b–M5c): the doctor's own where they moved one, otherwise the
+ * current mode-A value of the family's concern (cheek volume 60 % → Ck 60 %). A family without a concern starts
+ * off. A family whose codes are all midline has one slider.
  */
-export function siteSettings(
-  sites: readonly MdSite[],
+export function familySettings(
+  families: readonly MdFamily[],
   concerns: Partial<Record<ConcernId, SimSetting>>,
-  overrides: Partial<Record<MdSite, SimSetting>>,
-): Partial<Record<MdSite, SimSetting>> {
-  const off: SimSetting = { on: false, value: 0, left: 0, mirror: true, last: 'R' };
+  overrides: Partial<Record<MdKey, SimSetting>>,
+): Partial<Record<MdFamily, SimSetting>> {
   return Object.fromEntries(
-    sites.map((site) => {
-      const own = overrides[site];
-      if (own) return [site, own];
-      const from = concerns[MD_SITE_INFO[site].concernId] ?? off;
-      return [site, MD_SITE_INFO[site].bilateral ? { ...from } : { ...from, left: from.value, mirror: true }];
+    families.map((family) => {
+      const own = overrides[family];
+      if (own) return [family, own];
+      const from = MD_FAMILY_INFO[family].from;
+      const base = (from && concerns[from]) || OFF;
+      return [family, familyBilateral(family) ? { ...base } : { ...base, left: base.value, mirror: true }];
+    }),
+  );
+}
+
+/**
+ * Code sliders: each follows its family's values until the doctor moves it. A code is on when its family is on
+ * and the code itself is on (`codeOn`, else `starts`). A midline code takes the family's main value.
+ */
+export function codeSettings(
+  codes: readonly MdCode[],
+  families: Partial<Record<MdFamily, SimSetting>>,
+  overrides: Partial<Record<MdKey, SimSetting>>,
+  codeOn: Partial<Record<MdCode, boolean>>,
+): Partial<Record<MdCode, SimSetting>> {
+  return Object.fromEntries(
+    codes.map((code) => {
+      const info = MD_CODE_INFO[code];
+      const family = families[info.family] ?? OFF;
+      const values = overrides[code] ?? family;
+      const on = family.on && (codeOn[code] ?? info.starts);
+      return [code, info.bilateral ? { ...values, on } : { ...values, on, left: values.value, mirror: true }];
     }),
   );
 }
@@ -100,15 +123,16 @@ const active = (s: SimSetting) => s.on && (s.value > 0 || (!s.mirror && s.left >
 const strengths = (s: SimSetting, k: number) => (s.mirror ? { intensity: s.value * k } : { intensity: s.value * k, left: s.left * k });
 
 /**
- * What the engine renders. Mode A: every concern with the effect of its chosen option (`fx`; full when absent). Mode B: the concerns that give their
- * volume to sites smooth only, the masseter (toxin, no family) keeps its effect, Tt drives the under-eye shadow
- * lift (owner 2026-11-16), and every other site drives its warp operators. `scale` scales one slider (the lip type).
+ * What the engine renders. Mode A: every concern with the effect of its chosen option (`fx`; full when absent).
+ * Mode B: the concerns that give their volume to codes smooth only, the masseter (toxin, no family) keeps its
+ * effect, and every code that is on drives its own operators or smooths its own part of a region (Tt1–Tt3 take
+ * the under-eye shadow lift, owner 2026-11-16). `scale` scales one slider (the lip type).
  */
 export function engineInput(
   mode: SimMode,
   concerns: Partial<Record<ConcernId, SimSetting>>,
-  sites: Partial<Record<MdSite, SimSetting>>,
-  scale: (key: ConcernId | MdSite) => number = () => 1,
+  codes: Partial<Record<MdCode, SimSetting>>,
+  scale: (key: ConcernId | MdCode) => number = () => 1,
   fx: Partial<Record<ConcernId, FxType>> = {},
 ): { changes: Change[]; sites: SiteChange[] } {
   const changes: Change[] = [];
@@ -125,10 +149,8 @@ export function engineInput(
   }
   const out: SiteChange[] = [];
   if (mode === 'mdcodes')
-    for (const [site, s] of Object.entries(sites) as [MdSite, SimSetting][]) {
-      if (!active(s)) continue;
-      if (site === 'Tt') changes.push({ concernId: 'tear-trough', ...strengths(s, scale(site)), effect: 'smooth' });
-      else out.push({ site, ...strengths(s, scale(site)) });
+    for (const [site, s] of Object.entries(codes) as [MdCode, SimSetting][]) {
+      if (active(s)) out.push({ site, ...strengths(s, scale(site)) });
     }
   return { changes, sites: out };
 }

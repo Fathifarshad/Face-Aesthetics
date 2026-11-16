@@ -1,4 +1,4 @@
-import type { MdSite } from '../data/mdCodes';
+import type { MdCode, MdKey } from '../data/mdCodes';
 import type { Bi } from '../analysis/catalog';
 import type { Finding, Point, Pose } from '../analysis/types';
 import type { QcResult } from '../capture/qc';
@@ -75,8 +75,14 @@ export type SimStateRow = {
   lipType?: 1 | 2 | 3 | 4 | 5;
   /** Volume mode (docs/TASKS.md M5b): per concern area (A, default) or per MD Codes site (B). */
   mode?: SimMode;
-  /** MD Codes sliders the doctor moved; every other site follows its concern's mode-A value. */
-  siteOverrides?: Partial<Record<MdSite, SimSetting>>;
+  /**
+   * MD Codes sliders the doctor moved (docs/TASKS.md M5b–M5c): a family follows its concern's mode-A value until
+   * moved; a code follows its family. Their `on` is not used for codes (see `codeOn`). The M5b keys T, E, Tt, NL,
+   * Lp, M, C and Jw are now families, Ck1–Ck3 codes, so older cases read the same.
+   */
+  siteOverrides?: Partial<Record<MdKey, SimSetting>>;
+  /** Codes the doctor switched on or off; absent = the code's `starts`. */
+  codeOn?: Partial<Record<MdCode, boolean>>;
   /** Treatment option the doctor chose per concern (PRD F5, M6); absent = the first default option. */
   options?: Partial<Record<ConcernId, string>>;
   updatedAt: number;

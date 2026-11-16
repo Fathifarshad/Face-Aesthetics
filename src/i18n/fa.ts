@@ -1,4 +1,3 @@
-import type { MdSite } from '../data/mdCodes';
 import { APP_NAME } from '../app/config';
 
 export const fa = {
@@ -510,23 +509,12 @@ export const fa = {
     modeLabel: 'روش حجم‌دهی',
     modes: { area: 'حجم‌دهی بر اساس ناحیه', mdcodes: 'حجم‌دهی فیلر بر اساس MD Codes' } as Record<'area' | 'mdcodes', string>,
     smoothingGroup: 'هموارسازی و تغییرهای دیگر',
-    mdGroup: 'نواحی MD Codes',
-    mdNote: 'هر اسلایدر فقط ناحیهٔ خودش را پر می‌کند. وقتی دو ناحیهٔ کنار هم پر شوند، فاصلهٔ میانشان یکدست پر می‌شود. شروع هر اسلایدر از مقدار همان ناحیه در «حجم‌دهی بر اساس ناحیه» است.',
+    mdGroup: 'کدهای MD Codes',
+    mdNote: 'هر خانواده با اسلایدر خودش شروع می‌شود و با «+» به کدهایش باز می‌شود؛ هر کد فقط ناحیهٔ خودش را تغییر می‌دهد و کلید جدا دارد. کدهایی که دستی جابه‌جا نشده‌اند از اسلایدر خانواده پیروی می‌کنند. وقتی دو کد کنار هم پر شوند، فاصلهٔ میانشان یکدست پر می‌شود. شروع هر خانواده از مقدار همان ناحیه در «حجم‌دهی بر اساس ناحیه» است.',
     mdDisclaimer: 'MD Codes™ نشان تجاری است. جانمایی تقریبی است و راهنمای تزریق نیست.',
     siteName: (code: string, name: string) => `${code} · ${name}`,
-    sites: {
-      T: 'شقیقه',
-      E: 'ابرو',
-      Tt: 'ناودان اشکی',
-      Ck1: 'قوس زایگوما',
-      Ck2: 'برجستگی زایگوما',
-      Ck3: 'گونهٔ قدامی‌میانی',
-      NL: 'چین نازولبیال',
-      Lp: 'لب',
-      M: 'ماریونت',
-      C: 'چانه',
-      Jw: 'خط فک',
-    } as Record<MdSite, string>,
+    codesOf: (family: string, count: string, on: string) => `کدهای ${family} (${on} روشن از ${count})`,
+    mdSource: (source: string) => `Source: ${source}`,
   },
   vault: {
     setupTitle: 'ساخت رمز پنل پزشک',

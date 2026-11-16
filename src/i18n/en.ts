@@ -1,4 +1,3 @@
-import type { MdSite } from '../data/mdCodes';
 import { APP_NAME } from '../app/config';
 import type { Dict } from './fa';
 
@@ -511,23 +510,12 @@ export const en: Dict = {
     modeLabel: 'Volume method',
     modes: { area: 'Volume by area', mdcodes: 'Filler volume by MD Codes' } as Record<'area' | 'mdcodes', string>,
     smoothingGroup: 'Smoothing and other changes',
-    mdGroup: 'MD Codes sites',
-    mdNote: 'Each slider fills only its own site. When two neighbouring sites are filled, the gap between them fills evenly. Each slider starts from its area value in «Volume by area».',
+    mdGroup: 'MD Codes',
+    mdNote: 'Each family has its own slider and opens into its codes with «+»; each code changes only its own zone and has its own switch. Codes not moved by hand follow the family slider. When two neighbouring codes are filled, the gap between them fills evenly. Each family starts from its area value in «Volume by area».',
     mdDisclaimer: 'MD Codes™ is a trademark. Placement is approximate and is not an injection guide.',
     siteName: (code: string, name: string) => `${code} · ${name}`,
-    sites: {
-      T: 'Temple',
-      E: 'Eyebrow',
-      Tt: 'Tear trough',
-      Ck1: 'Zygomatic arch',
-      Ck2: 'Zygomatic eminence',
-      Ck3: 'Anteromedial cheek',
-      NL: 'Nasolabial fold',
-      Lp: 'Lips',
-      M: 'Marionette',
-      C: 'Chin',
-      Jw: 'Jawline',
-    } as Record<MdSite, string>,
+    codesOf: (family: string, count: string, on: string) => `${family} codes (${on} of ${count} on)`,
+    mdSource: (source: string) => `Source: ${source}`,
   },
   vault: {
     setupTitle: 'Create the physician passphrase',

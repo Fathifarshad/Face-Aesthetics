@@ -1,6 +1,6 @@
-import type { MdSite } from '../data/mdCodes';
+import type { MdCode } from '../data/mdCodes';
 import type { ConcernId } from '../data/types';
-import { ANCHOR, LIPS_INNER_LOWER, LIPS_INNER_UPPER, LIPS_OUTER_LOWER, LIPS_OUTER_UPPER } from './landmarks';
+import { ANCHOR, L_NASOLABIAL, LIPS_INNER_LOWER, LIPS_INNER_UPPER, LIPS_OUTER_LOWER, LIPS_OUTER_UPPER, R_NASOLABIAL } from './landmarks';
 import { toFace } from './faceFrame';
 import type { RegionSet, Side } from './regions';
 import { centroid, crossingsAtY, lerp } from './shapes';
@@ -59,12 +59,14 @@ export interface Operator {
   gain?: Pt;
   /** vector: displacement at the centre at full strength, face units along the face axes. */
   v?: Pt;
-  /** MD Codes site that drives this operator in mode B (docs/TASKS.md M5b); none for the masseter (toxin). */
-  site?: MdSite;
+  /** MD Codes code that drives this operator in mode B (docs/TASKS.md M5b–M5c); none for the masseter (toxin). */
+  site?: MdCode;
+  /** lip: half-height of the soft band as a share of the local lip thickness (default LIP.band). */
+  band?: number;
   /** Only in one mode: 'area' = the concern slider of mode A, 'sites' = MD Codes mode. Absent = both. */
   use?: 'area' | 'sites';
-  /** Bridge between two filled sites (mode B): its strength is the weaker of the two. */
-  bridge?: readonly [MdSite, MdSite];
+  /** Bridge between two filled codes (mode B): its strength is the weaker of the two. */
+  bridge?: readonly [MdCode, MdCode];
 }
 
 const norm = (p: Pt, length: number): Pt => {
@@ -139,14 +141,32 @@ export function lipFullness(F: (i: number) => Pt): number {
   return (s.upperMid + s.lowerMid) / Math.max(1e-6, s.width);
 }
 
-function lipOperator(concernId: ConcernId, cols: Omit<LipSample, 'd'>[], outward: 1 | -1, gain: number): Operator {
-  const samples = cols.map((s) => ({ ...s, d: Math.min(MAX_SHIFT, gain * Math.abs(s.border - s.mouth)) }));
+/**
+ * Lip operator: the border of one lip moves outward by `gain` × its local thickness. `band`: half-height of the soft
+ * band (× thickness); the shift stays below 0.65 × the band, so it cannot fold. `profile`: share of the shift along
+ * the lip (a local code); only the columns it reaches are kept, plus one still column on each side.
+ */
+function lipOperator(
+  concernId: ConcernId,
+  cols: Omit<LipSample, 'd'>[],
+  outward: 1 | -1,
+  gain: number,
+  opts: { band?: number; profile?: (x: number) => number } = {},
+): Operator {
+  const bandK = opts.band ?? LIP.band;
+  const all = cols.map((s) => ({
+    ...s,
+    d: Math.min(MAX_SHIFT, 0.65 * bandK * Math.abs(s.border - s.mouth), gain * (opts.profile ? opts.profile(s.x) : 1) * Math.abs(s.border - s.mouth)),
+  }));
+  const first = Math.max(0, all.findIndex((s) => s.d > 0) - 1);
+  const last = Math.min(all.length - 1, all.length - [...all].reverse().findIndex((s) => s.d > 0));
+  const samples = all.slice(first, last + 1);
   const xs = samples.map((s) => s.x);
-  const band = (s: LipSample) => Math.max(LIP.minBand, LIP.band * Math.abs(s.border - s.mouth));
+  const band = (s: LipSample) => Math.max(LIP.minBand, bandK * Math.abs(s.border - s.mouth));
   const top = Math.min(...samples.map((s) => s.border - band(s)));
   const bottom = Math.max(...samples.map((s) => s.border + band(s)));
   const c = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (top + bottom) / 2 };
-  return { concernId, side: 'M', kind: 'lip', c, rx: (Math.max(...xs) - Math.min(...xs)) / 2 + 0.005, ry: (bottom - top) / 2, samples, outward };
+  return { concernId, side: 'M', kind: 'lip', c, rx: (Math.max(...xs) - Math.min(...xs)) / 2 + 0.005, ry: (bottom - top) / 2, samples, outward, band: bandK };
 }
 
 /** Patient's sex as recorded in the case; it shapes the chin and the jaw angle (a man's are wider and squarer). */
@@ -161,6 +181,10 @@ export type Sex = 'female' | 'male' | 'other';
  *   jaw angle a little fuller outward · masseter: lateral contour in (slimmer) · temple: fill out · brow: lift the tail.
  * Owner review 2026-11-15: the first version pulled only the middle of the chin down (a pointed, feminine chin on
  * a man) and moved the jowl and the masseter inward, which made the jaw line concave. Fixed as above.
+ *
+ * Mode B (MD Codes, docs/TASKS.md M5b–M5c): every code has its own operators in its own zone. An operator that is
+ * exactly one code's effect serves both modes (`site`, no `use`); the others are `use: 'area'` (mode A) or
+ * `use: 'sites'` (mode B). The F, G, O, Tt and Lp8 codes smooth instead (pipeline.ts `CODE_SMOOTHING`).
  */
 export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'other'): Operator[] {
   const male = sex === 'male';
@@ -179,6 +203,9 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
   const F = (i: number) => toFace(set.frame, lm[i]!);
   const ops: Operator[] = [];
   const region = (id: ConcernId, side: Side) => set.regions.find((r) => r.concernId === id && r.side === side);
+  const area = (op: Operator): Operator => ({ ...op, use: 'area' });
+  const both = (op: Operator, site: MdCode): Operator => ({ ...op, site });
+  const only = (op: Operator, site: MdCode): Operator => ({ ...op, site, use: 'sites' });
 
   // 8 — lips, the way a lip designer works: the vermilion border moves outward everywhere along the lip, by a share
   // of the lip's own thickness at that point. The shape is kept (Cupid's bow, the fine corners), the corners grow
@@ -189,8 +216,9 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
     const lips = lipShape(F);
     const ratio = lips.upperMid / Math.max(1e-6, lips.lowerMid);
     const balance = Math.min(LIP.balanceMax, Math.max(1 / LIP.balanceMax, Math.sqrt(LIP.idealRatio / ratio)));
-    ops.push(lipOperator('lip-volume', lips.upper, -1, LIP.gain * balance));
-    ops.push(lipOperator('lip-volume', lips.lower, 1, LIP.gain / balance));
+    ops.push(both(lipOperator('lip-volume', lips.upper, -1, LIP.gain * balance), 'Lp1'));
+    ops.push(both(lipOperator('lip-volume', lips.lower, 1, LIP.gain / balance), 'Lp1'));
+    ops.push(...lipCodes(lips, F));
   }
 
   // 10 — chin: the whole lower border moves down evenly (a wide vector, so the chin does not become pointed) and
@@ -198,9 +226,13 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
   const chinRegion = region('chin', 'M');
   if (chinRegion) {
     const { c, hx, hy } = extent(chinRegion.outline);
-    ops.push(vector('chin', 'M', { x: c.x, y: c.y + hy * 0.3 }, hx * 2.2, hy * 1.3, { x: 0, y: 1 }, male ? 0.02 : 0.03));
-    ops.push(inflate('chin', 'M', c, hx * (male ? 1.8 : 1.4), hy * 1.2, male ? 0.03 : 0.018, { x: 1, y: 0.25 }));
+    ops.push(both(vector('chin', 'M', { x: c.x, y: c.y + hy * 0.3 }, hx * 2.2, hy * 1.3, { x: 0, y: 1 }, male ? 0.02 : 0.03), 'C2'));
+    ops.push(area(inflate('chin', 'M', c, hx * (male ? 1.8 : 1.4), hy * 1.2, male ? 0.03 : 0.018, { x: 1, y: 0.25 })));
+    ops.push(...chinCodes(c, hx, hy, male));
   }
+
+  // Nose (N1–N5, mode B only): no concern in PRD §6, so no mode-A operator.
+  ops.push(...noseCodes(F));
 
   for (const side of ['R', 'L'] as const) {
     const s = side === 'R' ? -1 : 1;
@@ -209,18 +241,25 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
     if (cheek) {
       const { c, hx, hy } = extent(cheek.outline);
       // Mode A: the whole cheek at once.
-      ops.push({ ...inflate('midface-volume', side, c, hx * 1.4, hy * 1.4, 0.03), use: 'area' });
-      ops.push({ ...vector('midface-volume', side, c, hx * 1.6, hy * 1.6, { x: s * 0.3, y: -1 }, 0.035), use: 'area' });
-      ops.push(...cheekSites(side, c, contour));
+      ops.push(area(inflate('midface-volume', side, c, hx * 1.4, hy * 1.4, 0.03)));
+      ops.push(area(vector('midface-volume', side, c, hx * 1.6, hy * 1.6, { x: s * 0.3, y: -1 }, 0.035)));
+      ops.push(...cheekSites(side, c, contour, mouth.y));
     }
     const fold = region('nasolabial-fold', side);
     if (fold) {
       const { c, hx, hy } = extent(fold.outline);
-      ops.push(vector('nasolabial-fold', side, { x: c.x + s * hx * 0.6, y: c.y - hy * 0.2 }, Math.max(0.14, hx * 1.6), Math.max(0.16, hy * 1.1), { x: s * 0.35, y: -1 }, 0.03));
+      ops.push(area(vector('nasolabial-fold', side, { x: c.x + s * hx * 0.6, y: c.y - hy * 0.2 }, Math.max(0.14, hx * 1.6), Math.max(0.16, hy * 1.1), { x: s * 0.35, y: -1 }, 0.03)));
+      ops.push(...foldCodes(side, (side === 'R' ? R_NASOLABIAL : L_NASOLABIAL).map(F)));
     }
     if (region('marionette', side)) {
       const corner = F(side === 'R' ? ANCHOR.rMouth : ANCHOR.lMouth);
-      ops.push(vector('marionette', side, { x: corner.x + s * 0.03, y: corner.y + 0.04 }, 0.12, 0.14, { x: 0, y: -1 }, 0.03));
+      // Support below the corner, in the marionette groove, so the lip line keeps its own shape. The first version
+      // lifted the commissure itself and faded out within ~0.06 toward the lip centre: the corner curled into a
+      // sharp V with a dark crease (owner review 2026-11-16, measured in the M5b session). Now the corner moves
+      // ~0.004 units and the groove below it ~0.015.
+      ops.push(area(vector('marionette', side, { x: corner.x + s * 0.015, y: corner.y + 0.09 }, 0.16, 0.12, { x: 0, y: -1 }, 0.018)));
+      for (const [i, m] of MARIONETTE.entries())
+        ops.push(only(vector('marionette', side, { x: corner.x + s * m.out, y: corner.y + m.down }, m.rx, m.ry, { x: 0, y: -1 }, m.lift), MARIONETTE_CODES[i]!));
     }
     // Jaw operators sit on the face outline itself. The jowl and masseter regions are placed geometrically and
     // land near the mouth corners on close-up photos (M1 open point), so operators built from them pushed the
@@ -228,99 +267,281 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
     if (contour && region('jawline', side)) {
       // Jowl: the soft tissue just inside the jaw line is lifted; the outline itself hardly moves, so no notch.
       const j = contour(mouth.y + (chin.y - mouth.y) * 0.55);
-      ops.push(vector('jawline', side, { x: j.x - s * 0.12, y: j.y }, 0.14, 0.18, { x: 0, y: -1 }, 0.025));
+      ops.push(both(vector('jawline', side, { x: j.x - s * 0.12, y: j.y }, 0.14, 0.18, { x: 0, y: -1 }, 0.025), 'Jw4'));
       // Jaw angle a little fuller outward, so the line from the angle to the chin reads defined.
       const a = contour(mouth.y);
-      ops.push(vector('jawline', side, { x: a.x - s * 0.03, y: a.y }, 0.12, 0.2, { x: s, y: 0.4 }, male ? 0.025 : 0.015));
+      ops.push(both(vector('jawline', side, { x: a.x - s * 0.03, y: a.y }, 0.12, 0.2, { x: s, y: 0.4 }, male ? 0.025 : 0.015), 'Jw1'));
+      ops.push(...jawCodes(side, contour, mouth.y, chin.y));
     }
     if (contour && region('masseter', side)) {
       // Masseter: the outline at the level of the muscle moves in over a tall ellipse, so the side of the face
-      // narrows evenly instead of getting a dent.
+      // narrows evenly instead of getting a dent. Toxin, no MD Codes family: the same in both modes.
       const m = contour(mouth.y - 0.08);
       ops.push(vector('masseter', side, { x: m.x - s * 0.06, y: m.y }, 0.14, 0.3, { x: -s, y: 0 }, 0.025));
     }
     const temple = region('temple', side);
     if (temple) {
       const { c, hx, hy } = extent(temple.outline);
-      ops.push(inflate('temple', side, c, hx * 1.3, hy * 1.3, 0.03, { x: 1, y: 0.5 }));
+      ops.push(area(inflate('temple', side, c, hx * 1.3, hy * 1.3, 0.03, { x: 1, y: 0.5 })));
+      // T1 anterior (low, next to the brow tail and the orbital rim) and T2 posterior (high, toward the hairline
+      // and the face edge): in a frontal photo the temple is a tall, narrow strip, so the two parts follow its
+      // length. Together about mode A; each at least TEMPLE.minR across, so it fills softly.
+      const r = Math.max(TEMPLE.minR, hx * TEMPLE.r);
+      ops.push(only(inflate('temple', side, { x: c.x - s * hx * TEMPLE.apartX, y: c.y + hy * TEMPLE.apartY }, r, hy * TEMPLE.ry, TEMPLE.shift, { x: 1, y: 0.5 }), 'T1'));
+      ops.push(only(inflate('temple', side, { x: c.x + s * hx * TEMPLE.apartX, y: c.y - hy * TEMPLE.apartY }, r, hy * TEMPLE.ry, TEMPLE.shift, { x: 1, y: 0.5 }), 'T2'));
     }
     const brow = region('brow', side);
     if (brow && brow.shape.type === 'polygon') {
-      // The brow polygon starts at the tail of its upper edge.
+      // The brow polygon starts at the tail of its upper edge and reaches the head at the end of that edge.
       const { hx, hy } = extent(brow.outline);
-      const tail = brow.shape.pts[0]!;
-      ops.push(vector('brow', side, { x: tail.x - s * hx * 0.25, y: tail.y + hy * 0.3 }, hx * 0.9, Math.max(0.12, hy * 2.2), { x: 0, y: -1 }, 0.035));
+      const upper = brow.shape.pts.slice(0, BROW_UPPER_POINTS);
+      const tail = upper[0]!;
+      const mid = upper[Math.floor(upper.length / 2)]!;
+      const head = upper[upper.length - 1]!;
+      ops.push(both(vector('brow', side, { x: tail.x - s * hx * 0.25, y: tail.y + hy * 0.3 }, hx * 0.9, Math.max(0.12, hy * 2.2), { x: 0, y: -1 }, 0.035), 'E1'));
+      // E2 lifts the middle of the brow; E3 the head (owner 2026-11-16: the doctor switches it off when not wanted).
+      ops.push(only(vector('brow', side, { x: mid.x, y: mid.y + hy * 0.3 }, hx * 0.6, Math.max(0.12, hy * 2.2), { x: 0, y: -1 }, 0.025), 'E2'));
+      ops.push(only(vector('brow', side, { x: head.x + s * hx * 0.15, y: head.y + hy * 0.3 }, hx * 0.45, Math.max(0.1, hy * 2), { x: 0, y: -1 }, 0.02), 'E3'));
     }
   }
-  const tagged = ops.map((op) => (op.site || op.use ? op : SITE_OF[op.concernId] ? { ...op, site: SITE_OF[op.concernId] } : op));
-  return [...tagged, ...bridges(tagged)];
+  return [...ops, ...bridges(ops)];
 }
 
-/** MD Codes site of each concern's operators (docs/TASKS.md M5b). The cheek is split into Ck1–Ck3 below. */
-const SITE_OF: Partial<Record<ConcernId, MdSite>> = {
-  temple: 'T',
-  brow: 'E',
-  'nasolabial-fold': 'NL',
-  'lip-volume': 'Lp',
-  marionette: 'M',
-  chin: 'C',
-  jawline: 'Jw',
-};
+/** Points on the upper edge of the brow polygon (regions.ts: upper edge tail → head, then the lower edge back). */
+const BROW_UPPER_POINTS = 5;
+
+/** Temple codes (engine values): centre offsets and radii × the region's half-sizes; least radius (face units). */
+const TEMPLE = { apartX: 0.3, apartY: 0.4, r: 1.1, minR: 0.07, ry: 0.8, shift: 0.02 } as const;
 
 /**
- * Cheek of mode B, three sites (engine and aesthetic-design values, not clinical ones; placed by eye on the test
+ * Marionette codes M1–M3 down the line below the mouth corner (face units): offset out and down, radii, lift. All
+ * stay below the commissure with a wide horizontal radius and a small lift; one centred on the corner with a short
+ * radius curls the corner up (owner review 2026-11-16). M1's ellipse just reaches the corner, so it hardly moves.
+ */
+const MARIONETTE_CODES = ['M1', 'M2', 'M3'] as const;
+const MARIONETTE = [
+  { out: 0.015, down: 0.07, rx: 0.1, ry: 0.07, lift: 0.012 },
+  { out: 0.03, down: 0.12, rx: 0.1, ry: 0.07, lift: 0.014 },
+  { out: 0.045, down: 0.17, rx: 0.09, ry: 0.07, lift: 0.012 },
+] as const;
+
+/** Length-weighted point at share `t` of a polyline. */
+function along(path: readonly Pt[], t: number): Pt {
+  const lengths = path.slice(1).map((p, i) => Math.hypot(p.x - path[i]!.x, p.y - path[i]!.y));
+  let left = t * lengths.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < lengths.length; i++) {
+    if (left <= lengths[i]! || i === lengths.length - 1) return lerp(path[i]!, path[i + 1]!, Math.min(1, left / Math.max(1e-9, lengths[i]!)));
+    left -= lengths[i]!;
+  }
+  return path[path.length - 1]!;
+}
+
+/**
+ * NL1–NL3: the nasolabial lift split into the upper, central and lower third of the fold (the approved fold
+ * landmarks, from beside the nose wing to past the mouth corner). Each lifts the tissue beside its third up and
+ * out, a little outside the groove, like the mode-A operator.
+ */
+function foldCodes(side: 'R' | 'L', path: readonly Pt[]): Operator[] {
+  const s = side === 'R' ? -1 : 1;
+  const length = path.slice(1).reduce((t, p, i) => t + Math.hypot(p.x - path[i]!.x, p.y - path[i]!.y), 0);
+  const ry = Math.max(0.08, (length / 3) * 0.9);
+  return (['NL1', 'NL2', 'NL3'] as const).map((site, i) => {
+    const p = along(path, (2 * i + 1) / 6);
+    return { ...vector('nasolabial-fold', side, { x: p.x + s * 0.04, y: p.y }, 0.1, ry, { x: s * 0.35, y: -1 }, 0.025), site, use: 'sites' as const };
+  });
+}
+
+/**
+ * Chin codes besides C2 (engine and aesthetic-design values, placed by eye on the test photos, 2026-11-16).
+ * `c`, `hx`, `hy`: centre and half-sizes of the chin region. A man's C3 is wider, so the chin stays square.
+ *   C1 labiomental angle: fills the crease under the lower lip, mostly vertically.
+ *   C3 anterior chin: one fill on each side of the midline, mostly sideways (with C2 about mode A's chin).
+ *   C4 soft tissue pogonion: a central fullness.
+ *   C5 lateral lower chin: the lower border on each side moves down and a little out (squarer outline).
+ *   C6 lateral chin: fills the side of the chin, mostly sideways.
+ */
+function chinCodes(c: Pt, hx: number, hy: number, male: boolean): Operator[] {
+  const tag = (op: Operator, site: MdCode): Operator => ({ ...op, site, use: 'sites' });
+  const out: Operator[] = [
+    tag(inflate('chin', 'M', { x: c.x, y: c.y - hy * 0.85 }, hx * 0.8, hy * 0.4, 0.008, { x: 0.3, y: 1 }), 'C1'),
+    tag(inflate('chin', 'M', { x: c.x, y: c.y + hy * 0.2 }, hx * 0.7, hy * 0.7, 0.012), 'C4'),
+  ];
+  for (const side of ['R', 'L'] as const) {
+    const s = side === 'R' ? -1 : 1;
+    out.push(tag(inflate('chin', side, { x: c.x + s * hx * 0.45, y: c.y }, hx * (male ? 1 : 0.8), hy * 1.1, male ? 0.02 : 0.012, { x: 1, y: 0.25 }), 'C3'));
+    out.push(tag(vector('chin', side, { x: c.x + s * hx * 0.6, y: c.y + hy * 0.7 }, hx * 0.5, hy * 0.6, { x: s * 0.3, y: 1 }, 0.015), 'C5'));
+    out.push(tag(inflate('chin', side, { x: c.x + s * hx * 0.85, y: c.y }, hx * 0.5, hy * 0.8, 0.012, { x: 1, y: 0.3 }), 'C6'));
+  }
+  return out;
+}
+
+/**
+ * Jaw codes besides Jw1 (angle) and Jw4 (prejowl, the jowl lift), all on the face outline (engine values):
+ *   Jw2 pre-auricular area: above the angle, a little fuller outward.
+ *   Jw3 mandible body: between the angle and the jowl, the border down and out (a sharper line).
+ *   Jw5 lower anterior chin: the border beside the chin, down.
+ */
+function jawCodes(side: 'R' | 'L', contour: (y: number) => Pt, mouthY: number, chinY: number): Operator[] {
+  const s = side === 'R' ? -1 : 1;
+  const at = (y: number) => {
+    const p = contour(y);
+    return { x: p.x - s * 0.03, y: p.y };
+  };
+  const tag = (op: Operator, site: MdCode): Operator => ({ ...op, site, use: 'sites' });
+  return [
+    tag(vector('jawline', side, at(mouthY - 0.22), 0.08, 0.14, { x: s, y: 0 }, 0.012), 'Jw2'),
+    tag(vector('jawline', side, at(mouthY + (chinY - mouthY) * 0.3), 0.1, 0.1, { x: s * 0.5, y: 1 }, 0.012), 'Jw3'),
+    tag(vector('jawline', side, at(mouthY + (chinY - mouthY) * 0.85), 0.08, 0.08, { x: 0, y: 1 }, 0.012), 'Jw5'),
+  ];
+}
+
+/**
+ * Nose codes (mode B only, all start off; engine values). In a frontal photo a filler of the nose shows mostly as
+ * a slightly lifted base and a straighter, narrower-looking dorsum, so:
+ *   N1 anterior nasal spine and N2 columella: the base of the nose lifts a little.
+ *   N3 frontonasal angle: a small fill at the nasal root.
+ *   N4 bony and N5 cartilaginous dorsum: the dorsum narrows a little (a sideways pinch, never a fold: |a| ≤ 0.5).
+ */
+function noseCodes(F: (i: number) => Pt): Operator[] {
+  const tip = F(ANCHOR.noseTip);
+  const base = F(ANCHOR.subnasale);
+  const root = F(ANCHOR.nasion);
+  const tag = (op: Operator, site: MdCode): Operator => ({ ...op, site, use: 'sites' });
+  const length = Math.max(0.1, base.y - root.y);
+  return [
+    tag(vector('skin-quality', 'M', base, 0.08, 0.06, { x: 0, y: -1 }, 0.01), 'N1'),
+    tag(vector('skin-quality', 'M', lerp(tip, base, 0.5), 0.05, 0.06, { x: 0, y: -1 }, 0.01), 'N2'),
+    tag(inflate('skin-quality', 'M', root, 0.07, 0.07, 0.005), 'N3'),
+    tag(inflate('skin-quality', 'M', lerp(root, tip, 0.33), 0.1, length * 0.3, -0.008, { x: 1, y: 0 }), 'N4'),
+    tag(inflate('skin-quality', 'M', lerp(root, tip, 0.7), 0.1, length * 0.3, -0.008, { x: 1, y: 0 }), 'N5'),
+  ];
+}
+
+/**
+ * Shares of the local lip thickness for the lip codes at full strength (engine values). Every lip operator of
+ * one lip adds its shift ÷ band to the same columns; Lp1 takes up to 0.365 of that (0.38 × the 1.25 balance ÷
+ * 1.3), so the codes get the rest of a total that keeps the picture from folding with every lip code at the cap
+ * (det > 0.3 in warp.test.ts). They are fine touches on top of Lp1, not a second fill.
+ */
+const LIP_CODES = { bow: 0.08, border: 0.05, borderBand: 0.9, tubercle: 0.08 } as const;
+
+/**
+ * Lip codes besides Lp1 (the whole vermilion border, shared with mode A). All follow the lip's own contour and
+ * thickness (owner rule F4.12); the local ones fade in and out along the lip with a cos² profile, so there is no
+ * step (engine values, checked by eye):
+ *   Lp2 Cupid's bow: the upper border rises at the two peaks only, so the bow reads sharper.
+ *   Lp3 lip border: a thin band at the border of both lips moves outward a little (a defined edge).
+ *   Lp4 medial tubercle: the middle of the upper lip a little fuller.
+ *   Lp5 lateral tubercles: the lower lip a little fuller on each side of the middle.
+ *   Lp6 oral commissure: the corner is supported from just below it (it never curls up).
+ *   Lp7 philtrum column: each column a little fuller (narrow, mostly sideways).
+ * Lp8 (perioral lines) smooths its zone instead.
+ */
+function lipCodes(lips: ReturnType<typeof lipShape>, F: (i: number) => Pt): Operator[] {
+  const xs = lips.upper.map((c) => c.x);
+  const mid = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const w = lips.width;
+  const bump = (centre: number, half: number) => (x: number) => (Math.abs(x - centre) < half ? Math.cos(((x - centre) / half) * (Math.PI / 2)) ** 2 : 0);
+  // The two peaks of Cupid's bow: the highest points of the upper border on each side of the middle.
+  const peak = (side: -1 | 1) => {
+    const own = lips.upper.filter((c) => side * (c.x - mid) > w * 0.04);
+    const pool = own.length ? own : lips.upper;
+    return pool.reduce((best, c) => (c.border < best.border ? c : best));
+  };
+  const pR = peak(-1);
+  const pL = peak(1);
+  const bowHalf = Math.max(0.02, ((Math.abs(pR.x - mid) + Math.abs(pL.x - mid)) / 2) * 0.9);
+  const bow = (x: number) => bump(pR.x, bowHalf)(x) + bump(pL.x, bowHalf)(x);
+  const tag = (op: Operator, site: MdCode): Operator => ({ ...op, site, use: 'sites' });
+  const sub = F(ANCHOR.subnasale);
+  const out: Operator[] = [
+    tag(lipOperator('lip-volume', lips.upper, -1, LIP_CODES.bow, { profile: bow }), 'Lp2'),
+    tag(lipOperator('lip-volume', lips.upper, -1, LIP_CODES.border, { band: LIP_CODES.borderBand }), 'Lp3'),
+    tag(lipOperator('lip-volume', lips.lower, 1, LIP_CODES.border, { band: LIP_CODES.borderBand }), 'Lp3'),
+    tag(lipOperator('lip-volume', lips.upper, -1, LIP_CODES.tubercle, { profile: bump(mid, w * 0.2) }), 'Lp4'),
+  ];
+  for (const side of ['R', 'L'] as const) {
+    const s = side === 'R' ? -1 : 1;
+    const corner = F(side === 'R' ? ANCHOR.rMouth : ANCHOR.lMouth);
+    const p = side === 'R' ? pR : pL;
+    out.push(tag({ ...lipOperator('lip-volume', lips.lower, 1, LIP_CODES.tubercle, { profile: bump(mid + s * w * 0.22, w * 0.16) }), side }, 'Lp5'));
+    // Lp6: the corner is supported from below, never lifted at the commissure itself (that curls it, owner 2026-11-16).
+    out.push(tag(vector('lip-volume', side, { x: corner.x, y: corner.y + 0.05 }, 0.1, 0.06, { x: 0, y: -1 }, 0.008), 'Lp6'));
+    const half = Math.max(0.02, (p.border - sub.y) / 2);
+    out.push(tag(inflate('lip-volume', side, { x: p.x, y: (p.border + sub.y) / 2 }, 0.04, half * 1.1, 0.003, { x: 1, y: 0.2 }), 'Lp7'));
+  }
+  return out;
+}
+
+/**
+ * Cheek of mode B, five codes (engine and aesthetic-design values, not clinical ones; placed by eye on the test
  * photos, 2026-11-16). `c` is the centre of the cheek region.
  *   Ck1 zygomatic arch: lateral, near the face outline, projects mostly sideways (wider upper face).
  *   Ck2 zygomatic eminence: the cheek apex, a little up and out from the centre; fills and lifts up and out.
  *   Ck3 anteromedial cheek: medial, below the under-eye strip; fills and supports upward.
- * Each one is smaller than the mode-A cheek, so all three at the same strength come close to mode A.
+ *   Ck4 lateral lower cheek: near the outline, halfway from the cheek down to the mouth; mostly sideways.
+ *   Ck5 submalar area: halfway down to the mouth, a little medial of the cheek centre (clear of Ck4 on a full
+ *     face); fills the hollow.
+ * Ck1–Ck3 at the same strength come close to the mode-A cheek; Ck4 and Ck5 start off.
  */
 const CHEEK_SITES = {
   ck1: { up: 0.09, inFromEdge: 0.07, rx: 0.12, ry: 0.1, shift: 0.018, gainY: 0.4 },
   ck2: { out: 0.03, up: 0.04, rx: 0.16, ry: 0.14, shift: 0.02, liftR: 0.2, lift: 0.018 },
-  ck3: { in: 0.13, up: 0.01, rx: 0.12, ry: 0.12, shift: 0.018, liftR: 0.15, lift: 0.012 },
+  ck3: { in: 0.13, up: 0.01, rx: 0.12, ry: 0.12, shift: 0.016, liftR: 0.15, lift: 0.012 },
+  ck4: { down: 0.55, inFromEdge: 0.08, rx: 0.11, ry: 0.13, shift: 0.012, gainY: 0.4 },
+  ck5: { down: 0.5, out: -0.04, rx: 0.12, ry: 0.11, shift: 0.016 },
 } as const;
 
-function cheekSites(side: 'R' | 'L', c: Pt, contour: ((y: number) => Pt) | null): Operator[] {
+function cheekSites(side: 'R' | 'L', c: Pt, contour: ((y: number) => Pt) | null, mouthY: number): Operator[] {
   const s = side === 'R' ? -1 : 1;
-  const k1 = CHEEK_SITES.ck1;
-  const k2 = CHEEK_SITES.ck2;
-  const k3 = CHEEK_SITES.ck3;
-  const tag = (op: Operator, site: MdSite): Operator => ({ ...op, site, use: 'sites' });
-  const edge = contour ? contour(c.y - k1.up).x : c.x + s * 0.25;
-  const c1 = { x: edge - s * k1.inFromEdge, y: c.y - k1.up };
+  const { ck1: k1, ck2: k2, ck3: k3, ck4: k4, ck5: k5 } = CHEEK_SITES;
+  const tag = (op: Operator, site: MdCode): Operator => ({ ...op, site, use: 'sites' });
+  const edge = (y: number) => (contour ? contour(y).x : c.x + s * 0.25);
+  const c1 = { x: edge(c.y - k1.up) - s * k1.inFromEdge, y: c.y - k1.up };
   const c2 = { x: c.x + s * k2.out, y: c.y - k2.up };
   const c3 = { x: c.x - s * k3.in, y: c.y - k3.up };
+  const y4 = c.y + (mouthY - c.y) * k4.down;
+  const c4 = { x: edge(y4) - s * k4.inFromEdge, y: y4 };
+  const c5 = { x: c.x + s * k5.out, y: c.y + (mouthY - c.y) * k5.down };
   return [
     tag(inflate('midface-volume', side, c1, k1.rx, k1.ry, k1.shift, { x: 1, y: k1.gainY }), 'Ck1'),
     tag(inflate('midface-volume', side, c2, k2.rx, k2.ry, k2.shift), 'Ck2'),
     tag(vector('midface-volume', side, c2, k2.liftR, k2.liftR * 0.9, { x: s * 0.3, y: -1 }, k2.lift), 'Ck2'),
     tag(inflate('midface-volume', side, c3, k3.rx, k3.ry, k3.shift), 'Ck3'),
     tag(vector('midface-volume', side, c3, k3.liftR, k3.liftR, { x: 0, y: -1 }, k3.lift), 'Ck3'),
+    tag(inflate('midface-volume', side, c4, k4.rx, k4.ry, k4.shift, { x: 1, y: k4.gainY }), 'Ck4'),
+    tag(inflate('midface-volume', side, c5, k5.rx, k5.ry, k5.shift), 'Ck5'),
   ];
 }
 
 /**
- * Neighbouring sites that blend into one fill when both get volume (owner rule 2026-11-16, PRD F4.12). Each
- * inflate pushes its rim outward, so two filled sites squeeze the skin between them and the result reads as two
+ * Neighbouring codes that blend into one fill when both get volume (owner rule 2026-11-16, PRD F4.12). Each
+ * inflate pushes its rim outward, so two filled codes squeeze the skin between them and the result reads as two
  * bumps with a groove. A bridge is an inflate over the gap; it runs at the weaker of the two strengths, so it
  * is off as soon as one of them is 0.
  */
-export const BRIDGES: readonly (readonly [MdSite, MdSite])[] = [
-  ['T', 'Ck1'],
+export const BRIDGES: readonly (readonly [MdCode, MdCode])[] = [
+  ['T1', 'T2'],
+  ['T1', 'Ck1'],
   ['Ck1', 'Ck2'],
   ['Ck2', 'Ck3'],
-  ['Ck3', 'NL'],
-  ['M', 'C'],
-  ['C', 'Jw'],
+  ['Ck3', 'NL1'],
+  ['Ck1', 'Ck4'],
+  ['Ck2', 'Ck5'],
+  ['Ck4', 'Ck5'],
+  ['M3', 'C3'],
+  ['C4', 'C3'],
+  ['C3', 'C6'],
+  ['C3', 'Jw4'],
 ];
 /**
  * Bridge settings (engine values): margin around the segment between the two centres (× the smaller site
  * radius), the largest shift and the number of steps tried up to it. Each bridge gets the smallest shift that
- * leaves the skin between the two sites unsqueezed (det ≤ 1 on the inner part of the segment, `inner`), measured
- * on this face; sites that already overlap into one fill get none.
+ * leaves the skin between the two sites unsqueezed (det ≤ `target` on the inner part of the segment, `inner`; a
+ * little below 1 so the pixel grid cannot tip it over), measured on this face; sites that already overlap into one
+ * fill get none.
  */
-const BRIDGE = { margin: 0.8, maxShift: 0.022, steps: 11, inner: 0.15 } as const;
+const BRIDGE = { margin: 0.8, maxShift: 0.03, steps: 15, inner: 0.15, target: 0.99 } as const;
 
 /** Displacement p − src of one operator at full strength, face units (lip operators excluded: no bridge uses them). */
 export function displacement(op: Operator, q: Pt): Pt {
@@ -355,7 +576,7 @@ function squeezeBetween(ops: readonly Operator[], a: Pt, b: Pt): number {
 }
 
 function bridges(ops: readonly Operator[]): Operator[] {
-  const ofSite = (site: MdSite, side: 'R' | 'L') => ops.filter((o) => o.site === site && o.use !== 'area' && (o.side === side || o.side === 'M'));
+  const ofSite = (site: MdCode, side: 'R' | 'L') => ops.filter((o) => o.site === site && o.use !== 'area' && (o.side === side || o.side === 'M'));
   // Centre of a site on one side: its first inflate, or its first operator (midline sites serve both sides).
   const centre = (own: readonly Operator[]) => own.find((o) => o.kind === 'inflate') ?? own.find((o) => o.kind !== 'lip') ?? null;
   const out: Operator[] = [];
@@ -372,7 +593,7 @@ function bridges(ops: readonly Operator[]): Operator[] {
       let op = make(BRIDGE.maxShift);
       for (let i = 1; i <= BRIDGE.steps; i++) {
         const candidate = make((BRIDGE.maxShift * i) / BRIDGE.steps);
-        if (squeezeBetween([...both, candidate], a.c, b.c) <= 1) {
+        if (squeezeBetween([...both, candidate], a.c, b.c) <= BRIDGE.target) {
           op = candidate;
           break;
         }
@@ -476,7 +697,7 @@ function lipShift(op: Operator, qx: number, qy: number): number {
   const border = a.border + (b.border - a.border) * f;
   const thick = Math.abs(a.border - a.mouth) + (Math.abs(b.border - b.mouth) - Math.abs(a.border - a.mouth)) * f;
   const d = a.d + (b.d - a.d) * f;
-  const h = Math.max(LIP.minBand, LIP.band * thick);
+  const h = Math.max(LIP.minBand, (op.band ?? LIP.band) * thick);
   const r = (qy - border) / h;
   if (r * r >= 1) return 0;
   return op.outward! * d * (1 - r * r) * (1 - r * r);

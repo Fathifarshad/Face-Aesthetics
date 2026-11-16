@@ -17,11 +17,25 @@ import {
   setRealAge,
   setSimMode,
   setSiteOverride,
+  setCodeOn,
   setOption,
   DEFAULT_TARGET,
 } from '../../db/simRepo';
 import type { SimMode, SimSetting } from '../../db/types';
-import { MD_SITE_INFO, MD_SITES, type MdSite } from '../../data/mdCodes';
+import {
+  codesOf,
+  familyBilateral,
+  isMdCode,
+  isMdFamily,
+  MD_CODE_INFO,
+  MD_CODES,
+  MD_CODES_SOURCE,
+  MD_FAMILIES,
+  MD_FAMILY_INFO,
+  type MdCode,
+  type MdFamily,
+  type MdKey,
+} from '../../data/mdCodes';
 import { LIP_TYPE_SETTINGS, LIP_TYPES, lipTypeOf, type LipType } from '../../data/lipTypes';
 import { MAX_INTENSITY, type Change, type SiteChange } from '../../engine/pipeline';
 import type { WorkerRequest } from '../../engine/pipeline.worker';
@@ -32,7 +46,7 @@ import { CaseSteps } from './CaseSteps';
 import { defaultOrder } from '../../data/optionSort';
 import type { FxType, TreatmentOption } from '../../data/treatmentOptions';
 import { screen } from './optionScreening';
-import { capSettings, chosenOptions, concernsShown, effectiveSettings, engineInput, midfaceGradeOf, siteSettings, usable } from './simDefaults';
+import { capSettings, chosenOptions, codeSettings, concernsShown, effectiveSettings, engineInput, familySettings, midfaceGradeOf, usable } from './simDefaults';
 import { useCase } from './useCase';
 import { useEngine } from './useEngine';
 
@@ -51,9 +65,11 @@ const SAVE_DELAY = 300;
 /** The age coefficients behind every default are drafts until a senior physician sets them (PRD F3.3). */
 const AGE_NORMS_DRAFT = Object.values(AGE_NORMS).some((n) => n.status === 'draft');
 
-/** A slider of the page: a concern (both modes) or an MD Codes site (mode B). */
-type Key = ConcernId | MdSite;
-const isSite = (k: Key): k is MdSite => (MD_SITES as readonly string[]).includes(k);
+/** A slider of the page: a concern (both modes), or an MD Codes family or code (mode B). */
+type Key = ConcernId | MdKey;
+const isSite = (k: Key): k is MdKey => isMdFamily(k) || isMdCode(k);
+/** Lip codes whose fill scales with the lip type (the fullness codes, not the corner, philtrum or perioral lines). */
+const LIP_FILL: ReadonlySet<Key> = new Set<Key>(['lip-volume', 'Lp1', 'Lp2', 'Lp3', 'Lp4', 'Lp5']);
 type Frame = { changes: Change[]; sites: SiteChange[] };
 type P = { x: number; y: number };
 const pointsAttr = (pts: readonly P[]) => pts.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ');
@@ -89,7 +105,9 @@ export function SimulatePage() {
   const gesture = useRef<{ x: number; y: number; drag: boolean } | null>(null);
   const timers = useRef<Partial<Record<Key, number>>>({});
   const [overrides, setOverrides] = useState<Partial<Record<ConcernId, SimSetting>> | null>(null);
-  const [siteOverrides, setSiteOverrides] = useState<Partial<Record<MdSite, SimSetting>>>({});
+  const [siteOverrides, setSiteOverrides] = useState<Partial<Record<MdKey, SimSetting>>>({});
+  const [codeOn, setCodeOnState] = useState<Partial<Record<MdCode, boolean>>>({});
+  const [open, setOpen] = useState<ReadonlySet<MdFamily>>(new Set());
   const [selected, setSelected] = useState<Key | null>(null);
   const [split, setSplit] = useState(50);
   const [customOpen, setCustomOpen] = useState(false);
@@ -146,6 +164,7 @@ export function SimulatePage() {
     void getSimState(caseId).then((s) => {
       if (!live) return;
       setSiteOverrides(s.siteOverrides ?? {});
+      setCodeOnState(s.codeOn ?? {});
       setOverrides(s.overrides);
     });
     return () => {
@@ -189,11 +208,17 @@ export function SimulatePage() {
     [ready, grades, overrides, options, realAge, JSON.stringify(target)],
   );
 
-  // MD Codes sites that can be placed on this photo, top to bottom; mode B starts each from its concern (M5b).
-  const siteIds = useMemo(() => (ready ? MD_SITES.filter((site) => ready.zones.some((z) => z.site === site)) : []), [ready]);
+  // MD Codes codes that can be placed on this photo and their families, top to bottom; a family starts from its
+  // concern in mode A (M5b), a code from its family (M5c).
+  const codeIds = useMemo(() => (ready ? MD_CODES.filter((c) => ready.zones.some((z) => z.site === c)) : []), [ready]);
+  const familyIds = useMemo(() => MD_FAMILIES.filter((f) => codeIds.some((c) => MD_CODE_INFO[c].family === f)), [codeIds]);
+  const families = useMemo(
+    () => (settings ? familySettings(familyIds, settings, siteOverrides) : null),
+    [familyIds, settings, siteOverrides],
+  );
   const sites = useMemo(
-    () => (settings ? siteSettings(siteIds, settings, siteOverrides) : null),
-    [siteIds, settings, siteOverrides],
+    () => (families ? codeSettings(codeIds, families, siteOverrides, codeOn) : null),
+    [codeIds, families, siteOverrides, codeOn],
   );
 
   // Re-render on every change of the mode, a switch, a slider, a grade, the age target or the lip type.
@@ -201,7 +226,7 @@ export function SimulatePage() {
     if (!settings || !sites) return;
     if (after.current) after.current.dataset.ready = 'false';
     // The lip slider is scaled by the lip type: a thin lip changes more than a full one.
-    const k = (key: Key) => (key === 'lip-volume' || key === 'Lp' ? LIP_TYPE_SETTINGS.gain[lipType] : 1);
+    const k = (key: Key) => (LIP_FILL.has(key) ? LIP_TYPE_SETTINGS.gain[lipType] : 1);
     const fx = Object.fromEntries(Object.entries(options ?? {}).map(([id, o]) => [id, o.fx.type])) as Partial<Record<ConcernId, FxType>>;
     request(engineInput(mode, settings, sites, k, fx));
   }, [settings, sites, mode, request, lipType, options]);
@@ -211,13 +236,21 @@ export function SimulatePage() {
   if (!data) return null;
   const { patient } = data;
   const concernIds = settings ? concernsShown(mode, Object.keys(settings) as ConcernId[]) : [];
-  const shownSites = mode === 'mdcodes' ? siteIds : [];
-  const ids: Key[] = [...concernIds, ...shownSites];
-  const settingOf = (key: Key): SimSetting => (isSite(key) ? sites![key]! : settings![key]!);
+  const shownSites = mode === 'mdcodes' ? codeIds : [];
+  const shownFamilies = mode === 'mdcodes' ? familyIds : [];
+  /** The sliders «همه روشن / همه خاموش» acts on: the concerns and, in mode B, the families (codes follow them). */
+  const ids: Key[] = [...concernIds, ...shownFamilies];
+  const settingOf = (key: Key): SimSetting =>
+    isMdFamily(key) ? families![key]! : isMdCode(key) ? sites![key]! : settings![key as ConcernId]!;
   const anyOn = ids.some((id) => settingOf(id).on);
-  const nameOf = (key: Key) => (isSite(key) ? t.sim.siteName(key, t.sim.sites[key]) : t.concerns[key]);
-  /** A site zone is shaded while its slider gives that side some volume. */
-  const filled = (site: MdSite, side: 'R' | 'L' | 'M') => {
+  const nameOf = (key: Key) =>
+    isMdFamily(key)
+      ? t.sim.siteName(key, bi({ fa: MD_FAMILY_INFO[key].nameFa, en: MD_FAMILY_INFO[key].nameEn }))
+      : isMdCode(key)
+        ? t.sim.siteName(key, bi({ fa: MD_CODE_INFO[key].nameFa, en: MD_CODE_INFO[key].nameEn }))
+        : t.concerns[key];
+  /** A code zone is shaded while its slider gives that side something. */
+  const filled = (site: MdCode, side: 'R' | 'L' | 'M') => {
     const s = sites?.[site];
     return !!s && s.on && (side === 'L' && !s.mirror ? s.left : s.value) > 0;
   };
@@ -249,8 +282,35 @@ export function SimulatePage() {
     on && !s.on && s.value === 0 && s.left === 0
       ? { ...s, on, value: MANUAL_START, left: MANUAL_START, mirror: true }
       : { ...s, on };
-  const toggle = (id: Key) => write({ [id]: switched(settingOf(id), !settingOf(id).on) });
-  const setAll = (on: boolean) => write(Object.fromEntries(ids.map((id) => [id, switched(settingOf(id), on)])));
+  /** Codes switched on or off by the doctor: kept here at once and written straight away. */
+  const writeCodeOn = (patch: Partial<Record<MdCode, boolean>>) => {
+    setCodeOnState((old) => ({ ...old, ...patch }));
+    void setCodeOn(caseId, patch);
+  };
+  /** A family switched on with none of its codes on switches all of them on, so it always shows something. */
+  const familyCodesOn = (family: MdFamily) => {
+    const own = codesOf(family);
+    if (!own.some((c) => codeOn[c] ?? MD_CODE_INFO[c].starts)) writeCodeOn(Object.fromEntries(own.map((c) => [c, true])));
+  };
+  const toggle = (id: Key) => {
+    const s = settingOf(id);
+    if (isMdCode(id)) {
+      // A code is on when its family is on too: switching a code on switches its family on as well.
+      if (s.on) return writeCodeOn({ [id]: false });
+      writeCodeOn({ [id]: true });
+      const family = MD_CODE_INFO[id].family;
+      const f = settingOf(family);
+      if (!f.on) write({ [family]: switched(f, true) });
+      else if (s.value === 0 && s.left === 0) write({ [id]: { ...s, value: MANUAL_START, left: MANUAL_START, mirror: true } });
+      return;
+    }
+    if (isMdFamily(id) && !s.on) familyCodesOn(id);
+    write({ [id]: switched(s, !s.on) });
+  };
+  const setAll = (on: boolean) => {
+    if (on) for (const f of shownFamilies) familyCodesOn(f);
+    write(Object.fromEntries(ids.map((id) => [id, switched(settingOf(id), on)])));
+  };
   const setSide = (id: Key, side: 'R' | 'L', v: number) =>
     update(id, side === 'R' ? { value: v, last: 'R' } : { left: v, last: 'L' });
   /** The side moved last is the one the doctor means; mirroring and matching copy it to the other side. */
@@ -269,6 +329,7 @@ export function SimulatePage() {
     timers.current = {};
     setOverrides({});
     setSiteOverrides({});
+    setCodeOnState({});
     void resetOverrides(caseId);
     setMessage(t.sim.resetDone);
   };
@@ -320,7 +381,7 @@ export function SimulatePage() {
     await audit(caseId, 'simulation.create', undefined, {
       targetAge,
       mode,
-      changes: ids.filter((id) => settingOf(id).on),
+      changes: [...concernIds, ...shownSites].filter((id) => settingOf(id).on),
     });
     setMessage(t.sim.saved);
   };
@@ -354,8 +415,13 @@ export function SimulatePage() {
     ];
     const hit = candidates.filter((o) => pointInPolygon(p, o.points)).sort((a, b) => area(a.points) - area(b.points))[0];
     if (!hit) return;
+    if (isMdCode(hit.key)) {
+      const family = MD_CODE_INFO[hit.key].family;
+      setOpen((old) => new Set([...old, family]));
+    }
     setSelected(hit.key);
-    document.getElementById(`change-${hit.key}`)?.scrollIntoView({ block: 'nearest' });
+    // A code's row exists only once its family is open: scroll after that render.
+    window.requestAnimationFrame(() => document.getElementById(`change-${hit.key}`)?.scrollIntoView({ block: 'nearest' }));
   };
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -421,11 +487,15 @@ export function SimulatePage() {
     );
   };
 
-  /** One slider row: a concern, or an MD Codes site in mode B. */
+  /** One slider row: a concern, or an MD Codes family or code in mode B. */
   const row = (id: Key) => {
       const s = settingOf(id);
       const name = nameOf(id);
-      const sides = isSite(id) ? MD_SITE_INFO[id].bilateral : ready!.bilateral.includes(id);
+      const sides = isMdFamily(id) ? familyBilateral(id) : isMdCode(id) ? MD_CODE_INFO[id].bilateral : ready!.bilateral.includes(id);
+      const code = isMdCode(id);
+      const family = isMdFamily(id) ? id : null;
+      const familyCodes = family ? shownSites.filter((c) => MD_CODE_INFO[c].family === family) : [];
+      const expanded = !!family && open.has(family);
       const apart = sides && !s.mirror;
       const graded = gradeText(id);
       const manual = isSite(id) ? !!siteOverrides[id] : !!overrides?.[id];
@@ -453,7 +523,7 @@ export function SimulatePage() {
           onFocusCapture={() => setSelected(id)}
           onPointerDown={() => setSelected(id)}
           aria-current={selected === id ? 'true' : undefined}
-          className={`rounded-md border px-3 py-2 ${selected === id ? 'border-primary' : s.on ? 'border-border' : 'border-border/50'} ${s.on ? 'bg-surface' : ''}`}
+          className={`rounded-md border px-3 py-2 ${code ? 'ms-4' : ''} ${selected === id ? 'border-primary' : s.on ? 'border-border' : 'border-border/50'} ${s.on ? 'bg-surface' : ''}`}
         >
           <div className="flex items-center gap-3">
             <button
@@ -491,6 +561,24 @@ export function SimulatePage() {
             </>
           ) : (
             slider(s.value, t.sim.intensity(name), (v) => update(id, { value: v, left: v }))
+          )}
+          {family && familyCodes.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={`codes-${family}`}
+              onClick={() =>
+                setOpen((old) => {
+                  const next = new Set(old);
+                  if (!next.delete(family)) next.add(family);
+                  return next;
+                })
+              }
+              className="mt-1 flex min-h-touch w-full items-center justify-between rounded-md border border-border px-2.5 text-caption text-ink-2"
+            >
+              <span>{t.sim.codesOf(family, num(familyCodes.length), num(familyCodes.filter((c) => settingOf(c).on).length))}</span>
+              <span aria-hidden>{expanded ? '−' : '+'}</span>
+            </button>
           )}
           {(id === 'lip-volume' || id === 'Lp') && (
             <div className="mt-2" role="radiogroup" aria-label={t.sim.lipType} data-lip-fullness={ready?.lipFullness.toFixed(3)}>
@@ -735,11 +823,11 @@ export function SimulatePage() {
                     data-selected={selected}
                   >
                     {(isSite(selected)
-                      ? ready.zones.filter((z) => z.site === selected)
+                      ? ready.zones.filter((z) => z.site === selected || MD_CODE_INFO[z.site].family === selected)
                       : ready.outlines.filter((o) => o.concernId === selected)
                     ).map((o) => (
                       <polygon
-                        key={o.side}
+                        key={`${'site' in o ? o.site : o.concernId}:${o.side}`}
                         points={pointsAttr(o.points)}
                         className="fill-primary/10 stroke-primary"
                         strokeWidth={Math.max(1.5, rect.width / 260)}
@@ -813,8 +901,17 @@ export function SimulatePage() {
                 <h3 className="mb-1 mt-3 text-control font-semibold text-ink-2" dir="auto">
                   {t.sim.mdGroup}
                 </h3>
-                <p className="mb-2 text-caption text-muted">{t.sim.mdNote}</p>
-                <ul className="flex flex-col gap-1.5">{shownSites.map(row)}</ul>
+                <p className="mb-1 text-caption text-muted">{t.sim.mdNote}</p>
+                <p className="mb-2 flex flex-wrap items-center gap-1.5 text-caption text-muted">
+                  <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.grading.unverified}</span>
+                  <span dir="ltr">{t.sim.mdSource(MD_CODES_SOURCE)}</span>
+                </p>
+                <ul className="flex flex-col gap-1.5">
+                  {shownFamilies.flatMap((f) => [
+                    row(f),
+                    ...(open.has(f) ? shownSites.filter((c) => MD_CODE_INFO[c].family === f).map(row) : []),
+                  ])}
+                </ul>
               </>
             )}
             <Button variant="primary" className="mt-3 w-full" onClick={() => void save()} disabled={signed}>

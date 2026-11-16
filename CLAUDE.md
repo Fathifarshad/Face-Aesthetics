@@ -5,7 +5,7 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode) and M6 (knowledge base, sorting, option → image) built and waiting for the owner's look; M7 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes) and M6 (knowledge base, sorting, option → image) built and waiting for the owner's look; M7 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
@@ -81,6 +81,9 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - Treatment options (PRD §6) live in `src/data/treatmentOptions.ts`; ordering in `src/data/optionSort.ts`. The chosen option per
   concern is `simStates.options`; it caps the slider (`capSettings`) and sets the effect (`engineInput` `fx`). Intake checks
   for options go through `src/features/doctor/optionScreening.ts` (rules stay in `src/plan/engine.ts`)
+- MD Codes (mode B): codes and families in `src/data/mdCodes.ts` (names only, no depth/tool/volume); reshaping codes are
+  `site`-tagged operators in `warp.ts`, smoothing codes (F, G, O, Tt, Lp8) are parts of a concern region in `src/engine/mdZones.ts`.
+  An operator with `site` and no `use` serves both modes; `use: 'area'` / `'sites'` only one
 - The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored
 

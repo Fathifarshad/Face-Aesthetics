@@ -7,9 +7,10 @@ import { detectHairline } from './hairline';
 import { ANCHOR } from './landmarks';
 import { buildMask, limitMask, stampMax, type Mask } from './masks';
 import { buildRegions, type Side } from './regions';
-import { centroid, crossingsAtY, ellipseOutline } from './shapes';
+import { centroid, ellipseOutline, scaleAboutCentroid } from './shapes';
 import type { FaceFrame, Pt } from './types';
-import { MD_SITE_INFO, MD_SITES, type MdSite } from '../data/mdCodes';
+import { MD_CODE_INFO, MD_CODES, type MdCode } from '../data/mdCodes';
+import { axisOf, clipToBand, CODE_SMOOTHING, partWeight } from './mdZones';
 import { addOperator, applyField, buildOperators, lipFullness, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator, type Sex } from './warp';
 
 /** PRD F3.2: no effect is applied above 85 %, so the picture never looks artificial. */
@@ -80,16 +81,19 @@ export interface Change {
   effect?: 'smooth' | 'warp';
 }
 
-/** Slider of one MD Codes site (mode B, docs/TASKS.md M5b). Drives the warp operators tagged with the site. */
+/**
+ * Slider of one MD Codes code (mode B, docs/TASKS.md M5b–M5c). Drives the warp operators tagged with the code, or
+ * the smoothing of its part of a region (`CODE_SMOOTHING`).
+ */
 export interface SiteChange {
-  site: MdSite;
+  site: MdCode;
   intensity: number;
   left?: number;
 }
 
-/** Approximate zone of an MD Codes site in pixels of the working box (PRD F6.1: a shaded zone, no point). */
+/** Approximate zone of an MD Codes code in pixels of the working box (PRD F6.1: a shaded zone, no point). */
 export interface SiteZone {
-  site: MdSite;
+  site: MdCode;
   side: Side;
   points: Pt[];
 }
@@ -114,6 +118,8 @@ export interface Prepared {
   rect: Rect;
   dec: Decomposition;
   masks: Partial<Record<ConcernId, { side: Side; mask: Mask }[]>>;
+  /** Smoothing masks of the MD Codes codes that smooth (their part of a concern region, mode B). */
+  codeMasks: Partial<Record<MdCode, { side: Side; mask: Mask }[]>>;
   /** Warp operators placed in the working box. */
   ops: PlacedOperator[];
   /** Face frame in pixels of the working copy (the box starts at rect.x, rect.y). */
@@ -123,7 +129,7 @@ export interface Prepared {
   /** Concerns with a right and a left region (they get the mirror switch). */
   bilateral: ConcernId[];
   outlines: Outline[];
-  /** MD Codes site zones that can be placed on this photo. */
+  /** MD Codes code zones that can be placed on this photo. */
   zones: SiteZone[];
   att: Attenuation;
   field: Field;
@@ -231,41 +237,59 @@ export function prepare(input: PipelineInput): Prepared {
     .filter((r): r is typeof r & { concernId: ConcernId } => !!r.concernId && available.includes(r.concernId))
     .map((r) => ({ concernId: r.concernId, side: r.side, points: r.outline.map(local) }));
   const bilateral = available.filter((id) => outlines.some((o) => o.concernId === id && o.side === 'L'));
-  // Site zones: the cheek sites are the ellipses of their fill, smaller than the operator (where the fill shows);
-  // every other site is the region of its concern.
-  const zones: SiteZone[] = MD_SITES.flatMap((site) => {
-    if (site.startsWith('Ck'))
-      return ops
-        .filter((p) => p.op.site === site && p.op.kind === 'inflate' && !p.op.bridge)
-        .map((p) => ({ site, side: p.op.side, points: ellipseOutline(p.op.c, p.op.rx * ZONE_SCALE, p.op.ry * ZONE_SCALE, 28).map(local) }));
-    // The jaw operators sit on the face outline (jaw angle and jowl), not in the geometric jowl region: the zone is
-    // a band just inside the outline, from the jaw angle down past the jowl.
-    if (site === 'Jw') {
-      const face = set.regions.find((r) => r.concernId === 'skin-quality');
-      if (!face) return [];
-      return (['R', 'L'] as const).flatMap((side) => {
-        const ys = ops.filter((p) => p.op.site === 'Jw' && p.op.side === side && !p.op.bridge).map((p) => p.op.c.y);
-        if (!ys.length) return [];
-        const s = side === 'R' ? -1 : 1;
-        const top = Math.min(...ys) - JAW_ZONE.above;
-        const bottom = Math.max(...ys) + JAW_ZONE.below;
-        const outer: Pt[] = [];
-        for (let i = 0; i <= 12; i++) {
-          const y = top + ((bottom - top) * i) / 12;
-          const xs = crossingsAtY(face.outline, y);
-          if (xs.length) outer.push({ x: side === 'R' ? Math.min(...xs) : Math.max(...xs), y });
-        }
-        if (outer.length < 3) return [];
-        const inner = outer.map((q) => ({ x: q.x - s * JAW_ZONE.width, y: q.y })).reverse();
-        return [{ site, side, points: [...outer, ...inner].map(local) }];
-      });
+  // Codes that smooth: their part of the concern's mask, and the same part of its outline as the zone.
+  const codeMasks: Prepared['codeMasks'] = {};
+  const zones: SiteZone[] = [];
+  for (const code of MD_CODES) {
+    const spec = CODE_SMOOTHING[code];
+    if (!spec) continue;
+    for (const r of set.regions) {
+      if (r.concernId !== spec.concernId) continue;
+      const base = masks[spec.concernId]?.find((m) => m.side === r.side)?.mask;
+      if (!base) continue;
+      const along = axisOf(r.outline, spec.axis, r.side);
+      // A two-sided code on a midline region gets its right part and the mirrored left part.
+      const parts: [Side, number, number][] =
+        r.side === 'M' && MD_CODE_INFO[code].bilateral
+          ? [['R', spec.from, spec.to], ['L', 1 - spec.to, 1 - spec.from]]
+          : [[r.side, spec.from, spec.to]];
+      for (const [side, from, to] of parts) {
+        const mask: Mask = { ...base, data: new Float32Array(base.data.length) };
+        for (let row = 0; row < base.height; row++)
+          for (let col = 0; col < base.width; col++) {
+            const i = row * base.width + col;
+            const m = base.data[i]!;
+            if (m <= 0) continue;
+            const q = toFace(set.frame, { x: rect.x + base.x + col, y: rect.y + base.y + row });
+            mask.data[i] = m * partWeight(along(q), from, to);
+          }
+        (codeMasks[code] ??= []).push({ side, mask });
+        const part = clipToBand(r.outline, along, from, to);
+        if (part.length >= 3) zones.push({ site: code, side, points: part.map(local) });
+      }
     }
-    return outlines.filter((o) => o.concernId === MD_SITE_INFO[site].concernId).map((o) => ({ site, side: o.side, points: o.points }));
-  });
+  }
+  // Codes that reshape: the ellipse of the code's fill (or first operator) on each side, smaller than the operator
+  // (where the change shows). Lp1 is the lip itself, Lp3 a band just outside it.
+  const lipOutline = outlines.find((o) => o.concernId === 'lip-volume');
+  for (const code of MD_CODES) {
+    if (CODE_SMOOTHING[code]) continue;
+    if ((code === 'Lp1' || code === 'Lp3') && lipOutline) {
+      if (ops.some((p) => p.op.site === code)) zones.push({ site: code, side: 'M', points: code === 'Lp1' ? lipOutline.points : scaleAboutCentroid(lipOutline.points, LIP_BORDER_ZONE) });
+      continue;
+    }
+    const own = ops.filter((p) => p.op.site === code && !p.op.bridge);
+    for (const side of [...new Set(own.map((p) => p.op.side))]) {
+      const mine = own.filter((p) => p.op.side === side);
+      const op = (mine.find((p) => p.op.kind === 'inflate') ?? mine[0]!).op;
+      zones.push({ site: code, side, points: ellipseOutline(op.c, op.rx * ZONE_SCALE, op.ry * ZONE_SCALE, 28).map(local) });
+    }
+  }
   return {
     rect,
     dec,
     masks,
+    codeMasks,
     ops,
     frame: set.frame,
     available,
@@ -284,10 +308,10 @@ export function prepare(input: PipelineInput): Prepared {
   };
 }
 
-/** Cheek-site zone drawn on the photo: this share of the fill operator's radii. */
+/** Zone of a reshaping code drawn on the photo: this share of its operator's radii. */
 const ZONE_SCALE = 0.75;
-/** Jaw zone: band inside the face outline, face units: width, and reach above and below the jaw operators. */
-const JAW_ZONE = { width: 0.09, above: 0.05, below: 0.06 } as const;
+/** Zone of Lp3 (lip border): the lip outline grown by this factor about its centre. */
+const LIP_BORDER_ZONE = 1.12;
 
 /** Strength of one side of a change, capped at MAX_INTENSITY. Midline regions follow the main slider. */
 export function strengthOf(change: { intensity: number; left?: number }, side: Side): number {
@@ -328,6 +352,23 @@ export function render(
       by1 = Math.max(by1, mask.y + mask.height);
     }
   }
+  // MD Codes codes that smooth (mode B): their part of the region, with the concern's smoothing type.
+  for (const change of options.sites ?? []) {
+    const spec = CODE_SMOOTHING[change.site];
+    const effect = spec && SMOOTHING[spec.concernId];
+    if (!effect) continue;
+    const c = SMOOTH_COEFFICIENTS[effect.type];
+    for (const { side, mask } of prepared.codeMasks[change.site] ?? []) {
+      const k = strengthOf(change, side) * effect.scale;
+      if (k <= 0) continue;
+      key += `${change.site}:${side}:${k};`;
+      active.push({ mask, fine: c.fine * k, band1: c.band1 * k, band2: c.band2 * k, band3: c.band3 * k, band4: c.band4 * k });
+      bx0 = Math.min(bx0, mask.x);
+      by0 = Math.min(by0, mask.y);
+      bx1 = Math.max(bx1, mask.x + mask.width);
+      by1 = Math.max(by1, mask.y + mask.height);
+    }
+  }
   // A slider that only warps (lips, jaw, masseter, brow) leaves the smoothing as it was: reuse it.
   const cache = prepared.smoothed;
   let out: Uint8ClampedArray;
@@ -348,7 +389,7 @@ export function render(
  * runs at the weaker of its two sites, so it is 0 unless both are filled.
  */
 export function operatorStrength(op: PlacedOperator['op'], changes: readonly Change[], sites: readonly SiteChange[]): number {
-  const siteK = (site: MdSite) => {
+  const siteK = (site: MdCode) => {
     const c = sites.find((x) => x.site === site);
     return c ? strengthOf(c, op.side) : 0;
   };

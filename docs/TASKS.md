@@ -5,8 +5,8 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode) and M6 (knowledge base, sorting, option → image) built,
-waiting for the owner's look. Next: M7.
+Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set) and M6 (knowledge base,
+sorting, option → image) built, waiting for the owner's look. Next: M7.
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -49,7 +49,7 @@ skin) stays in both modes.
   operator, no groove between filled neighbours, no fold in either mode), `mdMode.test.ts`. e2e: `simulate.spec.ts` (M5b)
 - [ ] (V) Owner look on `test-results/simulate/review.html` → «MD Codes (M5b)» (picture, zones, zoom) and on the page
 
-## M5c — Full MD Codes set (owner request 2026-11-16, plan waiting for «ادامه»)
+## M5c — Full MD Codes set (owner request 2026-11-16, built 2026-11-16)
 Owner: the MD Codes mode must have the standard codes, not one slider per family (Ck4–Ck5, C1–C6, T1–T2, Jw1–Jw5, …).
 Source found: de Maio, Aesthetic Plast Surg 2020;45(2):690–709, PMC8012343, Table 3, licence CC BY 4.0 (attribution
 required; the MD Codes™ name stays a trademark, licence review still open). 51 codes with their anatomical names:
@@ -62,11 +62,30 @@ glabella; NL1–NL3 upper, central, lower nasolabial fold; M1–M3 upper, centra
 Lp2 Cupid's bow, Lp3 lip border, Lp4 medial tubercle, Lp5 lateral tubercles, Lp6 oral commissure, Lp7 philtrum column, Lp8
 perioral lines; N1 anterior nasal spine, N2 columella, N3 frontonasal angle, N4 bony dorsum, N5 cartilaginous dorsum.
 Only names and approximate zones are used; the table's depth, tool and volume are not shown (PRD F6.2).
-Plan approved 2026-11-16 (build in a new chat after «ادامه»):
-- [ ] All 51 codes in `src/data/mdCodes.ts` with Persian name, English name from Table 3, `status: 'draft'`, source above
-- [ ] Page: one family slider that opens into one slider per code (with mirror per side); every code and every family has an
-  on/off switch. Zones built from the face geometry, checked on every test photo (zoom), then shown in `review.html`
-- [ ] Each code changes only its own zone; filled neighbours blend into one smooth fill (F4.12); eyes never move
+Plan approved 2026-11-16:
+- [x] All 51 codes in `src/data/mdCodes.ts` (13 families) with Persian name (Claude's translation, `// TODO(clinical)` for a
+  physician), English name from Table 3, `status: 'draft'`, source shown on the page with the «تأییدنشده» badge (CC BY)
+- [x] Page: one family slider with switch and mirror that opens («+») into one row per code, each with its own switch,
+  slider and mirror (two-sided codes). A code follows its family until moved; it is on when its family and itself are on
+  (`simStates.codeOn`, else `starts`); switching a code on switches its family on; a family switched on with no code on
+  switches all its codes on. M5b keys still read (T, E, Tt, NL, Lp, M, C, Jw are families; Ck1–Ck3 codes)
+- [x] Each code changes only its own zone: reshaping codes have their own operators (`warp.ts`: `cheekSites`, `foldCodes`,
+  `chinCodes`, `jawCodes`, `lipCodes`, `noseCodes`, temple and brow); F, G, O, Tt and Lp8 smooth their part of the concern
+  region (`src/engine/mdZones.ts`: parts add up to the region with soft seams). Mode-A operators are unchanged except the
+  marionette (below). Bridges between codes: `BRIDGES` (search target 0.99, up to 0.03). Eyes never move; only E3 reaches a
+  brow head (`mdCodes.test.ts`)
+- [x] Starting state of mode B = the M5b picture: the codes of the M5b sites start on (Ck1–Ck3, T1–T2, E1, E3 per owner,
+  Tt1–Tt3, NL1–NL3, Lp1, M1–M3, C2–C3, Jw1, Jw4); every other code starts off. F, G, O and N families start off: the
+  forehead, glabella and crow's-feet lines are still smoothed by their concern sliders in mode B (smoothing stays in both
+  modes), and F/G/O add their own smoothing only when the doctor switches them on
+- [x] Lip codes are fine touches on top of Lp1 (shares in `LIP_CODES`), so all lip codes together cannot fold the lip
+- [x] Owner review 2026-11-16 (relayed by the M5b session): the mouth corner curled into a V in MD Codes mode. The marionette
+  operator now supports below the corner (mode A too); M1–M3 and Lp6 sit below the commissure with a wide radius
+- [x] Unit: `src/engine/mdCodes.test.ts`, `warp.test.ts` (every reshaping code, both sides), `mdMode.test.ts`. e2e:
+  `simulate.spec.ts` (M5b, M5c), per-photo images: each family alone, defaults, all 51 codes
+- [ ] (V) Owner look on `test-results/simulate/review-m5c.html` (each family alone, zones, zoom) and on the page
+- Open: on a turned head (20261114_001749) Ck4 and Ck5 sit close together on the far side; zones follow the photo, so a
+  frontal photo per PRD §8 keeps them apart. Persian names and the code placement need a senior physician
 - Owner decisions on the three questions:
   1. Nose N1–N5: kept, with a switch to turn them off (no nose concern in PRD §6; vascular high-risk area)
   2. F, G, O codes: kept as smoothing of their own zone. Later: a toxin option the doctor can switch on to smooth lines

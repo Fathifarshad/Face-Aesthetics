@@ -224,13 +224,14 @@ test.describe('simulation page', () => {
     expect(errors).toEqual([]);
   });
 
-  test('MD Codes mode: one mode at a time, sites start from mode A, each mode keeps its settings (M5b)', async ({ page }) => {
+  test('MD Codes mode: one mode at a time, families start from mode A and open into codes, each mode keeps its settings (M5b, M5c)', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     await openSimulation(page, FRONTAL[0]!);
     const modeA = page.getByRole('radio', { name: 'حجم‌دهی بر اساس ناحیه' });
     const modeB = page.getByRole('radio', { name: 'حجم‌دهی فیلر بر اساس MD Codes' });
     const disclaimer = page.getByText('MD Codes™ نشان تجاری است. جانمایی تقریبی است و راهنمای تزریق نیست.');
+    const zones = (n: number) => page.locator(`svg[data-md-zones="${n}"]`);
     await expect(modeA).toHaveAttribute('aria-checked', 'true');
     await expect(disclaimer).toHaveCount(0);
 
@@ -240,50 +241,95 @@ test.describe('simulation page', () => {
     await settled(page);
     const pictureA = await jpg(after(page));
 
-    // Mode B: the cheek slider is gone, Ck1–Ck3 start at 60 %, smoothing sliders stay, the fixed text shows.
+    // Mode B: the cheek slider is gone, the Ck family starts at 60 %, smoothing sliders stay, the fixed text and the
+    // source with the «تأییدنشده» badge show. Codes are folded into their family until opened.
     await press(page, modeB);
     await expect(modeB).toHaveAttribute('aria-checked', 'true');
     await expect(disclaimer).toBeVisible();
+    await expect(page.getByText(/PMC8012343/)).toBeVisible();
     await expect(page.getByRole('switch', { name: 'افت حجم میانهٔ صورت' })).toHaveCount(0);
     await expect(page.getByRole('switch', { name: 'گودی زیر چشم' })).toHaveCount(0);
     await expect(page.getByRole('switch', { name: 'خطوط پیشانی' })).toBeVisible();
     await expect(page.getByRole('switch', { name: 'پهنی فک (ماستر)' })).toBeVisible();
-    for (const site of ['Ck1 · قوس زایگوما', 'Ck2 · برجستگی زایگوما', 'Ck3 · گونهٔ قدامی‌میانی']) {
-      await expect(page.getByRole('switch', { name: site })).toHaveAttribute('aria-checked', 'true');
-      await expect(page.getByRole('slider', { name: `شدت ${site}`, exact: true })).toHaveValue('60');
+    const ck = page.getByRole('switch', { name: 'Ck · گونه', exact: true });
+    await expect(ck).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('slider', { name: 'شدت Ck · گونه', exact: true })).toHaveValue('60');
+    for (const family of ['F · پیشانی', 'Tt · ناودان اشکی', 'N · بینی', 'Lp · لب', 'Jw · خط فک'])
+      await expect(page.getByRole('switch', { name: family, exact: true })).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Ck1 · قوس زایگوما' })).toHaveCount(0);
+    const open = page.getByRole('button', { name: /^کدهای Ck / });
+    await expect(open).toHaveAttribute('aria-expanded', 'false');
+    await press(page, open);
+    await expect(open).toHaveAttribute('aria-expanded', 'true');
+    for (const code of ['Ck1 · قوس زایگوما', 'Ck2 · برجستگی زایگوما', 'Ck3 · گونهٔ قدامی‌میانی']) {
+      await expect(page.getByRole('switch', { name: code })).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByRole('slider', { name: `شدت ${code}`, exact: true })).toHaveValue('60');
     }
-    await expect(page.getByRole('switch', { name: 'Tt · ناودان اشکی' })).toBeVisible();
-    await expect(page.getByRole('switch', { name: 'Lp · لب' })).toBeVisible();
-    // Midline sites have no mirror switch.
-    await expect(page.getByRole('checkbox', { name: 'آینهٔ دو طرف برای Lp · لب' })).toHaveCount(0);
+    // Ck4 and Ck5 are new in M5c and start off.
+    await expect(page.getByRole('switch', { name: /^Ck4 · / })).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByRole('switch', { name: /^Ck5 · / })).toHaveAttribute('aria-checked', 'false');
     await settled(page);
-    // Shaded zones with the code name for the filled sites (two sides × three cheek sites).
-    await expect(page.locator('svg[data-md-zones="6"]')).toBeVisible();
+    // Shaded zones with the code name for the filled codes (two sides × three cheek codes).
+    await expect(zones(6)).toBeVisible();
     await expect(page.locator('svg[data-md-zones] text', { hasText: 'Ck2' })).toHaveCount(2);
 
-    // Ck2 alone lower, then Ck3 off: the picture changes and fewer zones are shaded.
+    // Ck2 lower, Ck3 off, Ck4 on: the picture changes and the zones follow the switches.
     await page.getByRole('slider', { name: 'شدت Ck2 · برجستگی زایگوما', exact: true }).fill('30');
     await settled(page);
     await press(page, page.getByRole('switch', { name: 'Ck3 · گونهٔ قدامی‌میانی' }));
     await settled(page);
-    await expect(page.locator('svg[data-md-zones="4"]')).toBeVisible();
+    await expect(zones(4)).toBeVisible();
+    await press(page, page.getByRole('switch', { name: /^Ck4 · / }));
+    await settled(page);
+    await expect(zones(6)).toBeVisible();
+    await expect(page.getByRole('slider', { name: /^شدت Ck4 · / })).toHaveValue('60');
     const pictureB = await jpg(after(page));
     expect(pictureB).not.toEqual(pictureA);
+    // The family switch turns its codes off together; switched on again they come back as they were.
+    await press(page, ck);
+    await settled(page);
+    await expect(zones(0)).toBeVisible();
+    await press(page, ck);
+    await settled(page);
+    await expect(zones(6)).toBeVisible();
+    // The family slider moves the codes that follow it; a code moved by hand keeps its value.
+    await page.getByRole('slider', { name: 'شدت Ck · گونه', exact: true }).fill('70');
+    await expect(page.getByRole('slider', { name: 'شدت Ck1 · قوس زایگوما', exact: true })).toHaveValue('70');
+    await expect(page.getByRole('slider', { name: 'شدت Ck2 · برجستگی زایگوما', exact: true })).toHaveValue('30');
+    // Nose: off at first; switching the family on switches its five codes on.
+    await press(page, page.getByRole('switch', { name: 'N · بینی', exact: true }));
+    await settled(page);
+    await expect(page.getByRole('button', { name: /^کدهای N \(5 روشن از 5\)/ })).toBeVisible();
+    await expect(zones(11)).toBeVisible();
+    // Midline codes have no mirror switch; E3 (brow head) has its own switch.
+    await press(page, page.getByRole('button', { name: /^کدهای E / }));
+    await expect(page.getByRole('switch', { name: /^E3 · سر ابرو/ })).toBeVisible();
+    await press(page, page.getByRole('button', { name: /^کدهای C / }));
+    await expect(page.getByRole('checkbox', { name: /^آینهٔ دو طرف برای C2 · / })).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: /^آینهٔ دو طرف برای C3 · / })).toHaveCount(1);
+    await settled(page);
+    const pictureB2 = await jpg(after(page));
 
     // Back to mode A: as it was.
     await press(page, modeA);
     await expect(disclaimer).toHaveCount(0);
     await expect(page.locator('svg[data-md-zones]')).toHaveCount(0);
     await expect(page.getByRole('slider', { name: 'شدت افت حجم میانهٔ صورت', exact: true })).toHaveValue('60');
-    await expect(page.getByRole('switch', { name: 'Ck1 · قوس زایگوما' })).toHaveCount(0);
+    await expect(page.getByRole('switch', { name: 'Ck · گونه', exact: true })).toHaveCount(0);
     await settled(page);
     expect(await jpg(after(page))).toEqual(pictureA);
 
-    // And mode B keeps the doctor's own sliders.
+    // And mode B keeps the doctor's own sliders and switches.
     await press(page, modeB);
+    await expect(page.getByRole('switch', { name: 'Ck · گونه', exact: true })).toBeVisible();
+    const reopen = page.getByRole('button', { name: /^کدهای Ck / });
+    if ((await reopen.getAttribute('aria-expanded')) !== 'true') await press(page, reopen);
     await expect(page.getByRole('slider', { name: 'شدت Ck2 · برجستگی زایگوما', exact: true })).toHaveValue('30');
     await expect(page.getByRole('switch', { name: 'Ck3 · گونهٔ قدامی‌میانی' })).toHaveAttribute('aria-checked', 'false');
-    await expect(page.getByRole('slider', { name: 'شدت Ck1 · قوس زایگوما', exact: true })).toHaveValue('60');
+    await expect(page.getByRole('switch', { name: /^Ck4 · / })).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('slider', { name: 'شدت Ck1 · قوس زایگوما', exact: true })).toHaveValue('70');
+    await settled(page);
+    expect(await jpg(after(page))).toEqual(pictureB2);
 
     for (const width of [360, 390]) {
       await page.setViewportSize({ width, height: 844 });
@@ -296,6 +342,8 @@ test.describe('simulation page', () => {
 
   for (const photo of FRONTAL) {
     test(`before/after and render time on ${photo}`, async ({ page }) => {
+      // Every MD Codes family alone (M5c) adds a few dozen renders.
+      test.setTimeout(360_000);
       await openSimulation(page, photo);
       const stem = photo.replace(/\.[^.]+$/, '');
       mkdirSync(OUT, { recursive: true });
@@ -350,26 +398,56 @@ test.describe('simulation page', () => {
       writeFileSync(join(OUT, `${stem}-warp-zoom.jpg`), bytes(warped.zoom));
       const sortedWarp = [...warpTimes].sort((a, b) => a - b);
 
-      // M5b: MD Codes mode, every site at 75 % (smoothing stays at 85 %), and the zones drawn on the photo.
+      // M5b–M5c: MD Codes mode. (1) Every family that starts on, at 75 % with its starting codes (smoothing stays at
+      // 85 %), and the zones drawn on the photo.
+      const split = page.getByRole('slider', { name: 'جابه‌جایی خط مقایسهٔ قبل و بعد' });
       await press(page, page.getByRole('radio', { name: 'حجم‌دهی فیلر بر اساس MD Codes' }));
-      const siteSwitches = page.getByRole('switch', { name: /^(T|E|Tt|Ck1|Ck2|Ck3|NL|Lp|M|C|Jw) · / });
       // The mode is saved first and the list follows the database.
-      await expect(page.getByRole('switch', { name: 'Ck1 · قوس زایگوما' })).toBeVisible();
-      const siteCount = await siteSwitches.count();
-      for (let i = 0; i < siteCount; i++) {
-        const sw = siteSwitches.nth(i);
-        if ((await sw.getAttribute('aria-checked')) !== 'true') await press(page, sw);
-        const name = await sw.getAttribute('aria-label');
-        await page.getByRole('slider', { name: `شدت ${name}`, exact: true }).fill('75');
-      }
+      await expect(page.getByRole('switch', { name: 'Ck · گونه', exact: true })).toBeVisible();
+      const familySwitches = page.getByRole('switch', { name: /^(F|T|G|E|O|Tt|N|Ck|NL|Lp|M|C|Jw) · / });
+      const families = await familySwitches.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')!));
+      const setFamily = async (name: string, value: string | null) => {
+        const sw = page.getByRole('switch', { name, exact: true });
+        if ((await sw.getAttribute('aria-checked')) !== String(value !== null)) await press(page, sw);
+        if (value) await page.getByRole('slider', { name: `شدت ${name}`, exact: true }).fill(value);
+      };
+      for (const name of families) if (!/^(F|G|O|N) · /.test(name)) await setFamily(name, '75');
       await settled(page);
       const md = await sheets(page);
       writeFileSync(join(OUT, `${stem}-mdcodes.jpg`), bytes(md.pair));
       writeFileSync(join(OUT, `${stem}-mdcodes-diff.jpg`), bytes(md.diff));
       writeFileSync(join(OUT, `${stem}-mdcodes-zoom.jpg`), bytes(md.zoom));
-      await page.getByRole('slider', { name: 'جابه‌جایی خط مقایسهٔ قبل و بعد' }).fill('0');
+      await split.fill('0');
       await before(page).locator('..').screenshot({ path: join(OUT, `${stem}-mdcodes-zones.png`) });
-      expect(siteCount).toBeGreaterThanOrEqual(10);
+      await split.fill('50');
+      expect(families.length).toBeGreaterThanOrEqual(12);
+
+      // (2) Each family alone with every one of its codes on at 75 % (everything else off): each code shows in its own zone.
+      await press(page, page.getByRole('button', { name: 'همه خاموش' }));
+      for (const name of families) {
+        const family = name.split(' · ')[0]!;
+        await setFamily(name, '75');
+        const toggle = page.getByRole('button', { name: new RegExp(`^کدهای ${family} `) });
+        if ((await toggle.getAttribute('aria-expanded')) !== 'true') await press(page, toggle);
+        const codes = page.getByRole('switch', { name: new RegExp(`^${family}\\d · `) });
+        const n = await codes.count();
+        for (let i = 0; i < n; i++) if ((await codes.nth(i).getAttribute('aria-checked')) !== 'true') await press(page, codes.nth(i));
+        await settled(page);
+        const one = await sheets(page);
+        writeFileSync(join(OUT, `${stem}-md-${family}.jpg`), bytes(one.pair));
+        writeFileSync(join(OUT, `${stem}-md-${family}-zoom.jpg`), bytes(one.zoom));
+        await split.fill('0');
+        await before(page).locator('..').screenshot({ path: join(OUT, `${stem}-md-${family}-zones.png`) });
+        await split.fill('50');
+        await setFamily(name, null);
+      }
+
+      // (3) Every family and every code at 75 % together: the stress case (no fold, no tear).
+      for (const name of families) await setFamily(name, '75');
+      await settled(page);
+      const all = await sheets(page);
+      writeFileSync(join(OUT, `${stem}-mdall.jpg`), bytes(all.pair));
+      writeFileSync(join(OUT, `${stem}-mdall-zoom.jpg`), bytes(all.zoom));
 
       const sorted = [...times].sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)]!;

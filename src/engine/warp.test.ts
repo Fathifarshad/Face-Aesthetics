@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { ConcernId } from '../data/types';
 import { buildFrame, toPx } from './faceFrame';
 import { FIXTURE, syntheticMesh, syntheticPicture } from './fixtures';
-import { MD_SITES, type MdSite } from '../data/mdCodes';
+import { MD_CODE_INFO, MD_CODES, type MdCode } from '../data/mdCodes';
+import { CODE_SMOOTHING } from './mdZones';
 import { MAX_INTENSITY, operatorStrength, prepare, render } from './pipeline';
 import { buildRegions } from './regions';
 import { addOperator, applyField, BRIDGES, buildOperators, MAX_SHIFT, newField, type Field, type PlacedOperator } from './warp';
@@ -57,7 +58,8 @@ describe('warp operators on the synthetic face', () => {
     for (const id of ['midface-volume', 'masseter', 'jawline', 'brow', 'temple', 'marionette'] as const) {
       expect(opsOf(id, 'R').length, id).toBe(opsOf(id, 'L').length);
     }
-    expect(new Set(ops.map((o) => o.op.concernId))).toEqual(new Set(W_CONCERNS));
+    // Mode A operators belong to these concerns only (the nose codes of mode B have no concern of their own).
+    expect(new Set(ops.filter((o) => o.op.use !== 'sites').map((o) => o.op.concernId))).toEqual(new Set(W_CONCERNS));
   });
 
   it('returns the input exactly at zero strength', () => {
@@ -76,8 +78,8 @@ describe('warp operators on the synthetic face', () => {
       let max = 0;
       for (let i = 0; i < f.dx.length; i++) max = Math.max(max, shiftAt(f, i));
       expect(max, `${p.op.concernId}:${p.op.side}`).toBeLessThanOrEqual(MAX_SHIFT * unit + 1e-3);
-      // Bridges are sized to the gap they fill (M5b) and may be small.
-      if (!p.op.bridge) expect(max, `${p.op.concernId}:${p.op.side}`).toBeGreaterThan(0.01 * unit);
+      // Bridges are sized to the gap they fill (M5b) and may be small; so are the fine codes of mode B (M5c).
+      if (!p.op.bridge) expect(max, `${p.op.site ?? p.op.concernId}:${p.op.side}`).toBeGreaterThan((p.op.use === 'sites' ? 0.002 : 0.01) * unit);
       // Every pixel outside the operator's box is untouched.
       let outside = 0;
       for (let y = 0; y < rect.height; y += 2)
@@ -162,7 +164,7 @@ describe('warp operators on the synthetic face', () => {
   });
 
   it('fills each lip in proportion to its own thickness: same shape, no bulge in the middle (owner review 2026-11-15)', () => {
-    for (const p of opsOf('lip-volume')) {
+    for (const p of opsOf('lip-volume').filter((o) => o.op.use !== 'sites' && !o.op.bridge)) {
       const s = p.op.samples!;
       const shares = s.filter((k) => Math.abs(k.border - k.mouth) > 0.005).map((k) => k.d / Math.abs(k.border - k.mouth));
       expect(shares.length).toBeGreaterThan(3);
@@ -190,7 +192,7 @@ describe('warp operators on the synthetic face', () => {
     expect(at(chin, opsOf('chin')[0]!.op.c).dy).toBeGreaterThan(0); // chin a little longer
     // Lips fill out: the upper border moves up, the lower border down.
     const [upper, lower] = opsOf('lip-volume');
-    const lips = fieldOf(opsOf('lip-volume'));
+    const lips = fieldOf([upper!, lower!]);
     const midOf = (o: PlacedOperator) => o.op.samples!.reduce((b, s) => (Math.abs(s.x - o.op.c.x) < Math.abs(b.x - o.op.c.x) ? s : b));
     expect(at(lips, { x: midOf(upper!).x, y: midOf(upper!).border }).dy).toBeLessThan(0);
     expect(at(lips, { x: midOf(lower!).x, y: midOf(lower!).border }).dy).toBeGreaterThan(0);
@@ -231,11 +233,11 @@ describe('warp operators on the synthetic face', () => {
     expect(changed(both, 'L')).toBeGreaterThan(50);
   });
 
-  // ── M5b: MD Codes filler mode ──
+  // ── M5b–M5c: MD Codes filler mode ──
   const K = MAX_INTENSITY;
-  const siteOps = (site: MdSite, side: 'R' | 'L') => ops.filter((o) => o.op.site === site && !o.op.bridge && o.op.use !== 'area' && (o.op.side === side || o.op.side === 'M'));
+  const siteOps = (site: MdCode, side: 'R' | 'L') => ops.filter((o) => o.op.site === site && !o.op.bridge && o.op.use !== 'area' && (o.op.side === side || o.op.side === 'M'));
   /** Field of mode B with the given sites filled at K: site operators plus the bridges between filled sites. */
-  const modeB = (filled: readonly MdSite[], withBridges = true) => {
+  const modeB = (filled: readonly MdCode[], withBridges = true) => {
     const sites = filled.map((site) => ({ site, intensity: K }));
     const f = newField(rect.width, rect.height);
     for (const p of ops) {
@@ -263,14 +265,17 @@ describe('warp operators on the synthetic face', () => {
     return min;
   };
 
-  it('has operators for every MD Codes site but Tt, Ck1–Ck3 apart on both sides', () => {
-    for (const site of MD_SITES.filter((s) => s !== 'Tt')) expect(siteOps(site, 'R').length + siteOps(site, 'L').length, site).toBeGreaterThan(0);
-    for (const site of ['Ck1', 'Ck2', 'Ck3'] as const) {
-      expect(siteOps(site, 'R').length, site).toBeGreaterThan(0);
-      expect(siteOps(site, 'R').length, site).toBe(siteOps(site, 'L').length);
+  it('has operators for every MD Codes code that reshapes, on both sides for the two-sided ones', () => {
+    for (const code of MD_CODES.filter((c) => !CODE_SMOOTHING[c])) {
+      const own = ops.filter((o) => o.op.site === code && !o.op.bridge);
+      expect(own.length, code).toBeGreaterThan(0);
+      if (MD_CODE_INFO[code].bilateral) {
+        expect(siteOps(code, 'R').length, code).toBeGreaterThan(0);
+        expect(own.filter((o) => o.op.side === 'R').length, code).toBe(own.filter((o) => o.op.side === 'L').length);
+      } else expect(own.every((o) => o.op.side === 'M'), code).toBe(true);
     }
     // Ck1 lies lateral to Ck2, Ck2 lateral to Ck3 (subject's right = negative x).
-    const cx = (site: MdSite) => siteOps(site, 'R')[0]!.op.c.x;
+    const cx = (site: MdCode) => siteOps(site, 'R')[0]!.op.c.x;
     expect(cx('Ck1')).toBeLessThan(cx('Ck2'));
     expect(cx('Ck2')).toBeLessThan(cx('Ck3'));
   });
@@ -278,7 +283,7 @@ describe('warp operators on the synthetic face', () => {
   it('drives each operator from one mode only', () => {
     const cheekArea = ops.find((o) => o.op.concernId === 'midface-volume' && o.op.use === 'area')!.op;
     const ck1 = siteOps('Ck1', 'R')[0]!.op;
-    const chin = siteOps('C', 'R')[0]!.op;
+    const chin = siteOps('C2', 'R')[0]!.op;
     const masseter = opsOf('masseter', 'R')[0]!.op;
     const area = [{ concernId: 'midface-volume' as const, intensity: 0.6 }, { concernId: 'chin' as const, intensity: 0.6 }];
     expect(operatorStrength(cheekArea, area, [])).toBeCloseTo(0.6);
@@ -286,7 +291,7 @@ describe('warp operators on the synthetic face', () => {
     expect(operatorStrength(chin, area, [])).toBeCloseTo(0.6);
     // Mode B: the concern sliders smooth only; the sites give the volume.
     const smooth = area.map((c) => ({ ...c, effect: 'smooth' as const }));
-    const sites = [{ site: 'Ck1' as const, intensity: 0.4, left: 0.2 }, { site: 'C' as const, intensity: 0.5 }];
+    const sites = [{ site: 'Ck1' as const, intensity: 0.4, left: 0.2 }, { site: 'C2' as const, intensity: 0.5 }];
     expect(operatorStrength(cheekArea, smooth, sites)).toBe(0);
     expect(operatorStrength(ck1, smooth, sites)).toBeCloseTo(0.4);
     expect(operatorStrength(siteOps('Ck1', 'L')[0]!.op, smooth, sites)).toBeCloseTo(0.2);
