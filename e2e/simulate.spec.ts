@@ -446,10 +446,12 @@ test.describe('simulation page', () => {
           const a = document.querySelector<HTMLCanvasElement>('canvas[aria-label="بعد"]')!;
           const w = b.width;
           const h = b.height;
-          const boxes = [...document.querySelectorAll('svg[data-md-zones] polygon')].map((p) => {
-            const pts = p.getAttribute('points')!.split(' ').map((q) => q.split(',').map(Number) as [number, number]);
+          const boxes = Array.from(document.querySelectorAll('svg[data-md-zones] polygon')).map((p) => {
+            const pts = p.getAttribute('points')!.split(' ').map((q: string) => q.split(',').map(Number) as [number, number]);
             const m = margin * w;
-            return [Math.min(...pts.map((q) => q[0])) - m, Math.min(...pts.map((q) => q[1])) - m, Math.max(...pts.map((q) => q[0])) + m, Math.max(...pts.map((q) => q[1])) + m];
+            const xs = pts.map((q: [number, number]) => q[0]);
+            const ys = pts.map((q: [number, number]) => q[1]);
+            return [Math.min(...xs) - m, Math.min(...ys) - m, Math.max(...xs) + m, Math.max(...ys) + m];
           });
           const pb = b.getContext('2d')!.getImageData(0, 0, w, h).data;
           const pa = a.getContext('2d')!.getImageData(0, 0, w, h).data;
