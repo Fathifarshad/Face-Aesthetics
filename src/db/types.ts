@@ -6,7 +6,7 @@ import type { QcResult } from '../capture/qc';
 import type { Tier } from '../plan/data/treatments';
 import type { Intake } from '../plan/intake';
 import type { Sealed, WrappedKey } from './crypto';
-import type { AgeTarget, ConcernId, Finding as DomainFinding } from '../data/types';
+import type { AgeTarget, ConcernId, Consent, Finding as DomainFinding } from '../data/types';
 
 export type Sex = 'female' | 'male' | 'other';
 export type CaseStatus = 'draft' | 'awaiting-signoff' | 'signed' | 'follow-up';
@@ -136,6 +136,8 @@ export type Message = {
 export type PhotoRow = Omit<Photo, 'blob'> & { sealed: Sealed };
 export type SimulationRow = Omit<Simulation, 'blob'> & { sealed: Sealed };
 export type SignOffRow = Omit<SignOff, 'signature'> & { sealedSignature: Sealed };
+/** PRD F8.3 consent of a patient (all their cases); the touch signature is encrypted like the doctor's. */
+export type ConsentRow = Omit<Consent, 'signature'> & { sealedSignature: Sealed };
 
 /** Key material of the doctor's vault, stored under settings key "vault". Holds no plaintext key. */
 export type VaultRecord = {

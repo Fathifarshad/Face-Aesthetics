@@ -1,3 +1,4 @@
+import { canShare } from '../data/consentGate';
 import { CATALOG } from '../analysis/catalog';
 import { db, getSettings, uid } from '../db/db';
 import { addPhoto, latestSimulation, listPhotos } from '../db/images';
@@ -75,8 +76,10 @@ export async function buildPatientPackage(patientId: string): Promise<PatientPac
   const settings = await getSettings();
   const cases = (await db.cases.where('patientId').equals(patientId).toArray()).filter((c) => c.consents.patientApp);
   const ptCases = (await Promise.all(cases.map((c) => toPtCase(c.id)))).filter((c): c is PtCase => !!c);
+  // PRD F8.4: no photo (nor the simulation made from one) without the patient's live level-3 consent.
+  const photosAllowed = canShare(await db.consents.where('patientId').equals(patientId).toArray(), 'patient');
   const photos: PatientPackage['photos'] = [];
-  for (const c of ptCases) {
+  for (const c of photosAllowed ? ptCases : []) {
     for (const ph of await listPhotos(c.id))
       photos.push({ id: ph.id, caseId: c.id, phase: ph.phase, view: ph.view, dataUrl: await blobToDataUrl(ph.blob), takenAt: ph.takenAt });
     const sim = await latestSimulation(c.id);
@@ -174,7 +177,12 @@ export async function importIntoDoctor(pkg: ReplyPackage): Promise<{ patientId: 
 
 /** Uses the system share sheet when files can be shared (phones), otherwise downloads the file. */
 export async function shareJson(obj: unknown, filename: string): Promise<'shared' | 'downloaded'> {
-  const file = new File([JSON.stringify(obj)], filename, { type: 'application/json' });
+  return shareFile(new File([JSON.stringify(obj)], filename, { type: 'application/json' }));
+}
+
+/** Share sheet when the device can share files, otherwise a download. The caller checks consent first. */
+export async function shareFile(file: File): Promise<'shared' | 'downloaded'> {
+  const filename = file.name;
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: filename });

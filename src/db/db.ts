@@ -5,6 +5,7 @@ import type {
   AuditEntry,
   Case,
   ClinicSettings,
+  ConsentRow,
   FindingRow,
   GradeRow,
   Message,
@@ -33,6 +34,7 @@ class AppDB extends Dexie {
   ptPhotos!: Table<PtPhoto, string>;
   grades!: Table<GradeRow, string>;
   simStates!: Table<SimStateRow, string>;
+  consents!: Table<ConsentRow, string>;
 
   constructor() {
     super('tanasob');
@@ -54,6 +56,10 @@ class AppDB extends Dexie {
     this.version(2).stores({
       grades: 'id, caseId',
       simStates: 'caseId',
+    });
+    // M8: the three consent levels of PRD F8.3, per patient, with revocation.
+    this.version(3).stores({
+      consents: 'id, patientId',
     });
   }
 }

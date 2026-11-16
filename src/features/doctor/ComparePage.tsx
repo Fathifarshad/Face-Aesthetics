@@ -9,6 +9,7 @@ import { formatDate, useBi, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { useApp } from '../../store/app';
 import { CaseSteps } from './CaseSteps';
+import { SimVsReal } from './SimVsReal';
 
 type Source = { key: string; label: string; blob: Blob };
 
@@ -18,7 +19,7 @@ export function ComparePage() {
   const bi = useBi();
   const lang = useApp((s) => s.lang);
   const [view, setView] = useState('frontal');
-  const [mode, setMode] = useState<'slider' | 'side'>('slider');
+  const [mode, setMode] = useState<'slider' | 'side' | 'simreal'>('slider');
   const [leftKey, setLeftKey] = useState<string | null>(null);
   const [rightKey, setRightKey] = useState<string | null>(null);
 
@@ -45,6 +46,8 @@ export function ComparePage() {
     }
   }
   if (view === 'frontal') for (const s of data.sims) sources.push({ key: s.id, label: `${t.compare.simulation} · ${s.targetAge}`, blob: s.blob });
+
+  const frontalOf = (phase: 'before' | 'after') => data.photos.find((x) => x.caseId === caseId && x.view === 'frontal' && x.phase === phase);
 
   const left = sources.find((s) => s.key === leftKey) ?? sources.find((s) => s.label.startsWith(t.capture.before)) ?? sources[0];
   const right = sources.find((s) => s.key === rightKey) ?? sources.find((s) => s !== left && !s.label.startsWith(t.capture.before)) ?? sources.find((s) => s !== left);
@@ -93,8 +96,13 @@ export function ComparePage() {
               <Chip active={mode === 'side'} onClick={() => setMode('side')}>
                 {t.compare.side}
               </Chip>
+              <Chip active={mode === 'simreal'} onClick={() => setMode('simreal')}>
+                {t.compare.simVsReal}
+              </Chip>
             </div>
-            {mode === 'slider' ? (
+            {mode === 'simreal' ? (
+              <SimVsReal before={frontalOf('before')} after={frontalOf('after')} sim={data.sims.at(-1)} />
+            ) : mode === 'slider' ? (
               <CompareSlider left={left.blob} right={right.blob} leftLabel={left.label} rightLabel={right.label} />
             ) : (
               <SideBySide left={left.blob} right={right.blob} leftLabel={left.label} rightLabel={right.label} />

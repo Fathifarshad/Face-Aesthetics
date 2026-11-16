@@ -81,15 +81,19 @@ export interface PlanItem {
   session: number;
 }
 
+/** PRD F8.3: 1 analysis and storage, 2 cloud render, 3 use of before/after photos. */
 export type ConsentScope = 'analysis' | 'cloudRender' | 'beforeAfter';
+/** Level-3 use, from narrowest to widest: inside the clinic (and the patient's own copy), teaching, publication. */
+export type PhotoUse = 'internal' | 'education' | 'public';
 
 export interface Consent {
   id: string;
   patientId: string;
   scope: ConsentScope;
-  detail?: { use: 'internal' | 'education' | 'public'; maskEyes: boolean };
+  detail?: { use: PhotoUse; maskEyes: boolean };
   signedName: string;
-  signature: Blob;
+  /** Touch signature as a PNG data URL (stored encrypted, like the doctor's sign-off). */
+  signature: string;
   signedAt: number;
   revokedAt?: number;
 }

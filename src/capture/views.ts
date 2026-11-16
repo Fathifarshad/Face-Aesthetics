@@ -9,14 +9,17 @@ export type ViewId =
   | 'smile'
   | 'frown'
   | 'brows-raised'
+  | 'eyes-closed'
+  | 'lips-closeup'
   | 'lips-pursed'
   | 'submental'
+  | 'head-down'
   | 'clench-neck';
 
 export type ViewDef = {
   id: ViewId;
   label: Bi;
-  expression: 'neutral' | 'smile' | 'frown' | 'brows' | 'pursed' | 'clench';
+  expression: 'neutral' | 'smile' | 'frown' | 'brows' | 'pursed' | 'clench' | 'closed';
   /** Absolute yaw target in degrees; direction is shown but not enforced until the sign is verified (M1). */
   yaw: number;
   tolerance: number;
@@ -27,7 +30,7 @@ export type ViewDef = {
   guide: Bi;
 };
 
-/** docs/ANALYSIS_SPEC.md §2 — 11 standard views. */
+/** docs/ANALYSIS_SPEC.md §2 — 11 standard views, plus the three views PRD §8 adds (eyes shut, lip close-up, head down). */
 export const VIEWS: readonly ViewDef[] = [
   {
     id: 'frontal',
@@ -125,6 +128,29 @@ export const VIEWS: readonly ViewDef[] = [
     guide: { fa: 'ابروها را تا حد ممکن بالا ببرید؛ برای خطوط پیشانی.', en: 'Raise the brows as high as possible; for forehead lines.' },
   },
   {
+    id: 'eyes-closed',
+    label: { fa: 'روبه‌رو — بستن محکم چشم', en: 'Frontal — eyes shut tight' },
+    expression: 'closed',
+    yaw: 0,
+    tolerance: 3,
+    frontal: true,
+    manualAllowed: false,
+    guide: { fa: 'چشم‌ها را محکم ببندید؛ برای خطوط پنجه‌کلاغی و دور چشم.', en: 'Shut the eyes tight; for crow’s feet and lines around the eyes.' },
+  },
+  {
+    id: 'lips-closeup',
+    label: { fa: 'نمای نزدیک لب', en: 'Lip close-up' },
+    expression: 'neutral',
+    yaw: 0,
+    tolerance: 5,
+    frontal: false,
+    manualAllowed: true,
+    guide: {
+      fa: 'دوربین را نزدیک ببرید تا لب‌ها و دور دهان بیشتر کادر را پر کنند؛ لب‌ها بسته و آرام.',
+      en: 'Move the camera close so the lips and mouth area fill most of the frame; lips closed and relaxed.',
+    },
+  },
+  {
     id: 'lips-pursed',
     label: { fa: 'روبه‌رو — غنچه کردن لب', en: 'Frontal — lips pursed' },
     expression: 'pursed',
@@ -145,6 +171,19 @@ export const VIEWS: readonly ViewDef[] = [
     guide: {
       fa: 'سر را به عقب خم کنید و دوربین را پایین‌تر از چانه نگه دارید تا زیر چانه و گردن دیده شود. زاویهٔ دقیق: TODO پزشک ارشد.',
       en: 'Tilt the head back with the camera below the chin so the under-chin and neck are visible. Exact angle: TODO(clinical).',
+    },
+  },
+  {
+    id: 'head-down',
+    label: { fa: 'سر پایین', en: 'Head down' },
+    expression: 'neutral',
+    yaw: 0,
+    tolerance: 5,
+    frontal: false,
+    manualAllowed: true,
+    guide: {
+      fa: 'سر را به جلو و پایین خم کنید (چانه به سمت سینه) و دوربین هم‌سطح چشم بماند؛ برای خط فک و گردن.',
+      en: 'Bend the head forward and down (chin toward the chest) with the camera at eye level; for the jawline and neck.',
     },
   },
   {

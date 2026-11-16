@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { BottomBar, Button, Chip, Header, Notice, Page, Section, Toggle } from '../../components/ui';
+import { BottomBar, Button, Chip, Header, LinkButton, Notice, Page, Section, Toggle } from '../../components/ui';
+import { canCapture } from '../../data/consentGate';
 import { updateCase } from '../../db/repo';
 import type { Case } from '../../db/types';
 import { AREA_LABEL } from '../../plan/data/areas';
@@ -8,6 +9,8 @@ import { AREA_INTAKE_KEYS, BOOLEAN_INTAKE_KEYS } from '../../plan/intake';
 import { useT } from '../../i18n';
 import { useApp } from '../../store/app';
 import { CaseSteps } from './CaseSteps';
+import { ConsentPanel } from './ConsentPanel';
+import { useConsents } from './useConsents';
 import { useCase } from './useCase';
 
 export function IntakePage() {
@@ -16,11 +19,13 @@ export function IntakePage() {
   const lang = useApp((s) => s.lang);
   const nav = useNavigate();
   const data = useCase(caseId);
-  if (!data) return null;
+  const consents = useConsents(data?.patient.id);
+  if (!data || !consents) return null;
   const { c, patient } = data;
   const set = (patch: (cur: Case) => Partial<Case>) => void updateCase(c.id, patch, 'intake.update');
   const setIntake = (patch: Partial<Case['intake']>) => set((cur) => ({ intake: { ...cur.intake, ...patch } }));
-  const consentOk = c.consents.photography && c.consents.analysis && c.consents.storage;
+  // PRD F8.3 level 1 (signed by the patient) replaces the v1 photography / analysis / storage switches.
+  const consentOk = canCapture(consents);
   const under18 = c.actualAge < 18;
 
   return (
@@ -79,16 +84,24 @@ export function IntakePage() {
         </Section>
 
         <Section title={t.intake.consents}>
-          <div className="card">
-            {(['photography', 'analysis', 'storage', 'educational', 'patientApp'] as const).map((k) => (
-              <Toggle key={k} label={t.intake.consent[k]} checked={c.consents[k]} onChange={(v) => set((cur) => ({ consents: { ...cur.consents, [k]: v } }))} />
-            ))}
-          </div>
+          <ConsentPanel patientId={patient.id} scopes={['analysis']} />
           {!consentOk && (
             <div className="mt-2">
-              <Notice tone="warn">{t.intake.consentRequired}</Notice>
+              <Notice tone="warn">{t.consent.required}</Notice>
             </div>
           )}
+          <div className="card mt-3">
+            <Toggle
+              label={t.intake.consent.patientApp}
+              checked={c.consents.patientApp}
+              onChange={(v) => set((cur) => ({ consents: { ...cur.consents, patientApp: v } }))}
+            />
+          </div>
+          <div className="mt-2">
+            <LinkButton variant="ghost" to={`/doctor/patient/${patient.id}/consent`}>
+              {t.consent.manage}
+            </LinkButton>
+          </div>
         </Section>
 
         <Section title={t.intake.bdd}>

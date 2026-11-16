@@ -17,6 +17,7 @@ export type Token =
   | 'mark'
   | 'paper'
   | 'paper-ink'
+  | 'photo'
   | 'risk-fg'
   | `region-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
 

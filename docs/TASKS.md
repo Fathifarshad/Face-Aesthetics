@@ -6,7 +6,8 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
 Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set), M6 (knowledge base,
-sorting, option → image) and M7 (estimates, tariff, MD Codes layer) built, waiting for the owner's look. Next: M8.
+sorting, option → image), M7 (estimates, tariff, MD Codes layer) and M8 (gallery, consent) built, waiting for the
+owner's look. Next: M9.
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -148,10 +149,31 @@ Owner decisions 2026-11-16 (plan approved with «ادامه», built 2026-11-16)
   estimates are not yet in the report or the client package (M9, M11; doctor approval first)
 
 ## M8 — Before/after gallery and consent
-- [~] Photo sets per procedure (PRD §8), ghost overlay from the before photo
-- [ ] Three consent levels with name, date and touch signature; revocation
-- [ ] Compare: side by side, slider, simulation vs real result
-- [ ] (V) No photo in any shareable output without level-3 consent; revocation works
+Plan approved by the owner 2026-11-16 («اصلاح که کردی ادامه بده»), built 2026-11-16. Owner decision in the plan:
+level 3 «فقط داخلی» also covers the patient's own copy (client package, report), so declining teaching use still
+gives the patient their photos.
+- [x] Consent (PRD F8.3): Dexie v3 table `consents` per patient; signature encrypted like the sign-off
+  (`images.ts`: `listConsents`, `addConsent`, `revokeConsent`, audited under `patient:<id>`). `ConsentPanel` card
+  per level (name, date, touch signature; level 3 use internal / education / public and «پوشاندن چشم»), revocation with
+  a warning that copies already given are not recalled, history kept. Page `/doctor/patient/:id/consent`; level 1 on
+  the intake page replaces the v1 photography / analysis / storage / educational switches (the client-app switch
+  stays); capture is blocked without level 1. Deleting a patient deletes their consents and audit
+- [x] Share gate `src/data/consentGate.ts` is the only rule: client package (photos and the simulation), report photos
+  and the gallery file ask `canShare`; revoked = none from that moment
+- [x] Photo sets per PRD §8 (`services.ts`: base, upper-face toxin, mid/lower filler, lips, jaw and neck, full
+  analysis; v1 ids mapped); new views «بستن محکم چشم», «نمای نزدیک لب», «سر پایین». "After" photo time per chosen
+  modality (`src/data/photoProtocol.ts`, PRD §8, draft)
+- [x] Framing (F8.2): ghost overlay as before; the confirm dialog warns when the "after" photo's eye line differs from
+  the "before" one (`src/capture/align.ts`, technical tolerances 10 % / 6 % / 4°)
+- [x] Gallery page: pairs per view, untaken views in one line, "hidden" tag without consent, before/after file aligned
+  on the eye corners with dates and the eye bar (`galleryExport.ts`), purposes limited to the signed use, audited
+- [x] Compare: third mode «شبیه‌سازی در برابر نتیجهٔ واقعی» (after photo aligned to the before frame, slider)
+- [x] (V) Unit: `consentGate.test.ts`, `align.test.ts`, `capture.test.ts`; e2e `gallery.spec.ts` (level 1 blocks
+  capture; misframed after photo flagged; no file without level 3; internal only offers internal; masked export;
+  revocation closes it; simulation vs real result)
+- [ ] (V) Owner look: consent cards (intake, gallery, patient page → «رضایت‌نامه‌ها»), gallery file, compare mode
+- Open: level 2 is recorded only (used in M10). The client app does not yet show consented photos differently (M11).
+  The report (M9) shows a line instead of photos without level 3
 
 ## M9 — Report
 - [~] PDF report with clinic branding, simulation with burned-in label, line items, sessions, disclaimer

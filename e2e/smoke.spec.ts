@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync } from 'node:fs';
-import { setupVault, unlockVault } from './helpers';
+import { setupVault, signConsent, unlockVault } from './helpers';
 
 const shots = 'test-results/screens';
 
@@ -48,13 +48,14 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.getByRole('button', { name: 'ایجاد و ادامه' }).click();
 
   await expect(page).toHaveURL(/intake/);
-  for (const label of ['عکاسی', 'آنالیز', 'ذخیره‌سازی روی دستگاه', 'ارسال پرونده به اپ مراجع'])
-    await page.getByRole('switch', { name: label }).click();
+  await signConsent(page, 'analysis');
+  await page.getByRole('switch', { name: 'ارسال پرونده به اپ مراجع' }).click();
   await page.getByRole('switch', { name: 'سابقهٔ تبخال' }).click();
   await page.getByRole('button', { name: 'عکس‌های مراجع' }).last().click();
 
   await expect(page).toHaveURL(/capture/);
-  await expect(page.getByText(/از 7 عکس لازم/).first()).toBeVisible();
+  // PRD §8 lips set: base (5) + lip close-up, smile, pursed = 8 views.
+  await expect(page.getByText(/از 8 عکس لازم/).first()).toBeVisible();
   await page.screenshot({ path: `${shots}/03-capture.png` });
   const frontal = page.locator('.card', { hasText: 'روبه‌رو — بی‌حالت' }).first();
   await frontal.locator('input[type=file]').setInputFiles(PHOTO);
@@ -62,7 +63,7 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.screenshot({ path: `${shots}/04-confirm.png`, fullPage: true });
   const accept = page.getByRole('button', { name: /تأیید و ذخیره|استفاده با وجود ایراد/ });
   await accept.click();
-  await expect(page.getByText(/1 از 7 عکس لازم/).first()).toBeVisible();
+  await expect(page.getByText(/1 از 8 عکس لازم/).first()).toBeVisible();
 
   await page.getByRole('button', { name: 'درجه‌بندی' }).last().click();
   await expect(page).toHaveURL(/grading/);
@@ -120,7 +121,7 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   // section tabs lead into the open case
   await tabs(page).getByRole('link', { name: 'قبل و بعد' }).click();
   await expect(page).toHaveURL(/gallery/);
-  await expect(page.getByRole('heading', { name: 'گالری قبل و بعد هنوز ساخته نشده است' })).toBeVisible();
+  await expect(page.getByText('جفت عکس‌های قبل و بعد')).toBeVisible();
   await page.screenshot({ path: `${shots}/m0-gallery.png` });
   await tabs(page).getByRole('link', { name: 'شبیه‌سازی' }).click();
   await expect(page).toHaveURL(/grading/);

@@ -32,6 +32,26 @@ export function PoseGlyph({ view, size = 72 }: { view: ViewDef; size?: number })
     );
   }
 
+  if (id === 'head-down') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 80 80" aria-hidden>
+        <ellipse {...common} cx="40" cy="44" rx="21" ry="24" />
+        <path {...common} d="M24 30c10-8 22-8 32 0" />
+        <path d="M62 20c4 6 4 14 0 20M62 40l-5-1 2 5" fill="none" stroke={soft} strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (id === 'lips-closeup') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 80 80" aria-hidden>
+        <path {...common} d="M14 40c8-10 18-12 26-6 8-6 18-4 26 6-8 10-18 14-26 14s-18-4-26-14z" />
+        <path {...common} d="M14 40h52" stroke={soft} />
+        <rect x="6" y="20" width="68" height="40" rx="6" fill="none" stroke={soft} strokeWidth="1.4" strokeDasharray="3 3" />
+      </svg>
+    );
+  }
+
   const yawShift = id === 'oblique-r' ? -7 : id === 'oblique-l' ? 7 : 0;
   const browY = view.expression === 'brows' ? 25 : 30;
   const browTilt = view.expression === 'frown' ? 3 : 0;
@@ -48,8 +68,14 @@ export function PoseGlyph({ view, size = 72 }: { view: ViewDef; size?: number })
       <ellipse {...common} cx="40" cy="40" rx={yawShift ? 19 : 22} ry="28" />
       <g transform={`translate(${yawShift},0)`}>
         <path {...common} d={`M27 ${browY + browTilt}l9 ${-browTilt}M44 ${browY}l9 ${browTilt}`} />
-        <circle cx="32" cy="36" r="1.8" fill={stroke} />
-        <circle cx="48" cy="36" r="1.8" fill={stroke} />
+        {view.expression === 'closed' ? (
+          <path {...common} d="M29 36q3 2 6 0M45 36q3 2 6 0" />
+        ) : (
+          <>
+            <circle cx="32" cy="36" r="1.8" fill={stroke} />
+            <circle cx="48" cy="36" r="1.8" fill={stroke} />
+          </>
+        )}
         <path d="M40 38v9l-3 2" fill="none" stroke={soft} strokeWidth="1.6" strokeLinecap="round" />
         {mouth ? <path {...common} d={mouth} /> : <circle {...common} cx="40" cy="56" r="3" />}
       </g>

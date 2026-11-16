@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react';
-import { useParams } from 'react-router-dom';
 import { Header, LinkButton, Page } from '../../components/ui';
 import { useT } from '../../i18n';
-import { CaseSteps } from './CaseSteps';
-import { useCase } from './useCase';
 
 /** Empty state drawn as a plain line face (docs/BRAND.md §8: no stock imagery). */
 function EmptyState({ title, body, children }: { title: string; body: string; children: ReactNode }) {
@@ -30,28 +27,6 @@ export function NoCasePage() {
       <Page>
         <EmptyState title={t.nav.noCaseTitle} body={t.nav.noCaseBody}>
           <LinkButton to="/doctor">{t.nav.openCases}</LinkButton>
-        </EmptyState>
-      </Page>
-    </>
-  );
-}
-
-/** Before/after gallery: placeholder until consent levels and the gallery land (PRD M8). */
-export function GalleryPage() {
-  const { caseId = '' } = useParams();
-  const t = useT();
-  const data = useCase(caseId);
-  if (!data) return null;
-  return (
-    <>
-      <Header title={`${t.nav.gallery} — ${data.patient.displayName}`} back={`/doctor/patient/${data.patient.id}`} />
-      <Page>
-        <CaseSteps caseId={caseId} />
-        <EmptyState title={t.nav.gallerySoonTitle} body={t.nav.gallerySoonBody}>
-          <LinkButton to={`/doctor/case/${caseId}/capture`}>{t.nav.capture}</LinkButton>
-          <LinkButton to={`/doctor/case/${caseId}/compare`} variant="ghost">
-            {t.nav.toCompare}
-          </LinkButton>
         </EmptyState>
       </Page>
     </>

@@ -63,6 +63,11 @@ export function PatientPage() {
           <div className="mt-1 text-[13px] text-ink-2" dir="ltr">
             {p.fileNo} · {p.birthYear} · {t.patient.sexes[p.sex]}
           </div>
+          <div className="mt-3">
+            <LinkButton to={`/doctor/patient/${p.id}/consent`} variant="soft" className="!min-h-[40px]">
+              {t.consent.manage}
+            </LinkButton>
+          </div>
         </div>
 
         <Section

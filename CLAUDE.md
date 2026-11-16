@@ -5,7 +5,7 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image) and M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options) built and waiting for the owner's look; M8 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options) and M8 (consent levels, gallery, compare) built and waiting for the owner's look; M9 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
@@ -87,6 +87,10 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - MD Codes (mode B): codes and families in `src/data/mdCodes.ts` (names only, no depth/tool/volume); reshaping codes are
   `site`-tagged operators in `warp.ts`, smoothing codes (F, G, O, Tt, Lp8) are parts of a concern region in `src/engine/mdZones.ts`.
   An operator with `site` and no `use` serves both modes; `use: 'area'` / `'sites'` only one
+- Consent (PRD F8.3) is per patient in Dexie v3 `consents`. Every output that carries a photo or the simulation asks
+  `canShare()` in `src/data/consentGate.ts` (client package, report, gallery file); capture asks `canCapture()`. Add a
+  new shareable output only through that gate
+- Default sliders: every graded change improves by at least one grade (PRD §0 item 6, `defaultIntensity` in `ageNorms.ts`)
 - The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored
 

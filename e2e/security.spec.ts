@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { PASSPHRASE, setupVault, unlockVault } from './helpers';
+import { PASSPHRASE, setupVault, signConsent, unlockVault } from './helpers';
 
 /**
  * M2 acceptance (docs/PRD.md §13): photos are ciphertext in IndexedDB, EXIF is dropped on import, the panel
@@ -7,7 +7,7 @@ import { PASSPHRASE, setupVault, unlockVault } from './helpers';
  * All data here is synthetic: a generated picture with a fake EXIF block — no real person, no real location.
  */
 const EXIF_SECRET = 'GPS-SECRET-MARKER-00.0000N-00.0000E';
-const STORES = ['patients', 'cases', 'photos', 'findings', 'plans', 'simulations', 'signoffs', 'messages', 'audit', 'grades', 'simStates'] as const;
+const STORES = ['patients', 'cases', 'photos', 'findings', 'plans', 'simulations', 'signoffs', 'messages', 'audit', 'grades', 'simStates', 'consents'] as const;
 
 /** A JPEG drawn in the page, with an EXIF (APP1) segment spliced in after the start marker. */
 async function syntheticJpegWithExif(page: Page): Promise<Buffer> {
@@ -38,7 +38,7 @@ async function createCaseAtCapture(page: Page) {
   await page.getByRole('button', { name: /^لب ·/ }).click();
   await page.getByRole('button', { name: 'ایجاد و ادامه' }).click();
   await expect(page).toHaveURL(/intake/);
-  for (const label of ['عکاسی', 'آنالیز', 'ذخیره‌سازی روی دستگاه']) await page.getByRole('switch', { name: label }).click();
+  await signConsent(page, 'analysis');
   await page.getByRole('button', { name: 'عکس‌های مراجع' }).last().click();
   await expect(page).toHaveURL(/capture/);
 }
@@ -259,7 +259,8 @@ test('deleting a patient leaves nothing about them on the device', async ({ page
   await page.goto(page.url().replace(/simulate$/, 'analysis'));
   await expect(page.getByRole('heading', { name: 'گودی زیر چشم' })).toBeVisible();
 
-  for (const store of ['patients', 'cases', 'photos', 'findings', 'audit', 'grades', 'simStates']) expect(await countStore(page, store), store).toBeGreaterThan(0);
+  for (const store of ['patients', 'cases', 'photos', 'findings', 'audit', 'grades', 'simStates', 'consents'])
+    expect(await countStore(page, store), store).toBeGreaterThan(0);
 
   await page.goto('/#/doctor');
   await page.getByRole('link', { name: /بیمار ساختگی/ }).click();

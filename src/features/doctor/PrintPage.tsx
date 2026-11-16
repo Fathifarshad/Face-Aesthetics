@@ -1,4 +1,5 @@
 import { Printer } from 'lucide-react';
+import { canShare } from '../../data/consentGate';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { CATALOG } from '../../analysis/catalog';
@@ -30,13 +31,14 @@ export function PrintPage() {
     const c = await db.cases.get(caseId);
     const patient = c && (await db.patients.get(c.patientId));
     const findings = await db.findings.where('caseId').equals(caseId).toArray();
+    const consents = c ? await db.consents.where('patientId').equals(c.patientId).toArray() : [];
     // Image reads last and together: they decrypt, which ends Dexie's tracking of this query.
     const [photos, sim, signoff] = await Promise.all([listPhotos(caseId, 'before'), latestSimulation(caseId), getSignoff(caseId)]);
-    return c && patient ? { c, patient, photos, sim, signoff, findings } : null;
+    return c && patient ? { c, patient, photos, sim, signoff, findings, photosAllowed: canShare(consents, 'patient') } : null;
   }, [caseId]);
 
   if (!data || !settings || pt === undefined) return null;
-  const { patient, photos, sim, signoff, findings } = data;
+  const { patient, photos, sim, signoff, findings, photosAllowed } = data;
   const accent = safeAccent(settings.accent);
   const dir = lang === 'fa' ? 'rtl' : 'ltr';
   const shown = photos.filter((p) => ['frontal', 'oblique-r', 'oblique-l', 'profile-r'].includes(p.view)).slice(0, 4);
@@ -82,12 +84,19 @@ export function PrintPage() {
         <h2 className="mt-4 text-[15px] font-bold" style={{ color: accent }}>
           {t.report.photos}
         </h2>
-        <div className="mt-2 grid grid-cols-4 gap-2">
-          {shown.map((p) => (
-            <PrintPhoto key={p.id} photo={p} label={viewById(p.view)?.label[lang] ?? p.view} />
-          ))}
-          {sim && <PrintSim sim={sim} label={`${t.client.simulation} · ${num(sim.targetAge)}`} />}
-        </div>
+        {photosAllowed ? (
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            {shown.map((p) => (
+              <PrintPhoto key={p.id} photo={p} label={viewById(p.view)?.label[lang] ?? p.view} />
+            ))}
+            {sim && <PrintSim sim={sim} label={`${t.client.simulation} · ${num(sim.targetAge)}`} />}
+          </div>
+        ) : (
+          // PRD F8.4: without level-3 consent the report carries no photo.
+          <p className="mt-2 text-[12px]" data-photos-withheld>
+            {t.consent.level3None}
+          </p>
+        )}
 
         <h2 className="mt-4 text-[15px] font-bold" style={{ color: accent }}>
           {t.report.findingsTitle}

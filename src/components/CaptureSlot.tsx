@@ -1,5 +1,6 @@
 import { Camera, CheckCircle2, ChevronDown, CircleAlert, CircleDashed, Image as ImageIcon, XCircle } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { frameMatches, type Framed } from '../capture/align';
 import { processPhoto, type Processed } from '../capture/processPhoto';
 import type { QcResult } from '../capture/qc';
 import type { ViewDef } from '../capture/views';
@@ -20,12 +21,15 @@ export function CaptureSlot({
   view,
   photo,
   ghost,
+  reference = null,
   onSave,
   defaultOpen = false,
 }: {
   view: ViewDef;
   photo: SlotPhoto | null;
   ghost?: Blob | null;
+  /** The "before" photo of this view, when taking the "after" one: its framing is checked (PRD F8.2). */
+  reference?: Framed | null;
   onSave: (p: Processed, lowQuality: boolean) => Promise<void>;
   defaultOpen?: boolean;
 }) {
@@ -129,6 +133,7 @@ export function CaptureSlot({
         <ConfirmDialog
           view={view}
           processed={pending}
+          misframed={!!reference && frameMatches(reference, pending) === false}
           onAccept={() => void save(false)}
           onUseAnyway={() => void save(true)}
           onRetake={() => {
@@ -145,6 +150,7 @@ export function CaptureSlot({
 function ConfirmDialog({
   view,
   processed,
+  misframed,
   onAccept,
   onUseAnyway,
   onRetake,
@@ -152,6 +158,7 @@ function ConfirmDialog({
 }: {
   view: ViewDef;
   processed: Processed;
+  misframed: boolean;
   onAccept: () => void;
   onUseAnyway: () => void;
   onRetake: () => void;
@@ -166,6 +173,11 @@ function ConfirmDialog({
         <h2 className="mb-1 text-[18px] font-bold">{t.capture.confirmTitle}</h2>
         <p className="mb-3 text-[13px] text-ink-2">{bi(view.label)}</p>
         <FaceCanvas blob={processed.blob} landmarks={processed.landmarks} overlay={{ landmarks: 'named' }} alt={bi(view.label)} />
+        {misframed && (
+          <div className="mt-3" data-misframed>
+            <Notice tone="warn">{t.capture.alignWarn}</Notice>
+          </div>
+        )}
         {processed.detectorError && (
           <div className="mt-3">
             <Notice tone="warn">{t.capture.detectorError}</Notice>

@@ -11,6 +11,7 @@ import { CapturePage } from './features/doctor/CapturePage';
 import { ComparePage } from './features/doctor/ComparePage';
 import { GradingPage } from './features/doctor/GradingPage';
 import { IntakePage } from './features/doctor/IntakePage';
+import { ConsentPage } from './features/doctor/ConsentPanel';
 import { MdCodesPage } from './features/doctor/MdCodesPage';
 import { NewCasePage } from './features/doctor/NewCasePage';
 import { PatientPage } from './features/doctor/PatientPage';
@@ -18,7 +19,8 @@ import { PatientsPage } from './features/doctor/PatientsPage';
 import { PlanPage } from './features/doctor/PlanPage';
 import { PrintPage } from './features/doctor/PrintPage';
 import { ReportPage } from './features/doctor/ReportPage';
-import { GalleryPage, NoCasePage } from './features/doctor/SectionPlaceholders';
+import { GalleryPage } from './features/doctor/GalleryPage';
+import { NoCasePage } from './features/doctor/SectionPlaceholders';
 import { SimulatePage } from './features/doctor/SimulatePage';
 import { EmergencyPage } from './features/EmergencyPage';
 import { HomePage } from './features/HomePage';
@@ -37,6 +39,7 @@ export function App() {
             <Route path="/doctor" element={<PatientsPage />} />
             <Route path="/doctor/new" element={<NewCasePage />} />
             <Route path="/doctor/patient/:patientId" element={<PatientPage />} />
+            <Route path="/doctor/patient/:patientId/consent" element={<ConsentPage />} />
             <Route path="/doctor/no-case/:section" element={<NoCasePage />} />
             <Route path="/doctor/case/:caseId/intake" element={<IntakePage />} />
             <Route path="/doctor/case/:caseId/capture" element={<CapturePage />} />

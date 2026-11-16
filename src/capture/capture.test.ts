@@ -44,8 +44,22 @@ describe('QC', () => {
 
 describe('services', () => {
   it('unions required views in capture order', () => {
-    expect(requiredViews(['upper-toxin', 'skin'])).toEqual(['frontal', 'oblique-r', 'oblique-l', 'smile', 'frown', 'brows-raised']);
-    expect(requiredViews(['full-analysis'])).toHaveLength(11);
+    // PRD §8: upper-face toxin = base + frown, brows raised, full smile, eyes shut tight.
+    expect(requiredViews(['upper-toxin'])).toEqual([
+      'frontal',
+      'oblique-r',
+      'oblique-l',
+      'profile-r',
+      'profile-l',
+      'smile',
+      'frown',
+      'brows-raised',
+      'eyes-closed',
+    ]);
+    expect(requiredViews(['full-analysis'])).toHaveLength(14);
+    // v1 ids on older cases still map to a PRD §8 row.
+    expect(requiredViews(['skin'])).toEqual(['frontal', 'oblique-r', 'oblique-l', 'profile-r', 'profile-l']);
+    expect(requiredViews(['neck'])).toEqual(requiredViews(['jaw-neck']));
     expect(requiredViews([])).toEqual(['frontal']);
   });
 });

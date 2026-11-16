@@ -1,5 +1,6 @@
-import { db } from './db';
-import type { Photo, PhotoPhase, PhotoRow, SignOff, Simulation, SimulationRow } from './types';
+import { audit, db } from './db';
+import type { Consent } from '../data/types';
+import type { ConsentRow, Photo, PhotoPhase, PhotoRow, SignOff, Simulation, SimulationRow } from './types';
 import { forgetImage, openBlob, openString, sealBlob, sealString } from './vault';
 
 /**
@@ -57,4 +58,29 @@ export async function getSignoff(caseId: string): Promise<SignOff | null> {
 
 export async function saveSignoff({ signature, ...rest }: SignOff): Promise<void> {
   await db.signoffs.put({ ...rest, sealedSignature: await sealString(signature) });
+}
+
+/** Consents of a patient, oldest first, revoked ones included (the history stays). */
+export async function listConsents(patientId: string): Promise<Consent[]> {
+  const rows = await db.consents.where('patientId').equals(patientId).sortBy('signedAt');
+  return Promise.all(rows.map(async ({ sealedSignature, ...rest }) => ({ ...rest, signature: await openString(sealedSignature) })));
+}
+
+export async function addConsent({ signature, ...rest }: Consent): Promise<void> {
+  const row: ConsentRow = { ...rest, sealedSignature: await sealString(signature) };
+  await db.transaction('rw', [db.consents, db.audit], async () => {
+    await db.consents.add(row);
+    await audit(`patient:${rest.patientId}`, 'consent.sign', undefined, { scope: rest.scope, detail: rest.detail });
+  });
+}
+
+/** PRD F8.6: revocation keeps the row (and its signature) and stamps the time; outputs stop at once. */
+export async function revokeConsent(id: string): Promise<void> {
+  await db.transaction('rw', [db.consents, db.audit], async () => {
+    const row = await db.consents.get(id);
+    if (!row || row.revokedAt) return;
+    const at = Date.now();
+    await db.consents.update(id, { revokedAt: at });
+    await audit(`patient:${row.patientId}`, 'consent.revoke', { scope: row.scope }, { revokedAt: at });
+  });
 }

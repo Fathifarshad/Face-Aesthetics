@@ -88,7 +88,7 @@ export async function updateFinding(row: FindingRow, patch: Partial<FindingRow>)
 export async function deletePatient(patientId: string) {
   const p = await db.patients.get(patientId);
   const cases = await db.cases.where('patientId').equals(patientId).toArray();
-  await db.transaction('rw', [db.patients, db.cases, db.photos, db.findings, db.plans, db.simulations, db.signoffs, db.messages, db.audit, db.grades, db.simStates], async () => {
+  await db.transaction('rw', [db.patients, db.cases, db.photos, db.findings, db.plans, db.simulations, db.signoffs, db.messages, db.audit, db.grades, db.simStates, db.consents], async () => {
     for (const c of cases) {
       await db.photos.where('caseId').equals(c.id).delete();
       await db.findings.where('caseId').equals(c.id).delete();
@@ -102,6 +102,9 @@ export async function deletePatient(patientId: string) {
       await db.cases.delete(c.id);
     }
     if (p) await db.messages.where({ owner: 'doctor', patientCode: p.code }).delete();
+    // Consents and their audit entries (signatures included) leave with the patient.
+    await db.consents.where('patientId').equals(patientId).delete();
+    await db.audit.where('caseId').equals(`patient:${patientId}`).delete();
     await db.patients.delete(patientId);
   });
 }
