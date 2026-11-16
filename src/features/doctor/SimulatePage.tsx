@@ -15,17 +15,20 @@ import {
   setLipType,
   setOverride,
   setRealAge,
+  setSimMode,
+  setSiteOverride,
   DEFAULT_TARGET,
 } from '../../db/simRepo';
-import type { SimSetting } from '../../db/types';
+import type { SimMode, SimSetting } from '../../db/types';
+import { MD_SITE_INFO, MD_SITES, type MdSite } from '../../data/mdCodes';
 import { LIP_TYPE_SETTINGS, LIP_TYPES, lipTypeOf, type LipType } from '../../data/lipTypes';
-import { MAX_INTENSITY, type Change } from '../../engine/pipeline';
+import { MAX_INTENSITY, type Change, type SiteChange } from '../../engine/pipeline';
 import type { WorkerRequest } from '../../engine/pipeline.worker';
 import { area, pointInPolygon } from '../../engine/shapes';
 import { useNum, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { CaseSteps } from './CaseSteps';
-import { effectiveSettings, usable } from './simDefaults';
+import { concernsShown, effectiveSettings, engineInput, siteSettings, usable } from './simDefaults';
 import { useCase } from './useCase';
 import { useEngine } from './useEngine';
 
@@ -43,6 +46,17 @@ const DIVIDER_GRAB = 28;
 const SAVE_DELAY = 300;
 /** The age coefficients behind every default are drafts until a senior physician sets them (PRD F3.3). */
 const AGE_NORMS_DRAFT = Object.values(AGE_NORMS).some((n) => n.status === 'draft');
+
+/** A slider of the page: a concern (both modes) or an MD Codes site (mode B). */
+type Key = ConcernId | MdSite;
+const isSite = (k: Key): k is MdSite => (MD_SITES as readonly string[]).includes(k);
+type Frame = { changes: Change[]; sites: SiteChange[] };
+type P = { x: number; y: number };
+const pointsAttr = (pts: readonly P[]) => pts.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ');
+const centreOf = (pts: readonly P[]) => ({
+  x: pts.reduce((t, q) => t + q.x, 0) / pts.length,
+  y: pts.reduce((t, q) => t + q.y, 0) / pts.length,
+});
 
 /**
  * Per-region simulation: band smoothing of lines, folds and hollows (M3) and local warp for volume and shape
@@ -64,13 +78,14 @@ export function SimulatePage() {
   const frames = useRef({
     sent: 0,
     inFlight: false,
-    pending: null as Change[] | null,
+    pending: null as Frame | null,
     last: null as ImageData | null,
   });
   const gesture = useRef<{ x: number; y: number; drag: boolean } | null>(null);
-  const timers = useRef<Partial<Record<ConcernId, number>>>({});
+  const timers = useRef<Partial<Record<Key, number>>>({});
   const [overrides, setOverrides] = useState<Partial<Record<ConcernId, SimSetting>> | null>(null);
-  const [selected, setSelected] = useState<ConcernId | null>(null);
+  const [siteOverrides, setSiteOverrides] = useState<Partial<Record<MdSite, SimSetting>>>({});
+  const [selected, setSelected] = useState<Key | null>(null);
   const [split, setSplit] = useState(50);
   const [customOpen, setCustomOpen] = useState(false);
   const [customText, setCustomText] = useState('');
@@ -107,14 +122,14 @@ export function SimulatePage() {
 
   /** Sends the newest changes; while a frame is being rendered, only the latest request is kept. */
   const request = useCallback(
-    (changes: Change[]) => {
+    (frame: Frame) => {
       const f = frames.current;
       if (f.inFlight) {
-        f.pending = changes;
+        f.pending = frame;
         return;
       }
       f.inFlight = true;
-      post({ type: 'render', id: ++f.sent, changes } satisfies WorkerRequest);
+      post({ type: 'render', id: ++f.sent, changes: frame.changes, sites: frame.sites } satisfies WorkerRequest);
     },
     [post],
   );
@@ -123,7 +138,11 @@ export function SimulatePage() {
   useEffect(() => {
     let live = true;
     setOverrides(null);
-    void getSimState(caseId).then((s) => live && setOverrides(s.overrides));
+    void getSimState(caseId).then((s) => {
+      if (!live) return;
+      setSiteOverrides(s.siteOverrides ?? {});
+      setOverrides(s.overrides);
+    });
     return () => {
       live = false;
     };
@@ -145,6 +164,7 @@ export function SimulatePage() {
   const suggestedLip: LipType | null = ready ? lipTypeOf(ready.lipFullness) : null;
   const lipType: LipType = sim?.lipType ?? suggestedLip ?? 3;
   const target: AgeTarget = sim?.target ?? DEFAULT_TARGET;
+  const mode: SimMode = sim?.mode ?? 'area';
   const settings = useMemo(
     () =>
       ready && grades && overrides
@@ -155,68 +175,85 @@ export function SimulatePage() {
     [ready, grades, overrides, realAge, JSON.stringify(target)],
   );
 
-  // Re-render on every change of a switch, a slider, a grade, the age target or the lip type.
+  // MD Codes sites that can be placed on this photo, top to bottom; mode B starts each from its concern (M5b).
+  const siteIds = useMemo(() => (ready ? MD_SITES.filter((site) => ready.zones.some((z) => z.site === site)) : []), [ready]);
+  const sites = useMemo(
+    () => (settings ? siteSettings(siteIds, settings, siteOverrides) : null),
+    [siteIds, settings, siteOverrides],
+  );
+
+  // Re-render on every change of the mode, a switch, a slider, a grade, the age target or the lip type.
   useEffect(() => {
-    if (!settings) return;
+    if (!settings || !sites) return;
     if (after.current) after.current.dataset.ready = 'false';
     // The lip slider is scaled by the lip type: a thin lip changes more than a full one.
-    const k = (id: ConcernId) => (id === 'lip-volume' ? LIP_TYPE_SETTINGS.gain[lipType] : 1);
-    request(
-      (Object.entries(settings) as [ConcernId, SimSetting][])
-        .filter(([, s]) => s.on && (s.value > 0 || (!s.mirror && s.left > 0)))
-        .map(([concernId, s]) =>
-          s.mirror
-            ? { concernId, intensity: s.value * k(concernId) }
-            : { concernId, intensity: s.value * k(concernId), left: s.left * k(concernId) },
-        ),
-    );
-  }, [settings, request, lipType]);
+    const k = (key: Key) => (key === 'lip-volume' || key === 'Lp' ? LIP_TYPE_SETTINGS.gain[lipType] : 1);
+    request(engineInput(mode, settings, sites, k));
+  }, [settings, sites, mode, request, lipType]);
 
   useEffect(() => () => Object.values(timers.current).forEach((id) => window.clearTimeout(id)), []);
 
   if (!data) return null;
   const { patient } = data;
-  const ids = settings ? (Object.keys(settings) as ConcernId[]) : [];
-  const anyOn = ids.some((id) => settings![id]!.on);
+  const concernIds = settings ? concernsShown(mode, Object.keys(settings) as ConcernId[]) : [];
+  const shownSites = mode === 'mdcodes' ? siteIds : [];
+  const ids: Key[] = [...concernIds, ...shownSites];
+  const settingOf = (key: Key): SimSetting => (isSite(key) ? sites![key]! : settings![key]!);
+  const anyOn = ids.some((id) => settingOf(id).on);
+  const nameOf = (key: Key) => (isSite(key) ? t.sim.siteName(key, t.sim.sites[key]) : t.concerns[key]);
+  /** A site zone is shaded while its slider gives that side some volume. */
+  const filled = (site: MdSite, side: 'R' | 'L' | 'M') => {
+    const s = sites?.[site];
+    return !!s && s.on && (side === 'L' && !s.mirror ? s.left : s.value) > 0;
+  };
   const anyGrade = (grades ?? []).some(usable);
   const targetAge = targetAgeOf(realAge, target);
   const signed = data.c.status === 'signed';
 
-  /** A change the doctor touched becomes an override: kept here at once, written to the database after a pause. */
-  const write = (next: Partial<Record<ConcernId, SimSetting>>) => {
-    setOverrides((old) => ({ ...old, ...next }));
-    for (const [id, s] of Object.entries(next) as [ConcernId, SimSetting][]) {
+  /**
+   * A slider the doctor touched becomes an override: kept here at once, written to the database after a pause.
+   * Concern sliders and MD Codes sliders are stored apart, so each mode keeps its own settings.
+   */
+  const write = (next: Partial<Record<Key, SimSetting>>) => {
+    const entries = Object.entries(next) as [Key, SimSetting][];
+    const concerns = entries.filter(([k]) => !isSite(k));
+    const own = entries.filter(([k]) => isSite(k));
+    if (concerns.length) setOverrides((old) => ({ ...old, ...Object.fromEntries(concerns) }));
+    if (own.length) setSiteOverrides((old) => ({ ...old, ...Object.fromEntries(own) }));
+    for (const [id, s] of entries) {
       window.clearTimeout(timers.current[id]);
-      timers.current[id] = window.setTimeout(() => void setOverride(caseId, id, s), SAVE_DELAY);
+      timers.current[id] = window.setTimeout(
+        () => void (isSite(id) ? setSiteOverride(caseId, id, s) : setOverride(caseId, id, s)),
+        SAVE_DELAY,
+      );
     }
   };
-  const update = (id: ConcernId, patch: Partial<SimSetting>) =>
-    write({ [id]: { ...settings![id]!, ...patch } });
+  const update = (id: Key, patch: Partial<SimSetting>) => write({ [id]: { ...settingOf(id), ...patch } });
   /** Switching on a change whose default is 0 starts it at MANUAL_START, so switching on always shows something. */
   const switched = (s: SimSetting, on: boolean): SimSetting =>
     on && !s.on && s.value === 0 && s.left === 0
       ? { ...s, on, value: MANUAL_START, left: MANUAL_START, mirror: true }
       : { ...s, on };
-  const toggle = (id: ConcernId) => write({ [id]: switched(settings![id]!, !settings![id]!.on) });
-  const setAll = (on: boolean) =>
-    write(Object.fromEntries(ids.map((id) => [id, switched(settings![id]!, on)])));
-  const setSide = (id: ConcernId, side: 'R' | 'L', v: number) =>
+  const toggle = (id: Key) => write({ [id]: switched(settingOf(id), !settingOf(id).on) });
+  const setAll = (on: boolean) => write(Object.fromEntries(ids.map((id) => [id, switched(settingOf(id), on)])));
+  const setSide = (id: Key, side: 'R' | 'L', v: number) =>
     update(id, side === 'R' ? { value: v, last: 'R' } : { left: v, last: 'L' });
   /** The side moved last is the one the doctor means; mirroring and matching copy it to the other side. */
   const lastValue = (c: SimSetting) => (c.last === 'L' ? c.left : c.value);
-  const setMirror = (id: ConcernId, mirror: boolean) => {
-    const c = settings![id]!;
+  const setMirror = (id: Key, mirror: boolean) => {
+    const c = settingOf(id);
     const v = mirror ? lastValue(c) : c.value;
     update(id, { mirror, value: v, left: mirror ? v : c.left });
   };
-  const match = (id: ConcernId) => {
-    const c = settings![id]!;
+  const match = (id: Key) => {
+    const c = settingOf(id);
     update(id, { value: lastValue(c), left: lastValue(c) });
   };
   const reset = () => {
     Object.values(timers.current).forEach((id) => window.clearTimeout(id));
     timers.current = {};
     setOverrides({});
+    setSiteOverrides({});
     void resetOverrides(caseId);
     setMessage(t.sim.resetDone);
   };
@@ -267,14 +304,16 @@ export function SimulatePage() {
     });
     await audit(caseId, 'simulation.create', undefined, {
       targetAge,
-      changes: ids.filter((id) => settings![id]!.on),
+      mode,
+      changes: ids.filter((id) => settingOf(id).on),
     });
     setMessage(t.sim.saved);
   };
 
   const maxPercent = Math.round(MAX_INTENSITY * 100);
   const pct = (v: number) => Math.round(v * 100);
-  const gradeText = (id: ConcernId) => {
+  const gradeText = (id: Key) => {
+    if (isSite(id)) return null;
     const own = (grades ?? []).filter((g) => g.concernId === id && usable(g));
     if (!own.length) return null;
     return own.map((g) => num(g.grade)).join(' · ');
@@ -293,12 +332,15 @@ export function SimulatePage() {
       x: ((e.clientX - box.left) / box.width) * rect.width,
       y: ((e.clientY - box.top) / box.height) * rect.height,
     };
-    const hit = ready.outlines
-      .filter((o) => pointInPolygon(p, o.points))
-      .sort((a, b) => area(a.points) - area(b.points))[0];
+    // In mode B the MD Codes zones can be picked as well; the concerns hidden there cannot.
+    const candidates: { key: Key; points: { x: number; y: number }[] }[] = [
+      ...ready.outlines.filter((o) => concernIds.includes(o.concernId)).map((o) => ({ key: o.concernId as Key, points: o.points })),
+      ...ready.zones.filter((z) => shownSites.includes(z.site)).map((z) => ({ key: z.site as Key, points: z.points })),
+    ];
+    const hit = candidates.filter((o) => pointInPolygon(p, o.points)).sort((a, b) => area(a.points) - area(b.points))[0];
     if (!hit) return;
-    setSelected(hit.concernId);
-    document.getElementById(`change-${hit.concernId}`)?.scrollIntoView({ block: 'nearest' });
+    setSelected(hit.key);
+    document.getElementById(`change-${hit.key}`)?.scrollIntoView({ block: 'nearest' });
   };
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -320,6 +362,138 @@ export function SimulatePage() {
   };
 
   const shown = status === 'ready' && settings;
+
+  /** One slider row: a concern, or an MD Codes site in mode B. */
+  const row = (id: Key) => {
+      const s = settingOf(id);
+      const name = nameOf(id);
+      const sides = isSite(id) ? MD_SITE_INFO[id].bilateral : ready!.bilateral.includes(id);
+      const apart = sides && !s.mirror;
+      const graded = gradeText(id);
+      const manual = isSite(id) ? !!siteOverrides[id] : !!overrides?.[id];
+      const slider = (value: number, aria: string, onChange: (v: number) => void) => (
+        <input
+          type="range"
+          min={0}
+          max={maxPercent}
+          step={SLIDER_STEP}
+          value={pct(value)}
+          disabled={!s.on}
+          onChange={(e) => onChange(Number(e.target.value) / 100)}
+          dir="ltr"
+          className="mt-1 w-full disabled:opacity-40"
+          aria-label={aria}
+        />
+      );
+      return (
+        <li
+          key={id}
+          id={`change-${id}`}
+          data-manual={manual ? 'true' : undefined}
+          onFocusCapture={() => setSelected(id)}
+          onPointerDown={() => setSelected(id)}
+          aria-current={selected === id ? 'true' : undefined}
+          className={`rounded-md border px-3 py-2 ${selected === id ? 'border-primary' : s.on ? 'border-border' : 'border-border/50'} ${s.on ? 'bg-surface' : ''}`}
+        >
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={s.on}
+              aria-label={name}
+              onClick={() => toggle(id)}
+              className={`relative h-7 w-12 shrink-0 rounded-pill transition ${s.on ? 'bg-primary' : 'bg-track'}`}
+            >
+              <span
+                className={`absolute top-1 h-5 w-5 rounded-pill bg-ink transition-all ${s.on ? 'start-6' : 'start-1'}`}
+              />
+            </button>
+            <span className={`min-w-0 flex-1 text-body ${s.on ? '' : 'text-muted'}`}>{name}</span>
+            <bdi
+              className={`text-end text-control ${s.on ? 'text-primary-on-tint' : 'text-muted'}`}
+            >
+              {apart ? `${num(pct(s.value))}% · ${num(pct(s.left))}%` : `${num(pct(s.value))}%`}
+            </bdi>
+          </div>
+          {(graded || manual) && (
+            <div className="mt-1 flex flex-wrap gap-1.5 text-caption">
+              {graded && <Tag>{t.sim.gradeOf(graded)}</Tag>}
+              {manual && <Tag tone="primary">{t.sim.manual}</Tag>}
+            </div>
+          )}
+          {apart ? (
+            <>
+              <div className="mt-1 text-caption text-muted">{t.sim.right}</div>
+              {slider(s.value, t.sim.intensitySide(name, t.sim.right), (v) => setSide(id, 'R', v))}
+              <div className="mt-1 text-caption text-muted">{t.sim.left}</div>
+              {slider(s.left, t.sim.intensitySide(name, t.sim.left), (v) => setSide(id, 'L', v))}
+            </>
+          ) : (
+            slider(s.value, t.sim.intensity(name), (v) => update(id, { value: v, left: v }))
+          )}
+          {(id === 'lip-volume' || id === 'Lp') && (
+            <div className="mt-2" role="radiogroup" aria-label={t.sim.lipType} data-lip-fullness={ready?.lipFullness.toFixed(3)}>
+              <div className="mb-1 flex flex-wrap items-center gap-1.5 text-caption text-ink-2">
+                <span>{t.sim.lipType}</span>
+                {LIP_TYPE_SETTINGS.status === 'draft' && (
+                  <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">
+                    {t.grading.unverified}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-1.5">
+                {LIP_TYPES.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    role="radio"
+                    aria-checked={lipType === n}
+                    aria-label={t.sim.lipTypeOf(num(n), t.sim.lipTypes[n])}
+                    onClick={() => void setLipType(caseId, n)}
+                    className={`flex h-11 min-w-11 flex-1 items-center justify-center rounded-md border text-control ${
+                      lipType === n
+                        ? 'border-primary bg-primary-tint font-semibold text-primary-on-tint'
+                        : 'border-border text-ink'
+                    } ${suggestedLip === n ? 'underline decoration-primary decoration-2 underline-offset-4' : ''}`}
+                  >
+                    <bdi>{num(n)}</bdi>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-caption text-muted">
+                {t.sim.lipTypes[lipType]}
+                {suggestedLip !== null && ` · ${t.sim.lipSuggested(num(suggestedLip))}`}
+              </p>
+            </div>
+          )}
+          {sides && (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <label className="flex min-h-touch items-center gap-2 text-caption text-ink-2">
+                <input
+                  type="checkbox"
+                  checked={s.mirror}
+                  disabled={!s.on}
+                  onChange={(e) => setMirror(id, e.target.checked)}
+                  aria-label={t.sim.mirrorOf(name)}
+                  className="h-5 w-5 accent-primary"
+                />
+                {t.sim.mirror}
+              </label>
+              {apart && (
+                <Button
+                  onClick={() => match(id)}
+                  disabled={!s.on || s.value === s.left}
+                  aria-label={t.sim.matchOf(name)}
+                >
+                  {t.sim.match}
+                </Button>
+              )}
+            </div>
+          )}
+        </li>
+      );
+  };
+
 
   return (
     <>
@@ -460,6 +634,37 @@ export function SimulatePage() {
                   className="absolute inset-0 h-full w-full"
                   style={{ clipPath: `inset(0 0 0 ${split}%)` }}
                 />
+                {rect && ready && mode === 'mdcodes' && sites && (
+                  // PRD F6.1: an approximate shaded zone with the code name for each filled site; no point, depth or tool.
+                  <svg
+                    className="pointer-events-none absolute inset-0 h-full w-full"
+                    viewBox={`0 0 ${rect.width} ${rect.height}`}
+                    preserveAspectRatio="none"
+                    aria-hidden
+                    data-md-zones={ready.zones.filter((z) => filled(z.site, z.side)).length}
+                  >
+                    {ready.zones
+                      .filter((z) => filled(z.site, z.side))
+                      .map((z) => {
+                        const c = centreOf(z.points);
+                        return (
+                          <g key={`${z.site}:${z.side}`}>
+                            <polygon points={pointsAttr(z.points)} className="fill-primary/15 stroke-primary/50" strokeWidth={Math.max(1, rect.width / 400)} />
+                            <text
+                              x={c.x}
+                              y={c.y}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              className="fill-ink font-semibold"
+                              style={{ fontSize: Math.max(10, rect.width / 34) }}
+                            >
+                              {z.site}
+                            </text>
+                          </g>
+                        );
+                      })}
+                  </svg>
+                )}
                 {rect && ready && selected && (
                   <svg
                     className="pointer-events-none absolute inset-0 h-full w-full"
@@ -468,17 +673,18 @@ export function SimulatePage() {
                     aria-hidden
                     data-selected={selected}
                   >
-                    {ready.outlines
-                      .filter((o) => o.concernId === selected)
-                      .map((o) => (
-                        <polygon
-                          key={o.side}
-                          points={o.points.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ')}
-                          className="fill-primary/10 stroke-primary"
-                          strokeWidth={Math.max(1.5, rect.width / 260)}
-                          strokeDasharray={`${rect.width / 80} ${rect.width / 120}`}
-                        />
-                      ))}
+                    {(isSite(selected)
+                      ? ready.zones.filter((z) => z.site === selected)
+                      : ready.outlines.filter((o) => o.concernId === selected)
+                    ).map((o) => (
+                      <polygon
+                        key={o.side}
+                        points={pointsAttr(o.points)}
+                        className="fill-primary/10 stroke-primary"
+                        strokeWidth={Math.max(1.5, rect.width / 260)}
+                        strokeDasharray={`${rect.width / 80} ${rect.width / 120}`}
+                      />
+                    ))}
                   </svg>
                 )}
                 <div
@@ -510,145 +716,46 @@ export function SimulatePage() {
               className="mt-1 w-full"
               aria-label={t.sim.compare}
             />
+            {mode === 'mdcodes' && <p className="mt-1 text-caption text-ink-2">{t.sim.mdDisclaimer}</p>}
           </div>
 
           <aside className="lg:sticky lg:top-[85px] lg:max-h-[calc(100vh-101px-var(--tabbar-h))] lg:overflow-y-auto lg:pe-1">
+            {/* Volume mode (M5b): exactly one is on, so no area gets volume twice. */}
+            <div role="radiogroup" aria-label={t.sim.modeLabel} className="mb-3 grid grid-cols-2 gap-1.5">
+              {(['area', 'mdcodes'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === m}
+                  onClick={() => {
+                    setSelected(null);
+                    void setSimMode(caseId, m);
+                  }}
+                  className={`min-h-touch rounded-md border px-2 py-1.5 text-control ${
+                    mode === m ? 'border-primary bg-primary-tint font-semibold text-primary-on-tint' : 'border-border text-ink'
+                  }`}
+                >
+                  {t.sim.modes[m]}
+                </button>
+              ))}
+            </div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-section font-semibold text-primary-on-tint">{t.sim.changes}</h2>
               <Button onClick={() => setAll(!anyOn)}>{anyOn ? t.sim.allOff : t.sim.allOn}</Button>
             </div>
             <p className="mb-2 text-caption text-muted">{t.sim.tapHint}</p>
-            <ul className="flex flex-col gap-1.5">
-              {ids.map((id) => {
-                const s = settings![id]!;
-                const name = t.concerns[id];
-                const sides = ready!.bilateral.includes(id);
-                const apart = sides && !s.mirror;
-                const graded = gradeText(id);
-                const manual = !!overrides?.[id];
-                const slider = (value: number, aria: string, onChange: (v: number) => void) => (
-                  <input
-                    type="range"
-                    min={0}
-                    max={maxPercent}
-                    step={SLIDER_STEP}
-                    value={pct(value)}
-                    disabled={!s.on}
-                    onChange={(e) => onChange(Number(e.target.value) / 100)}
-                    dir="ltr"
-                    className="mt-1 w-full disabled:opacity-40"
-                    aria-label={aria}
-                  />
-                );
-                return (
-                  <li
-                    key={id}
-                    id={`change-${id}`}
-                    data-manual={manual ? 'true' : undefined}
-                    onFocusCapture={() => setSelected(id)}
-                    onPointerDown={() => setSelected(id)}
-                    aria-current={selected === id ? 'true' : undefined}
-                    className={`rounded-md border px-3 py-2 ${selected === id ? 'border-primary' : s.on ? 'border-border' : 'border-border/50'} ${s.on ? 'bg-surface' : ''}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={s.on}
-                        aria-label={name}
-                        onClick={() => toggle(id)}
-                        className={`relative h-7 w-12 shrink-0 rounded-pill transition ${s.on ? 'bg-primary' : 'bg-track'}`}
-                      >
-                        <span
-                          className={`absolute top-1 h-5 w-5 rounded-pill bg-ink transition-all ${s.on ? 'start-6' : 'start-1'}`}
-                        />
-                      </button>
-                      <span className={`min-w-0 flex-1 text-body ${s.on ? '' : 'text-muted'}`}>{name}</span>
-                      <bdi
-                        className={`text-end text-control ${s.on ? 'text-primary-on-tint' : 'text-muted'}`}
-                      >
-                        {apart ? `${num(pct(s.value))}% · ${num(pct(s.left))}%` : `${num(pct(s.value))}%`}
-                      </bdi>
-                    </div>
-                    {(graded || manual) && (
-                      <div className="mt-1 flex flex-wrap gap-1.5 text-caption">
-                        {graded && <Tag>{t.sim.gradeOf(graded)}</Tag>}
-                        {manual && <Tag tone="primary">{t.sim.manual}</Tag>}
-                      </div>
-                    )}
-                    {apart ? (
-                      <>
-                        <div className="mt-1 text-caption text-muted">{t.sim.right}</div>
-                        {slider(s.value, t.sim.intensitySide(name, t.sim.right), (v) => setSide(id, 'R', v))}
-                        <div className="mt-1 text-caption text-muted">{t.sim.left}</div>
-                        {slider(s.left, t.sim.intensitySide(name, t.sim.left), (v) => setSide(id, 'L', v))}
-                      </>
-                    ) : (
-                      slider(s.value, t.sim.intensity(name), (v) => update(id, { value: v, left: v }))
-                    )}
-                    {id === 'lip-volume' && (
-                      <div className="mt-2" role="radiogroup" aria-label={t.sim.lipType} data-lip-fullness={ready?.lipFullness.toFixed(3)}>
-                        <div className="mb-1 flex flex-wrap items-center gap-1.5 text-caption text-ink-2">
-                          <span>{t.sim.lipType}</span>
-                          {LIP_TYPE_SETTINGS.status === 'draft' && (
-                            <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">
-                              {t.grading.unverified}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex gap-1.5">
-                          {LIP_TYPES.map((n) => (
-                            <button
-                              key={n}
-                              type="button"
-                              role="radio"
-                              aria-checked={lipType === n}
-                              aria-label={t.sim.lipTypeOf(num(n), t.sim.lipTypes[n])}
-                              onClick={() => void setLipType(caseId, n)}
-                              className={`flex h-11 min-w-11 flex-1 items-center justify-center rounded-md border text-control ${
-                                lipType === n
-                                  ? 'border-primary bg-primary-tint font-semibold text-primary-on-tint'
-                                  : 'border-border text-ink'
-                              } ${suggestedLip === n ? 'underline decoration-primary decoration-2 underline-offset-4' : ''}`}
-                            >
-                              <bdi>{num(n)}</bdi>
-                            </button>
-                          ))}
-                        </div>
-                        <p className="mt-1 text-caption text-muted">
-                          {t.sim.lipTypes[lipType]}
-                          {suggestedLip !== null && ` · ${t.sim.lipSuggested(num(suggestedLip))}`}
-                        </p>
-                      </div>
-                    )}
-                    {sides && (
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <label className="flex min-h-touch items-center gap-2 text-caption text-ink-2">
-                          <input
-                            type="checkbox"
-                            checked={s.mirror}
-                            disabled={!s.on}
-                            onChange={(e) => setMirror(id, e.target.checked)}
-                            aria-label={t.sim.mirrorOf(name)}
-                            className="h-5 w-5 accent-primary"
-                          />
-                          {t.sim.mirror}
-                        </label>
-                        {apart && (
-                          <Button
-                            onClick={() => match(id)}
-                            disabled={!s.on || s.value === s.left}
-                            aria-label={t.sim.matchOf(name)}
-                          >
-                            {t.sim.match}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+            {mode === 'mdcodes' && <h3 className="mb-1 text-control font-semibold text-ink-2">{t.sim.smoothingGroup}</h3>}
+            <ul className="flex flex-col gap-1.5">{concernIds.map(row)}</ul>
+            {mode === 'mdcodes' && (
+              <>
+                <h3 className="mb-1 mt-3 text-control font-semibold text-ink-2" dir="auto">
+                  {t.sim.mdGroup}
+                </h3>
+                <p className="mb-2 text-caption text-muted">{t.sim.mdNote}</p>
+                <ul className="flex flex-col gap-1.5">{shownSites.map(row)}</ul>
+              </>
+            )}
             <Button variant="primary" className="mt-3 w-full" onClick={() => void save()} disabled={signed}>
               {t.sim.save}
             </Button>

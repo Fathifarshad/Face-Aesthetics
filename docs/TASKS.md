@@ -5,7 +5,7 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-16: M0–M3 done; M4 and M5 built, waiting for the owner's look. Next: M5b (MD Codes filler mode), then M6.
+Status 2026-11-16: M0–M3 done; M4, M5 and M5b (MD Codes filler mode) built, waiting for the owner's look. Next: M6.
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -39,7 +39,14 @@ skin) stays in both modes.
 - Switching A → B: each MD Codes slider starts from its matching mode-A value (for example midface volume 60 % → Ck1–Ck3
   60 %). Switching back restores mode A as it was; each mode's settings are stored separately (`simStates`)
 - Built now, before M6 (owner: yes). Volumes in mL and cost join these sliders in M7
-- [ ] Plan (short), wait for «ادامه», build, unit + e2e tests, owner look on `test-results/simulate/review.html`
+- Tt (owner 2026-11-16, plan approved): in mode B the under-eye shadow lift moves to the Tt slider; no volume warp
+  near the eye, and the «گودی زیر چشم» slider is hidden there. Masseter (toxin, no family) stays in both modes
+- [x] Built 2026-11-16: `src/data/mdCodes.ts` (sites, no clinical values); `warp.ts` Ck1–Ck3 operators and bridges
+  (`BRIDGES`; each bridge gets the smallest inflate that leaves the gap unsqueezed, measured on the face, at the weaker
+  of its two strengths); `pipeline.ts` `SiteChange`, `operatorStrength`, site zones; `simStates.mode` and `siteOverrides`
+  (no Dexie version change); page switch, MD Codes rows, shaded zones, F6.4 text. Unit tests: `warp.test.ts` (one mode per
+  operator, no groove between filled neighbours, no fold in either mode), `mdMode.test.ts`. e2e: `simulate.spec.ts` (M5b)
+- [ ] (V) Owner look on `test-results/simulate/review.html` → «MD Codes (M5b)» (picture, zones, zoom) and on the page
 
 ## M6 — Knowledge base and sorting
 - [~] 16 concerns × options in `src/data` with every field of PRD §6, `status` and `source`

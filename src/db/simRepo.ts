@@ -3,7 +3,8 @@ import { sidesOf } from '../data/concerns';
 import { targetAgeOf } from '../data/ageNorms';
 import { CONCERN_IDS, type AgeTarget, type ConcernId, type Confidence, type FindingSide, type Grade, type Review } from '../data/types';
 import { audit, db } from './db';
-import type { GradeRow, SimSetting, SimStateRow } from './types';
+import type { MdSite } from '../data/mdCodes';
+import type { GradeRow, SimMode, SimSetting, SimStateRow } from './types';
 
 /**
  * Grades (PRD F2) and simulation state (PRD F3) of a case. Plain rows: no image data.
@@ -129,7 +130,20 @@ export async function setLipType(caseId: string, lipType: 1 | 2 | 3 | 4 | 5): Pr
   await putSimState(caseId, () => ({ lipType }), 'sim.lipType', { lipType });
 }
 
-/** «بازگشت به پیش‌فرض»: every change follows the default again. */
+/** «بازگشت به پیش‌فرض»: every change and every MD Codes site follows the default again. */
 export async function resetOverrides(caseId: string): Promise<void> {
-  await putSimState(caseId, () => ({ overrides: {} }), 'sim.reset');
+  await putSimState(caseId, () => ({ overrides: {}, siteOverrides: {} }), 'sim.reset');
+}
+
+/**
+ * Volume mode (docs/TASKS.md M5b). Each mode keeps its own settings: switching back to mode A finds it as it was,
+ * and the MD Codes sliders keep the values the doctor gave them.
+ */
+export async function setSimMode(caseId: string, mode: SimMode): Promise<void> {
+  await putSimState(caseId, () => ({ mode }), 'sim.mode', { mode });
+}
+
+/** An MD Codes slider the doctor moved. Not audited per move, like `setOverride`. */
+export async function setSiteOverride(caseId: string, site: MdSite, setting: SimSetting): Promise<void> {
+  await putSimState(caseId, (s) => ({ siteOverrides: { ...s.siteOverrides, [site]: setting } }), '');
 }

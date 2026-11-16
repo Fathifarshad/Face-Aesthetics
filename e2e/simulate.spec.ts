@@ -203,6 +203,76 @@ test.describe('simulation page', () => {
     expect(errors).toEqual([]);
   });
 
+  test('MD Codes mode: one mode at a time, sites start from mode A, each mode keeps its settings (M5b)', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await openSimulation(page, FRONTAL[0]!);
+    const modeA = page.getByRole('radio', { name: 'حجم‌دهی بر اساس ناحیه' });
+    const modeB = page.getByRole('radio', { name: 'حجم‌دهی فیلر بر اساس MD Codes' });
+    const disclaimer = page.getByText('MD Codes™ نشان تجاری است. جانمایی تقریبی است و راهنمای تزریق نیست.');
+    await expect(modeA).toHaveAttribute('aria-checked', 'true');
+    await expect(disclaimer).toHaveCount(0);
+
+    // Mode A: cheek volume at 60 %.
+    await press(page, page.getByRole('switch', { name: 'افت حجم میانهٔ صورت' }));
+    await page.getByRole('slider', { name: 'شدت افت حجم میانهٔ صورت', exact: true }).fill('60');
+    await settled(page);
+    const pictureA = await jpg(after(page));
+
+    // Mode B: the cheek slider is gone, Ck1–Ck3 start at 60 %, smoothing sliders stay, the fixed text shows.
+    await press(page, modeB);
+    await expect(modeB).toHaveAttribute('aria-checked', 'true');
+    await expect(disclaimer).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'افت حجم میانهٔ صورت' })).toHaveCount(0);
+    await expect(page.getByRole('switch', { name: 'گودی زیر چشم' })).toHaveCount(0);
+    await expect(page.getByRole('switch', { name: 'خطوط پیشانی' })).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'پهنی فک (ماستر)' })).toBeVisible();
+    for (const site of ['Ck1 · قوس زایگوما', 'Ck2 · برجستگی زایگوما', 'Ck3 · گونهٔ قدامی‌میانی']) {
+      await expect(page.getByRole('switch', { name: site })).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByRole('slider', { name: `شدت ${site}`, exact: true })).toHaveValue('60');
+    }
+    await expect(page.getByRole('switch', { name: 'Tt · ناودان اشکی' })).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Lp · لب' })).toBeVisible();
+    // Midline sites have no mirror switch.
+    await expect(page.getByRole('checkbox', { name: 'آینهٔ دو طرف برای Lp · لب' })).toHaveCount(0);
+    await settled(page);
+    // Shaded zones with the code name for the filled sites (two sides × three cheek sites).
+    await expect(page.locator('svg[data-md-zones="6"]')).toBeVisible();
+    await expect(page.locator('svg[data-md-zones] text', { hasText: 'Ck2' })).toHaveCount(2);
+
+    // Ck2 alone lower, then Ck3 off: the picture changes and fewer zones are shaded.
+    await page.getByRole('slider', { name: 'شدت Ck2 · برجستگی زایگوما', exact: true }).fill('30');
+    await settled(page);
+    await press(page, page.getByRole('switch', { name: 'Ck3 · گونهٔ قدامی‌میانی' }));
+    await settled(page);
+    await expect(page.locator('svg[data-md-zones="4"]')).toBeVisible();
+    const pictureB = await jpg(after(page));
+    expect(pictureB).not.toEqual(pictureA);
+
+    // Back to mode A: as it was.
+    await press(page, modeA);
+    await expect(disclaimer).toHaveCount(0);
+    await expect(page.locator('svg[data-md-zones]')).toHaveCount(0);
+    await expect(page.getByRole('slider', { name: 'شدت افت حجم میانهٔ صورت', exact: true })).toHaveValue('60');
+    await expect(page.getByRole('switch', { name: 'Ck1 · قوس زایگوما' })).toHaveCount(0);
+    await settled(page);
+    expect(await jpg(after(page))).toEqual(pictureA);
+
+    // And mode B keeps the doctor's own sliders.
+    await press(page, modeB);
+    await expect(page.getByRole('slider', { name: 'شدت Ck2 · برجستگی زایگوما', exact: true })).toHaveValue('30');
+    await expect(page.getByRole('switch', { name: 'Ck3 · گونهٔ قدامی‌میانی' })).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByRole('slider', { name: 'شدت Ck1 · قوس زایگوما', exact: true })).toHaveValue('60');
+
+    for (const width of [360, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+      mkdirSync(OUT, { recursive: true });
+      await page.screenshot({ path: join(OUT, `mdcodes-page-${width}.png`) });
+    }
+    expect(errors).toEqual([]);
+  });
+
   for (const photo of FRONTAL) {
     test(`before/after and render time on ${photo}`, async ({ page }) => {
       await openSimulation(page, photo);
@@ -258,6 +328,27 @@ test.describe('simulation page', () => {
       writeFileSync(join(OUT, `${stem}-warp-diff.jpg`), bytes(warped.diff));
       writeFileSync(join(OUT, `${stem}-warp-zoom.jpg`), bytes(warped.zoom));
       const sortedWarp = [...warpTimes].sort((a, b) => a - b);
+
+      // M5b: MD Codes mode, every site at 75 % (smoothing stays at 85 %), and the zones drawn on the photo.
+      await press(page, page.getByRole('radio', { name: 'حجم‌دهی فیلر بر اساس MD Codes' }));
+      const siteSwitches = page.getByRole('switch', { name: /^(T|E|Tt|Ck1|Ck2|Ck3|NL|Lp|M|C|Jw) · / });
+      // The mode is saved first and the list follows the database.
+      await expect(page.getByRole('switch', { name: 'Ck1 · قوس زایگوما' })).toBeVisible();
+      const siteCount = await siteSwitches.count();
+      for (let i = 0; i < siteCount; i++) {
+        const sw = siteSwitches.nth(i);
+        if ((await sw.getAttribute('aria-checked')) !== 'true') await press(page, sw);
+        const name = await sw.getAttribute('aria-label');
+        await page.getByRole('slider', { name: `شدت ${name}`, exact: true }).fill('75');
+      }
+      await settled(page);
+      const md = await sheets(page);
+      writeFileSync(join(OUT, `${stem}-mdcodes.jpg`), bytes(md.pair));
+      writeFileSync(join(OUT, `${stem}-mdcodes-diff.jpg`), bytes(md.diff));
+      writeFileSync(join(OUT, `${stem}-mdcodes-zoom.jpg`), bytes(md.zoom));
+      await page.getByRole('slider', { name: 'جابه‌جایی خط مقایسهٔ قبل و بعد' }).fill('0');
+      await before(page).locator('..').screenshot({ path: join(OUT, `${stem}-mdcodes-zones.png`) });
+      expect(siteCount).toBeGreaterThanOrEqual(10);
 
       const sorted = [...times].sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)]!;

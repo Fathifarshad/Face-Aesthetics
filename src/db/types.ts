@@ -1,3 +1,4 @@
+import type { MdSite } from '../data/mdCodes';
 import type { Bi } from '../analysis/catalog';
 import type { Finding, Point, Pose } from '../analysis/types';
 import type { QcResult } from '../capture/qc';
@@ -72,8 +73,14 @@ export type SimStateRow = {
   overrides: Partial<Record<ConcernId, SimSetting>>;
   /** Lip type 1–5 chosen by the doctor; absent = the type suggested from the photo. */
   lipType?: 1 | 2 | 3 | 4 | 5;
+  /** Volume mode (docs/TASKS.md M5b): per concern area (A, default) or per MD Codes site (B). */
+  mode?: SimMode;
+  /** MD Codes sliders the doctor moved; every other site follows its concern's mode-A value. */
+  siteOverrides?: Partial<Record<MdSite, SimSetting>>;
   updatedAt: number;
 };
+
+export type SimMode = 'area' | 'mdcodes';
 
 export type PlanRow = { caseId: string; tier: Tier; selections: Record<string, string[]>; updatedAt: number };
 

@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { ConcernId } from '../data/types';
 import { buildFrame, toPx } from './faceFrame';
 import { FIXTURE, syntheticMesh, syntheticPicture } from './fixtures';
-import { MAX_INTENSITY, prepare, render } from './pipeline';
+import { MD_SITES, type MdSite } from '../data/mdCodes';
+import { MAX_INTENSITY, operatorStrength, prepare, render } from './pipeline';
 import { buildRegions } from './regions';
-import { addOperator, applyField, buildOperators, MAX_SHIFT, newField, type Field, type PlacedOperator } from './warp';
+import { addOperator, applyField, BRIDGES, buildOperators, MAX_SHIFT, newField, type Field, type PlacedOperator } from './warp';
 
 const same = (a: Uint8ClampedArray, b: Uint8ClampedArray) => a.length === b.length && a.every((v, i) => v === b[i]);
 
@@ -31,6 +32,18 @@ describe('warp operators on the synthetic face', () => {
     return f;
   };
   const shiftAt = (f: Field, i: number) => Math.hypot(f.dx[i]!, f.dy[i]!);
+  /**
+   * det(I − ∇d) at a pixel: the area of the source the pixel shows, per pixel. Below 1 the skin is enlarged
+   * (filled), above 1 it is squeezed (a groove); at 0 or less the picture folds.
+   */
+  const detAt = (f: Field, i: number) => {
+    const w = rect.width;
+    const dxx = (f.dx[i + 1]! - f.dx[i - 1]!) / 2;
+    const dxy = (f.dx[i + w]! - f.dx[i - w]!) / 2;
+    const dyx = (f.dy[i + 1]! - f.dy[i - 1]!) / 2;
+    const dyy = (f.dy[i + w]! - f.dy[i - w]!) / 2;
+    return (1 - dxx) * (1 - dyy) - dxy * dyx;
+  };
   /** Field value at a point given in face coordinates. */
   const at = (f: Field, q: { x: number; y: number }) => {
     const p = toPx(frame, q);
@@ -63,7 +76,8 @@ describe('warp operators on the synthetic face', () => {
       let max = 0;
       for (let i = 0; i < f.dx.length; i++) max = Math.max(max, shiftAt(f, i));
       expect(max, `${p.op.concernId}:${p.op.side}`).toBeLessThanOrEqual(MAX_SHIFT * unit + 1e-3);
-      expect(max, `${p.op.concernId}:${p.op.side}`).toBeGreaterThan(0.01 * unit);
+      // Bridges are sized to the gap they fill (M5b) and may be small.
+      if (!p.op.bridge) expect(max, `${p.op.concernId}:${p.op.side}`).toBeGreaterThan(0.01 * unit);
       // Every pixel outside the operator's box is untouched.
       let outside = 0;
       for (let y = 0; y < rect.height; y += 2)
@@ -75,20 +89,17 @@ describe('warp operators on the synthetic face', () => {
     }
   });
 
-  it('never folds or tears the picture, even with every operator at full strength', () => {
+  it('never folds or tears the picture, even with every operator of a mode at full strength', () => {
+    // Mode A runs every operator but the MD Codes-only ones; mode B every one but the mode-A-only ones.
+    for (const mode of ['sites', 'area'] as const) {
+      const f = fieldOf(ops.filter((o) => o.op.use !== mode), MAX_INTENSITY);
+      // The mapping p → p − d stays one-to-one when det(I − ∇d) > 0 everywhere.
+      let minDet = Infinity;
+      for (let y = 1; y < rect.height - 1; y++)
+        for (let x = 1; x < rect.width - 1; x++) minDet = Math.min(minDet, detAt(f, y * rect.width + x));
+      expect(minDet, mode).toBeGreaterThan(0.3);
+    }
     const f = fieldOf(ops, MAX_INTENSITY);
-    // The mapping p → p − d stays one-to-one when det(I − ∇d) > 0 everywhere.
-    let minDet = Infinity;
-    for (let y = 1; y < rect.height - 1; y++)
-      for (let x = 1; x < rect.width - 1; x++) {
-        const i = y * rect.width + x;
-        const dxx = (f.dx[i + 1]! - f.dx[i - 1]!) / 2;
-        const dxy = (f.dx[i + rect.width]! - f.dx[i - rect.width]!) / 2;
-        const dyx = (f.dy[i + 1]! - f.dy[i - 1]!) / 2;
-        const dyy = (f.dy[i + rect.width]! - f.dy[i - rect.width]!) / 2;
-        minDet = Math.min(minDet, (1 - dxx) * (1 - dyy) - dxy * dyx);
-      }
-    expect(minDet).toBeGreaterThan(0.3);
     // Nothing moves at the border of the working box, so the warped box meets the rest of the photo seamlessly.
     for (let x = 0; x < rect.width; x++) {
       expect(shiftAt(f, x)).toBe(0);
@@ -218,5 +229,92 @@ describe('warp operators on the synthetic face', () => {
     expect(changed(rightOnly, 'R')).toBeGreaterThan(50);
     expect(changed(rightOnly, 'L')).toBe(0);
     expect(changed(both, 'L')).toBeGreaterThan(50);
+  });
+
+  // ── M5b: MD Codes filler mode ──
+  const K = MAX_INTENSITY;
+  const siteOps = (site: MdSite, side: 'R' | 'L') => ops.filter((o) => o.op.site === site && !o.op.bridge && o.op.use !== 'area' && (o.op.side === side || o.op.side === 'M'));
+  /** Field of mode B with the given sites filled at K: site operators plus the bridges between filled sites. */
+  const modeB = (filled: readonly MdSite[], withBridges = true) => {
+    const sites = filled.map((site) => ({ site, intensity: K }));
+    const f = newField(rect.width, rect.height);
+    for (const p of ops) {
+      if (!withBridges && p.op.bridge) continue;
+      addOperator(f, p, operatorStrength(p.op, [], sites));
+    }
+    return f;
+  };
+  /** Range of det along the segment between two face points (inner 70 %). Above 1 = squeezed skin, a groove. */
+  const along = (f: Field, a: { x: number; y: number }, b: { x: number; y: number }) => {
+    let max = 0;
+    let min = Infinity;
+    for (let t = 0.15; t <= 0.85; t += 0.02) {
+      const p = toPx(frame, { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      const d = detAt(f, (Math.round(p.y) - rect.y) * rect.width + Math.round(p.x) - rect.x);
+      max = Math.max(max, d);
+      min = Math.min(min, d);
+    }
+    return { max, min };
+  };
+  /** Strongest fill anywhere in a field: the smallest det. */
+  const peak = (f: Field) => {
+    let min = Infinity;
+    for (let y = 1; y < rect.height - 1; y += 2) for (let x = 1; x < rect.width - 1; x += 2) min = Math.min(min, detAt(f, y * rect.width + x));
+    return min;
+  };
+
+  it('has operators for every MD Codes site but Tt, Ck1–Ck3 apart on both sides', () => {
+    for (const site of MD_SITES.filter((s) => s !== 'Tt')) expect(siteOps(site, 'R').length + siteOps(site, 'L').length, site).toBeGreaterThan(0);
+    for (const site of ['Ck1', 'Ck2', 'Ck3'] as const) {
+      expect(siteOps(site, 'R').length, site).toBeGreaterThan(0);
+      expect(siteOps(site, 'R').length, site).toBe(siteOps(site, 'L').length);
+    }
+    // Ck1 lies lateral to Ck2, Ck2 lateral to Ck3 (subject's right = negative x).
+    const cx = (site: MdSite) => siteOps(site, 'R')[0]!.op.c.x;
+    expect(cx('Ck1')).toBeLessThan(cx('Ck2'));
+    expect(cx('Ck2')).toBeLessThan(cx('Ck3'));
+  });
+
+  it('drives each operator from one mode only', () => {
+    const cheekArea = ops.find((o) => o.op.concernId === 'midface-volume' && o.op.use === 'area')!.op;
+    const ck1 = siteOps('Ck1', 'R')[0]!.op;
+    const chin = siteOps('C', 'R')[0]!.op;
+    const masseter = opsOf('masseter', 'R')[0]!.op;
+    const area = [{ concernId: 'midface-volume' as const, intensity: 0.6 }, { concernId: 'chin' as const, intensity: 0.6 }];
+    expect(operatorStrength(cheekArea, area, [])).toBeCloseTo(0.6);
+    expect(operatorStrength(ck1, area, [])).toBe(0);
+    expect(operatorStrength(chin, area, [])).toBeCloseTo(0.6);
+    // Mode B: the concern sliders smooth only; the sites give the volume.
+    const smooth = area.map((c) => ({ ...c, effect: 'smooth' as const }));
+    const sites = [{ site: 'Ck1' as const, intensity: 0.4, left: 0.2 }, { site: 'C' as const, intensity: 0.5 }];
+    expect(operatorStrength(cheekArea, smooth, sites)).toBe(0);
+    expect(operatorStrength(ck1, smooth, sites)).toBeCloseTo(0.4);
+    expect(operatorStrength(siteOps('Ck1', 'L')[0]!.op, smooth, sites)).toBeCloseTo(0.2);
+    expect(operatorStrength(chin, smooth, sites)).toBeCloseTo(0.5);
+    expect(operatorStrength(masseter, [{ concernId: 'masseter', intensity: 0.7 }], sites)).toBeCloseTo(0.7);
+    // A bridge runs at the weaker of its two sites and is off when one of them is 0.
+    const bridge = ops.find((o) => o.op.bridge)!.op;
+    const [a, b] = bridge.bridge!;
+    expect(operatorStrength(bridge, [], [{ site: a, intensity: 0.8 }, { site: b, intensity: 0.3 }])).toBeCloseTo(0.3);
+    expect(operatorStrength(bridge, [], [{ site: a, intensity: 0.8 }])).toBe(0);
+  });
+
+  it('blends two filled neighbouring sites into one fill, without a groove between them', () => {
+    let grooves = 0;
+    for (const [a, b] of BRIDGES) {
+      const pair = `${a}-${b}`;
+      const ca = siteOps(a, 'R').find((o) => o.op.kind === 'inflate') ?? siteOps(a, 'R')[0]!;
+      const cb = siteOps(b, 'R').find((o) => o.op.kind === 'inflate') ?? siteOps(b, 'R')[0]!;
+      const without = along(modeB([a, b], false), ca.op.c, cb.op.c);
+      const withB = along(modeB([a, b]), ca.op.c, cb.op.c);
+      const own = Math.min(peak(modeB([a])), peak(modeB([b])));
+      if (without.max > 1.01) grooves++;
+      // No groove: the skin between the two sites is not squeezed once both are filled.
+      expect(withB.max, pair).toBeLessThanOrEqual(1.01);
+      // No new bump: the gap never fills more than either site does at its own centre.
+      expect(withB.min, pair).toBeGreaterThanOrEqual(own - 0.05);
+    }
+    // Without the bridges most neighbouring pairs would show a groove (synthetic face: 5 of 6).
+    expect(grooves).toBeGreaterThanOrEqual(4);
   });
 });

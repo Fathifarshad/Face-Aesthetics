@@ -1,3 +1,4 @@
+import type { MdSite } from '../data/mdCodes';
 import type { ConcernId } from '../data/types';
 import { ANCHOR, LIPS_INNER_LOWER, LIPS_INNER_UPPER, LIPS_OUTER_LOWER, LIPS_OUTER_UPPER } from './landmarks';
 import { toFace } from './faceFrame';
@@ -58,6 +59,12 @@ export interface Operator {
   gain?: Pt;
   /** vector: displacement at the centre at full strength, face units along the face axes. */
   v?: Pt;
+  /** MD Codes site that drives this operator in mode B (docs/TASKS.md M5b); none for the masseter (toxin). */
+  site?: MdSite;
+  /** Only in one mode: 'area' = the concern slider of mode A, 'sites' = MD Codes mode. Absent = both. */
+  use?: 'area' | 'sites';
+  /** Bridge between two filled sites (mode B): its strength is the weaker of the two. */
+  bridge?: readonly [MdSite, MdSite];
 }
 
 const norm = (p: Pt, length: number): Pt => {
@@ -198,10 +205,13 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
   for (const side of ['R', 'L'] as const) {
     const s = side === 'R' ? -1 : 1;
     const cheek = region('midface-volume', side);
+    const contour = contourAt(side);
     if (cheek) {
       const { c, hx, hy } = extent(cheek.outline);
-      ops.push(inflate('midface-volume', side, c, hx * 1.4, hy * 1.4, 0.03));
-      ops.push(vector('midface-volume', side, c, hx * 1.6, hy * 1.6, { x: s * 0.3, y: -1 }, 0.035));
+      // Mode A: the whole cheek at once.
+      ops.push({ ...inflate('midface-volume', side, c, hx * 1.4, hy * 1.4, 0.03), use: 'area' });
+      ops.push({ ...vector('midface-volume', side, c, hx * 1.6, hy * 1.6, { x: s * 0.3, y: -1 }, 0.035), use: 'area' });
+      ops.push(...cheekSites(side, c, contour));
     }
     const fold = region('nasolabial-fold', side);
     if (fold) {
@@ -215,7 +225,6 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
     // Jaw operators sit on the face outline itself. The jowl and masseter regions are placed geometrically and
     // land near the mouth corners on close-up photos (M1 open point), so operators built from them pushed the
     // middle of the lower cheek and left a dent (owner review 2 2026-11-15).
-    const contour = contourAt(side);
     if (contour && region('jawline', side)) {
       // Jowl: the soft tissue just inside the jaw line is lifted; the outline itself hardly moves, so no notch.
       const j = contour(mouth.y + (chin.y - mouth.y) * 0.55);
@@ -243,7 +252,134 @@ export function buildOperators(set: RegionSet, lm: readonly Pt[], sex: Sex = 'ot
       ops.push(vector('brow', side, { x: tail.x - s * hx * 0.25, y: tail.y + hy * 0.3 }, hx * 0.9, Math.max(0.12, hy * 2.2), { x: 0, y: -1 }, 0.035));
     }
   }
-  return ops;
+  const tagged = ops.map((op) => (op.site || op.use ? op : SITE_OF[op.concernId] ? { ...op, site: SITE_OF[op.concernId] } : op));
+  return [...tagged, ...bridges(tagged)];
+}
+
+/** MD Codes site of each concern's operators (docs/TASKS.md M5b). The cheek is split into Ck1–Ck3 below. */
+const SITE_OF: Partial<Record<ConcernId, MdSite>> = {
+  temple: 'T',
+  brow: 'E',
+  'nasolabial-fold': 'NL',
+  'lip-volume': 'Lp',
+  marionette: 'M',
+  chin: 'C',
+  jawline: 'Jw',
+};
+
+/**
+ * Cheek of mode B, three sites (engine and aesthetic-design values, not clinical ones; placed by eye on the test
+ * photos, 2026-11-16). `c` is the centre of the cheek region.
+ *   Ck1 zygomatic arch: lateral, near the face outline, projects mostly sideways (wider upper face).
+ *   Ck2 zygomatic eminence: the cheek apex, a little up and out from the centre; fills and lifts up and out.
+ *   Ck3 anteromedial cheek: medial, below the under-eye strip; fills and supports upward.
+ * Each one is smaller than the mode-A cheek, so all three at the same strength come close to mode A.
+ */
+const CHEEK_SITES = {
+  ck1: { up: 0.09, inFromEdge: 0.07, rx: 0.12, ry: 0.1, shift: 0.018, gainY: 0.4 },
+  ck2: { out: 0.03, up: 0.04, rx: 0.16, ry: 0.14, shift: 0.02, liftR: 0.2, lift: 0.018 },
+  ck3: { in: 0.13, up: 0.01, rx: 0.12, ry: 0.12, shift: 0.018, liftR: 0.15, lift: 0.012 },
+} as const;
+
+function cheekSites(side: 'R' | 'L', c: Pt, contour: ((y: number) => Pt) | null): Operator[] {
+  const s = side === 'R' ? -1 : 1;
+  const k1 = CHEEK_SITES.ck1;
+  const k2 = CHEEK_SITES.ck2;
+  const k3 = CHEEK_SITES.ck3;
+  const tag = (op: Operator, site: MdSite): Operator => ({ ...op, site, use: 'sites' });
+  const edge = contour ? contour(c.y - k1.up).x : c.x + s * 0.25;
+  const c1 = { x: edge - s * k1.inFromEdge, y: c.y - k1.up };
+  const c2 = { x: c.x + s * k2.out, y: c.y - k2.up };
+  const c3 = { x: c.x - s * k3.in, y: c.y - k3.up };
+  return [
+    tag(inflate('midface-volume', side, c1, k1.rx, k1.ry, k1.shift, { x: 1, y: k1.gainY }), 'Ck1'),
+    tag(inflate('midface-volume', side, c2, k2.rx, k2.ry, k2.shift), 'Ck2'),
+    tag(vector('midface-volume', side, c2, k2.liftR, k2.liftR * 0.9, { x: s * 0.3, y: -1 }, k2.lift), 'Ck2'),
+    tag(inflate('midface-volume', side, c3, k3.rx, k3.ry, k3.shift), 'Ck3'),
+    tag(vector('midface-volume', side, c3, k3.liftR, k3.liftR, { x: 0, y: -1 }, k3.lift), 'Ck3'),
+  ];
+}
+
+/**
+ * Neighbouring sites that blend into one fill when both get volume (owner rule 2026-11-16, PRD F4.12). Each
+ * inflate pushes its rim outward, so two filled sites squeeze the skin between them and the result reads as two
+ * bumps with a groove. A bridge is an inflate over the gap; it runs at the weaker of the two strengths, so it
+ * is off as soon as one of them is 0.
+ */
+export const BRIDGES: readonly (readonly [MdSite, MdSite])[] = [
+  ['T', 'Ck1'],
+  ['Ck1', 'Ck2'],
+  ['Ck2', 'Ck3'],
+  ['Ck3', 'NL'],
+  ['M', 'C'],
+  ['C', 'Jw'],
+];
+/**
+ * Bridge settings (engine values): margin around the segment between the two centres (× the smaller site
+ * radius), the largest shift and the number of steps tried up to it. Each bridge gets the smallest shift that
+ * leaves the skin between the two sites unsqueezed (det ≤ 1 on the inner part of the segment, `inner`), measured
+ * on this face; sites that already overlap into one fill get none.
+ */
+const BRIDGE = { margin: 0.8, maxShift: 0.022, steps: 11, inner: 0.15 } as const;
+
+/** Displacement p − src of one operator at full strength, face units (lip operators excluded: no bridge uses them). */
+export function displacement(op: Operator, q: Pt): Pt {
+  if (op.kind === 'lip') return { x: 0, y: 0 };
+  const u = q.x - op.c.x;
+  const t = q.y - op.c.y;
+  const r2 = (u / op.rx) ** 2 + (t / op.ry) ** 2;
+  if (r2 >= 1) return { x: 0, y: 0 };
+  const k = (1 - r2) * (1 - r2);
+  if (op.kind === 'inflate') return { x: u * op.a! * k * (op.gain?.x ?? 1), y: t * op.a! * k * (op.gain?.y ?? 1) };
+  return { x: op.v!.x * k, y: op.v!.y * k };
+}
+
+/** Largest det(I − ∇d) on the inner part of the segment a → b: above 1 the skin there is squeezed. */
+function squeezeBetween(ops: readonly Operator[], a: Pt, b: Pt): number {
+  const h = 0.002;
+  const d = (q: Pt) => ops.reduce((s, op) => {
+    const v = displacement(op, q);
+    return { x: s.x + v.x, y: s.y + v.y };
+  }, { x: 0, y: 0 });
+  let worst = 0;
+  for (let i = 0; i <= 20; i++) {
+    const q = lerp(a, b, BRIDGE.inner + ((1 - 2 * BRIDGE.inner) * i) / 20);
+    const xp = d({ x: q.x + h, y: q.y });
+    const xm = d({ x: q.x - h, y: q.y });
+    const yp = d({ x: q.x, y: q.y + h });
+    const ym = d({ x: q.x, y: q.y - h });
+    const det = (1 - (xp.x - xm.x) / (2 * h)) * (1 - (yp.y - ym.y) / (2 * h)) - ((yp.x - ym.x) / (2 * h)) * ((xp.y - xm.y) / (2 * h));
+    worst = Math.max(worst, det);
+  }
+  return worst;
+}
+
+function bridges(ops: readonly Operator[]): Operator[] {
+  const ofSite = (site: MdSite, side: 'R' | 'L') => ops.filter((o) => o.site === site && o.use !== 'area' && (o.side === side || o.side === 'M'));
+  // Centre of a site on one side: its first inflate, or its first operator (midline sites serve both sides).
+  const centre = (own: readonly Operator[]) => own.find((o) => o.kind === 'inflate') ?? own.find((o) => o.kind !== 'lip') ?? null;
+  const out: Operator[] = [];
+  for (const side of ['R', 'L'] as const)
+    for (const pair of BRIDGES) {
+      const both = [...ofSite(pair[0], side), ...ofSite(pair[1], side)];
+      const a = centre(ofSite(pair[0], side));
+      const b = centre(ofSite(pair[1], side));
+      if (!a || !b) continue;
+      const r = BRIDGE.margin * Math.min(a.rx, a.ry, b.rx, b.ry);
+      const c = lerp(a.c, b.c, 0.5);
+      const make = (shift: number) => inflate(b.concernId, side, c, Math.abs(a.c.x - b.c.x) / 2 + r, Math.abs(a.c.y - b.c.y) / 2 + r, shift);
+      if (squeezeBetween(both, a.c, b.c) <= 1) continue;
+      let op = make(BRIDGE.maxShift);
+      for (let i = 1; i <= BRIDGE.steps; i++) {
+        const candidate = make((BRIDGE.maxShift * i) / BRIDGE.steps);
+        if (squeezeBetween([...both, candidate], a.c, b.c) <= 1) {
+          op = candidate;
+          break;
+        }
+      }
+      out.push({ ...op, use: 'sites', bridge: pair });
+    }
+  return out;
 }
 
 /**

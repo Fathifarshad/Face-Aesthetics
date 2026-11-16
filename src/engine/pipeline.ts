@@ -7,8 +7,9 @@ import { detectHairline } from './hairline';
 import { ANCHOR } from './landmarks';
 import { buildMask, limitMask, stampMax, type Mask } from './masks';
 import { buildRegions, type Side } from './regions';
-import { centroid } from './shapes';
+import { centroid, crossingsAtY, ellipseOutline } from './shapes';
 import type { FaceFrame, Pt } from './types';
+import { MD_SITE_INFO, MD_SITES, type MdSite } from '../data/mdCodes';
 import { addOperator, applyField, buildOperators, lipFullness, MAX_SHIFT, newField, placeOperators, type Field, type PlacedOperator, type Sex } from './warp';
 
 /** PRD F3.2: no effect is applied above 85 %, so the picture never looks artificial. */
@@ -72,6 +73,22 @@ export interface Change {
   intensity: number;
   /** Strength of the subject's left side when the sides are set apart (mirror off); `intensity` is then the right side. */
   left?: number;
+  /** 'smooth': smoothing only, no warp (MD Codes mode: the volume comes from the sites). Absent = full effect. */
+  effect?: 'smooth';
+}
+
+/** Slider of one MD Codes site (mode B, docs/TASKS.md M5b). Drives the warp operators tagged with the site. */
+export interface SiteChange {
+  site: MdSite;
+  intensity: number;
+  left?: number;
+}
+
+/** Approximate zone of an MD Codes site in pixels of the working box (PRD F6.1: a shaded zone, no point). */
+export interface SiteZone {
+  site: MdSite;
+  side: Side;
+  points: Pt[];
 }
 
 /** Region outline in pixels of the working box, for drawing and for picking a region by touch. */
@@ -103,6 +120,8 @@ export interface Prepared {
   /** Concerns with a right and a left region (they get the mirror switch). */
   bilateral: ConcernId[];
   outlines: Outline[];
+  /** MD Codes site zones that can be placed on this photo. */
+  zones: SiteZone[];
   att: Attenuation;
   field: Field;
   /** Copy of the pixels the warp samples from; reused between renders. */
@@ -209,6 +228,37 @@ export function prepare(input: PipelineInput): Prepared {
     .filter((r): r is typeof r & { concernId: ConcernId } => !!r.concernId && available.includes(r.concernId))
     .map((r) => ({ concernId: r.concernId, side: r.side, points: r.outline.map(local) }));
   const bilateral = available.filter((id) => outlines.some((o) => o.concernId === id && o.side === 'L'));
+  // Site zones: the cheek sites are the ellipses of their fill, smaller than the operator (where the fill shows);
+  // every other site is the region of its concern.
+  const zones: SiteZone[] = MD_SITES.flatMap((site) => {
+    if (site.startsWith('Ck'))
+      return ops
+        .filter((p) => p.op.site === site && p.op.kind === 'inflate' && !p.op.bridge)
+        .map((p) => ({ site, side: p.op.side, points: ellipseOutline(p.op.c, p.op.rx * ZONE_SCALE, p.op.ry * ZONE_SCALE, 28).map(local) }));
+    // The jaw operators sit on the face outline (jaw angle and jowl), not in the geometric jowl region: the zone is
+    // a band just inside the outline, from the jaw angle down past the jowl.
+    if (site === 'Jw') {
+      const face = set.regions.find((r) => r.concernId === 'skin-quality');
+      if (!face) return [];
+      return (['R', 'L'] as const).flatMap((side) => {
+        const ys = ops.filter((p) => p.op.site === 'Jw' && p.op.side === side && !p.op.bridge).map((p) => p.op.c.y);
+        if (!ys.length) return [];
+        const s = side === 'R' ? -1 : 1;
+        const top = Math.min(...ys) - JAW_ZONE.above;
+        const bottom = Math.max(...ys) + JAW_ZONE.below;
+        const outer: Pt[] = [];
+        for (let i = 0; i <= 12; i++) {
+          const y = top + ((bottom - top) * i) / 12;
+          const xs = crossingsAtY(face.outline, y);
+          if (xs.length) outer.push({ x: side === 'R' ? Math.min(...xs) : Math.max(...xs), y });
+        }
+        if (outer.length < 3) return [];
+        const inner = outer.map((q) => ({ x: q.x - s * JAW_ZONE.width, y: q.y })).reverse();
+        return [{ site, side, points: [...outer, ...inner].map(local) }];
+      });
+    }
+    return outlines.filter((o) => o.concernId === MD_SITE_INFO[site].concernId).map((o) => ({ site, side: o.side, points: o.points }));
+  });
   return {
     rect,
     dec,
@@ -218,6 +268,7 @@ export function prepare(input: PipelineInput): Prepared {
     available,
     bilateral,
     outlines,
+    zones,
     att: newAttenuation(pixels),
     field: newField(rect.width, rect.height),
     scratch: new Uint8ClampedArray(dec.src.length),
@@ -230,8 +281,13 @@ export function prepare(input: PipelineInput): Prepared {
   };
 }
 
+/** Cheek-site zone drawn on the photo: this share of the fill operator's radii. */
+const ZONE_SCALE = 0.75;
+/** Jaw zone: band inside the face outline, face units: width, and reach above and below the jaw operators. */
+const JAW_ZONE = { width: 0.09, above: 0.05, below: 0.06 } as const;
+
 /** Strength of one side of a change, capped at MAX_INTENSITY. Midline regions follow the main slider. */
-export function strengthOf(change: Change, side: Side): number {
+export function strengthOf(change: { intensity: number; left?: number }, side: Side): number {
   const v = side === 'L' && change.left !== undefined ? change.left : change.intensity;
   return Math.min(MAX_INTENSITY, Math.max(0, v));
 }
@@ -241,7 +297,11 @@ export function strengthOf(change: Change, side: Side): number {
  * the final mix are recomputed, and only inside the boxes of the active regions.
  * Returns new RGBA pixels of `prepared.rect`. `warp: false` renders the smoothing alone (used by tests).
  */
-export function render(prepared: Prepared, changes: readonly Change[], options: { warp?: boolean } = {}): Uint8ClampedArray {
+export function render(
+  prepared: Prepared,
+  changes: readonly Change[],
+  options: { warp?: boolean; sites?: readonly SiteChange[] } = {},
+): Uint8ClampedArray {
   const { dec, masks } = prepared;
   const w = dec.width;
   let bx0 = w;
@@ -275,8 +335,28 @@ export function render(prepared: Prepared, changes: readonly Change[], options: 
     cache.key = key;
     cache.pixels = active.length > 0 ? new Uint8ClampedArray(out) : dec.src;
   }
-  if (options.warp !== false) warp(prepared, changes, out);
+  if (options.warp !== false) warp(prepared, changes, options.sites ?? [], out);
   return out;
+}
+
+/**
+ * Strength of one warp operator. A concern slider drives its operators except the MD Codes-only ones (and none
+ * with `effect: 'smooth'`); a site slider drives the operators of its site except the mode-A-only ones; a bridge
+ * runs at the weaker of its two sites, so it is 0 unless both are filled.
+ */
+export function operatorStrength(op: PlacedOperator['op'], changes: readonly Change[], sites: readonly SiteChange[]): number {
+  const siteK = (site: MdSite) => {
+    const c = sites.find((x) => x.site === site);
+    return c ? strengthOf(c, op.side) : 0;
+  };
+  if (op.bridge) return Math.min(siteK(op.bridge[0]), siteK(op.bridge[1]));
+  let k = 0;
+  if (op.use !== 'sites') {
+    const c = changes.find((x) => x.concernId === op.concernId && x.effect !== 'smooth');
+    if (c) k = Math.max(k, strengthOf(c, op.side));
+  }
+  if (op.use !== 'area' && op.site) k = Math.max(k, siteK(op.site));
+  return k;
 }
 
 type Active = { mask: Mask; fine: number; band1: number; band2: number; band3: number; band4: number };
@@ -311,7 +391,7 @@ function smooth(prepared: Prepared, active: Active[], out: Uint8ClampedArray, bx
 }
 
 /** Warps `out` in place with the operators of the active changes (after smoothing, as the SUPERPROMPT orders). */
-function warp(prepared: Prepared, changes: readonly Change[], out: Uint8ClampedArray): void {
+function warp(prepared: Prepared, changes: readonly Change[], sites: readonly SiteChange[], out: Uint8ClampedArray): void {
   const { ops, field, scratch } = prepared;
   const w = field.width;
   const active: { placed: PlacedOperator; k: number }[] = [];
@@ -319,17 +399,14 @@ function warp(prepared: Prepared, changes: readonly Change[], out: Uint8ClampedA
   let y0 = field.height;
   let x1 = 0;
   let y1 = 0;
-  for (const change of changes) {
-    for (const placed of ops) {
-      if (placed.op.concernId !== change.concernId) continue;
-      const k = strengthOf(change, placed.op.side);
-      if (k <= 0 || placed.x1 <= placed.x0 || placed.y1 <= placed.y0) continue;
-      active.push({ placed, k });
-      x0 = Math.min(x0, placed.x0);
-      y0 = Math.min(y0, placed.y0);
-      x1 = Math.max(x1, placed.x1);
-      y1 = Math.max(y1, placed.y1);
-    }
+  for (const placed of ops) {
+    const k = operatorStrength(placed.op, changes, sites);
+    if (k <= 0 || placed.x1 <= placed.x0 || placed.y1 <= placed.y0) continue;
+    active.push({ placed, k });
+    x0 = Math.min(x0, placed.x0);
+    y0 = Math.min(y0, placed.y0);
+    x1 = Math.max(x1, placed.x1);
+    y1 = Math.max(y1, placed.y1);
   }
   if (active.length === 0) return;
   for (let row = y0; row < y1; row++) {

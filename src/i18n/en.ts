@@ -1,3 +1,4 @@
+import type { MdSite } from '../data/mdCodes';
 import { APP_NAME } from '../app/config';
 import type { Dict } from './fa';
 
@@ -507,6 +508,26 @@ export const en: Dict = {
     match: 'Match sides',
     matchOf: (name: string) => `Match both sides of ${name}`,
     tapHint: 'Touch a region on the photo to open its change.',
+    modeLabel: 'Volume method',
+    modes: { area: 'Volume by area', mdcodes: 'Filler volume by MD Codes' } as Record<'area' | 'mdcodes', string>,
+    smoothingGroup: 'Smoothing and other changes',
+    mdGroup: 'MD Codes sites',
+    mdNote: 'Each slider fills only its own site. When two neighbouring sites are filled, the gap between them fills evenly. Each slider starts from its area value in «Volume by area».',
+    mdDisclaimer: 'MD Codes™ is a trademark. Placement is approximate and is not an injection guide.',
+    siteName: (code: string, name: string) => `${code} · ${name}`,
+    sites: {
+      T: 'Temple',
+      E: 'Eyebrow',
+      Tt: 'Tear trough',
+      Ck1: 'Zygomatic arch',
+      Ck2: 'Zygomatic eminence',
+      Ck3: 'Anteromedial cheek',
+      NL: 'Nasolabial fold',
+      Lp: 'Lips',
+      M: 'Marionette',
+      C: 'Chin',
+      Jw: 'Jawline',
+    } as Record<MdSite, string>,
   },
   vault: {
     setupTitle: 'Create the physician passphrase',
