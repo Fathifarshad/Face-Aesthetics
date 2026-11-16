@@ -54,7 +54,7 @@ Owner decisions 2026-11-16 (plan approved): result rank from the PRD §6 default
 (toxin < skin booster, PN, peel < filler < biostimulator < thread and devices); image caps without a PRD figure from the
 modality (toxin and filler 0.85, biostimulator and thread 0.6, RF, HIFU and laser 0.5, skin booster, PN and peel 0.35).
 All three stay `draft`; M7 replaces the cost tier with the clinic tariff.
-- [x] `src/data/treatmentOptions.ts`: 16 concerns, 41 options, every PRD §6 field plus `status`/`source`. Only the four
+- [x] `src/data/treatmentOptions.ts`: 16 concerns, 44 options, every PRD §6 field plus `status`/`source`. Only the four
   label toxin doses are verified; timings from the PRD §7.2 draft table (none for skin booster, PN, peel). No tool,
   depth or technique (the v1 «how» text is not used)
 - [x] `src/data/optionSort.ts`: five sort keys (F5.2), «اول حمایت، بعد چین» from midface grade 2 (F5.6), session order
