@@ -49,6 +49,31 @@ skin) stays in both modes.
   operator, no groove between filled neighbours, no fold in either mode), `mdMode.test.ts`. e2e: `simulate.spec.ts` (M5b)
 - [ ] (V) Owner look on `test-results/simulate/review.html` → «MD Codes (M5b)» (picture, zones, zoom) and on the page
 
+## M5c — Full MD Codes set (owner request 2026-11-16, plan waiting for «ادامه»)
+Owner: the MD Codes mode must have the standard codes, not one slider per family (Ck4–Ck5, C1–C6, T1–T2, Jw1–Jw5, …).
+Source found: de Maio, Aesthetic Plast Surg 2020;45(2):690–709, PMC8012343, Table 3, licence CC BY 4.0 (attribution
+required; the MD Codes™ name stays a trademark, licence review still open). 51 codes with their anatomical names:
+Ck1 zygomatic arch, Ck2 zygomatic eminence, Ck3 anteromedial cheek, Ck4 lateral lower cheek/parotid area, Ck5 submalar/buccal
+area; T1 anterior temple, T2 posterior temple; C1 labiomental angle, C2 chin apex, C3 anterior chin, C4 anterior chin/soft
+tissue pogonion, C5 lateral lower chin, C6 lateral chin; Jw1 mandible angle, Jw2 pre-auricular area, Jw3 mandible body, Jw4
+lower prejowl, Jw5 lower anterior chin; F1 medial, F2 lateral, F3 central forehead; O1 central, O2 lower, O3 upper lateral
+orbital; E1 eyebrow tail, E2 centre, E3 head; Tt1 central, Tt2 lateral, Tt3 medial infraorbital; G1 lateral, G2 central
+glabella; NL1–NL3 upper, central, lower nasolabial fold; M1–M3 upper, central, lower marionette line; Lp1 vermilion body,
+Lp2 Cupid's bow, Lp3 lip border, Lp4 medial tubercle, Lp5 lateral tubercles, Lp6 oral commissure, Lp7 philtrum column, Lp8
+perioral lines; N1 anterior nasal spine, N2 columella, N3 frontonasal angle, N4 bony dorsum, N5 cartilaginous dorsum.
+Only names and approximate zones are used; the table's depth, tool and volume are not shown (PRD F6.2).
+Plan approved 2026-11-16 (build in a new chat after «ادامه»):
+- [ ] All 51 codes in `src/data/mdCodes.ts` with Persian name, English name from Table 3, `status: 'draft'`, source above
+- [ ] Page: one family slider that opens into one slider per code (with mirror per side); every code and every family has an
+  on/off switch. Zones built from the face geometry, checked on every test photo (zoom), then shown in `review.html`
+- [ ] Each code changes only its own zone; filled neighbours blend into one smooth fill (F4.12); eyes never move
+- Owner decisions on the three questions:
+  1. Nose N1–N5: kept, with a switch to turn them off (no nose concern in PRD §6; vascular high-risk area)
+  2. F, G, O codes: kept as smoothing of their own zone. Later: a toxin option the doctor can switch on to smooth lines
+     with toxin (UI text says «توکسین», never «بوتاکس»)
+  3. E3 (brow head): kept and working; the doctor turns it off when not wanted. This overrides the earlier "brow heads never
+     change" rule only for the E3 slider; every other operator still leaves the brow head alone
+
 ## M6 — Knowledge base and sorting
 Owner decisions 2026-11-16 (plan approved): result rank from the PRD §6 default order; cost tier from the modality
 (toxin < skin booster, PN, peel < filler < biostimulator < thread and devices); image caps without a PRD figure from the
