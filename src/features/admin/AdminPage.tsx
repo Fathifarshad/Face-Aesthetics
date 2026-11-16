@@ -2,7 +2,7 @@ import { Lock } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { RecoveryCode } from '../../app/VaultGate';
-import { BottomBar, Button, Chip, Field, Header, Notice, Page, Section } from '../../components/ui';
+import { BottomBar, Button, Chip, Field, Header, Notice, Page, Section, Toggle } from '../../components/ui';
 import { MIN_PASSPHRASE_LENGTH, WrongSecretError } from '../../db/crypto';
 import { db, getSettings, saveSettings } from '../../db/db';
 import type { ClinicSettings } from '../../db/types';
@@ -362,6 +362,12 @@ function DataTab({ s, set }: TabProps) {
           {t.admin.storage}: {usedMb === null ? t.admin.storageUnknown : <bdi>{num(usedMb, 1)} MB</bdi>}
         </p>
         <p className="mt-1 text-control text-ink-2">{t.admin.deleteHint}</p>
+      </Section>
+      <Section title={t.admin.cloudRender}>
+        <div className="card flex flex-col gap-2" data-setting="cloudRender">
+          <Toggle checked={s.cloudRender} onChange={(v) => set({ cloudRender: v })} label={t.admin.cloudRenderSwitch} />
+          <p className="text-caption text-ink-2">{t.admin.cloudRenderNote}</p>
+        </div>
       </Section>
       <Section title={t.settings.retention}>
         <div className="card flex flex-col gap-2">

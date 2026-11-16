@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
     ...(mode === 'https' ? [basicSsl()] : []),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: `${APP_NAME.en} — Face Aesthetic Simulation & Planning`,
         short_name: APP_NAME.en,
@@ -23,10 +23,20 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#0A0A0B',
         background_color: '#0A0A0B',
         display: 'standalone',
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        start_url: './',
+        scope: './',
+        // PNG icons come from public/icon.svg (scripts/make-icons.mjs); Android and iOS need them to install.
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,woff2,wasm,task}'],
+        // Everything the app needs offline: code, fonts, icons, the MediaPipe WASM and the face model.
+        // PNG only for the app icons, so a picture dropped into public/ later is never precached by accident.
+        globPatterns: ['**/*.{js,css,html,svg,woff2,wasm,task}', 'icon-*.png', 'apple-touch-icon.png'],
         globIgnores: ['**/vision_wasm_module_internal.*', '**/vision_wasm_nosimd_internal.*'],
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
       },

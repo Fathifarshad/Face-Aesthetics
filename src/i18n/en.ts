@@ -490,6 +490,16 @@ export const en: Dict = {
   },
   sim: {
     label: 'Simulation; the real result will differ',
+    render: {
+      title: 'Realistic render (stand-in)',
+      button: 'Realistic render',
+      busy: 'Rendering…',
+      noConsent: 'This patient has no level-2 consent (sending photos to a cloud renderer), or it was revoked.',
+      consentLink: 'Patient consents',
+      mockNote: 'Stand-in: the browser preview came back. No real service is connected yet and nothing left the device.',
+      notReady: 'The preview is not ready yet.',
+      error: 'The render failed.',
+    },
     preparing: 'Preparing the photo…',
     noPhoto: 'There is no frontal “before” photo. Take it in the Capture section first.',
     noFace: 'No face points were found on the frontal photo. Take the frontal photo again.',
@@ -579,6 +589,10 @@ export const en: Dict = {
   },
   admin: {
     title: 'Admin panel',
+    cloudRender: 'Realistic cloud render',
+    cloudRenderSwitch: 'Realistic render button on the simulation page',
+    cloudRenderNote:
+      'For now this is only a stand-in: it returns the browser preview and no photo leaves the device. Each patient also needs a level-2 consent.',
     tabs: { security: 'Security', clinic: 'Physician & clinic', pricing: 'Pricing & safety', aftercare: 'Aftercare', data: 'Data', tools: 'Tools' },
     tabsLabel: 'Admin panel sections',
     securityState: 'Photos, simulation images and signatures are encrypted on this device with AES-GCM. The panel locks itself after 5 minutes without activity.',

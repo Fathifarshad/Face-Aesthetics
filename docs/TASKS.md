@@ -6,8 +6,8 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
 Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set), M6 (knowledge base,
-sorting, option → image), M7 (estimates, tariff, MD Codes layer), M8 (gallery, consent) and M9 (report) built,
-waiting for the owner's look. Next: M10.
+sorting, option → image), M7 (estimates, tariff, MD Codes layer), M8 (gallery, consent), M9 (report) and M10 (render
+stub, PWA, privacy and accessibility) built, waiting for the owner's look. Next: M11.
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -194,9 +194,20 @@ the sign-off makes it stale; (b) cost is always in the patient report, no cost c
 - [ ] (V) Owner look: report page (note, stale warning) and the printed report (fa and en)
 
 ## M10 — Cloud render stub, PWA, privacy review
-- [ ] `RenderProvider` interface with `MockRenderProvider` only; gated by the cloud-render consent
-- [~] PWA offline
-- [ ] (V) No network request containing a photo without level-2 consent (runtime test); main-flow Playwright green; accessibility pass
+Plan approved by the owner 2026-11-16 («ادامه», including the test-only dependency `@axe-core/playwright` 4.14.0,
+MPL-2.0), built 2026-11-16.
+- [x] `RenderProvider` (`src/render/provider.ts`) with `MockRenderProvider` only (`src/render/mock.ts`, no network; returns
+  the browser preview, label burned in). One gate `cloudRender()`: clinic switch `settings.cloudRender` (admin → data,
+  default off) and a live level-2 consent read right before the call. Result shown on the simulation page, never saved;
+  audit `render.cloud` holds only provider id, mock flag and region ids
+- [x] PWA: PNG icons 192/512/maskable and apple-touch-icon from `icon.svg` (`npm run icons`), manifest start_url/scope,
+  PNG in the precache. Offline test on the production build (`npm run test:pwa`, `playwright.pwa.config.ts`)
+- [x] Accessibility: axe-core WCAG 2.1 A/AA on 14 screens found no violation; 50 controls under 44 px fixed (switch hit
+  area, option and Fitzpatrick chips, capture rules button)
+- [x] (V) `e2e/privacy.spec.ts` (switch off → no button; level 1 only → refused; level 2 → mock result; revoked → refused;
+  no request leaves the origin or carries a body; the watcher's own self-test); `watchNetwork` also in the main flow;
+  `e2e/pwa.spec.ts` (manifest, cached model/WASM, offline analysis and simulation); `e2e/a11y.spec.ts`; unit `src/render/provider.test.ts`
+- [ ] (V) Owner look: admin switch and the render box on the simulation page; install on the phone
 
 ## M11 — Client app completion (PRD §5.10)
 - [~] Client app and file exchange from the v1 kit

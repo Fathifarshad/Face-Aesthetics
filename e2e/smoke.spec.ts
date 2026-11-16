@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync } from 'node:fs';
-import { setupVault, signConsent, unlockVault } from './helpers';
+import { setupVault, signConsent, unlockVault, watchNetwork } from './helpers';
 
 const shots = 'test-results/screens';
 
@@ -38,6 +38,7 @@ const PHOTO = 'test-assets/portrait.jpg';
 
 test('doctor flow: patient → intake → photo confirm → analysis → age → plan → sign-off → report', async ({ page }) => {
   test.skip(!existsSync(PHOTO), 'needs a local test photo in test-assets/ (git-ignored)');
+  const offending = watchNetwork(page); // rule 8: no photo leaves the device (M10)
   await setupVault(page, '/#/doctor/new');
   await page.getByLabel('نام نمایشی').fill('بیمار آزمایشی');
   await page.getByLabel('شمارهٔ پرونده').fill('T-001');
@@ -170,4 +171,5 @@ test('doctor flow: patient → intake → photo confirm → analysis → age →
   await page.reload();
   await unlockVault(page);
   await expect(page.getByText('نواحی‌ای که ممکن است از بهبود بهره ببرند')).toBeVisible();
+  expect(offending, offending.join('\n')).toEqual([]);
 });

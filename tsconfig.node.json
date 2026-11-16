@@ -13,5 +13,5 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "tailwind.config.ts", "e2e", "src/app/config.ts"]
+  "include": ["vite.config.ts", "playwright.config.ts", "playwright.pwa.config.ts", "tailwind.config.ts", "e2e", "src/app/config.ts"]
 }

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 /**
  * Static guards for the hard rules in prompts/SUPERPROMPT.md:
  * rule 9 (no CDN, tracker or remote asset), rule 16 (colours only from tokens) and a first line of
- * defence for rule 8 (no network call in app code; the runtime test with real requests comes in M10).
+ * defence for rule 8 (no network call in app code; the runtime test with real requests is e2e/privacy.spec.ts).
  */
 const SRC = join(process.cwd(), 'src');
 

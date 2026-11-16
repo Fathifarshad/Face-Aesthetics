@@ -100,7 +100,7 @@ export function Chip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`min-h-touch rounded-full border px-4 text-[13px] transition ${
+      className={`min-h-touch min-w-touch rounded-full border px-4 text-[13px] transition ${
         active ? 'border-primary bg-primary-tint font-semibold text-primary-on-tint' : 'border-border bg-surface text-ink hover:border-primary/50'
       } ${className}`}
     >
@@ -143,9 +143,12 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
         aria-checked={checked}
         aria-label={label}
         onClick={() => onChange(!checked)}
-        className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? 'bg-primary' : 'bg-surface-2'}`}
+        className="flex min-h-touch w-12 shrink-0 items-center"
       >
-        <span className={`absolute top-1 h-5 w-5 rounded-full bg-ink transition-all ${checked ? 'start-6' : 'start-1'}`} />
+        {/* The track is 28 px; the button around it keeps the 44 px touch target (BRAND). */}
+        <span className={`relative h-7 w-12 rounded-full transition ${checked ? 'bg-primary' : 'bg-surface-2'}`}>
+          <span className={`absolute top-1 h-5 w-5 rounded-full bg-ink transition-all ${checked ? 'start-6' : 'start-1'}`} />
+        </span>
       </button>
     </label>
   );

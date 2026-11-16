@@ -175,6 +175,8 @@ export type ClinicSettings = {
   retentionMonths: number;
   /** Doctor-written aftercare per modality; shown to the patient. */
   aftercare: Record<string, string>;
+  /** Clinic switch for the realistic render (PRD F4.8, feature flag; default off). Each patient also needs level-2 consent. */
+  cloudRender: boolean;
 };
 
 // ── Client (patient app) side ────────────────────────────────────────────

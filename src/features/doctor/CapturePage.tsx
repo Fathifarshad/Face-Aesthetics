@@ -78,7 +78,7 @@ export function CapturePage() {
         <div className="card mb-4">
           <button
             type="button"
-            className="flex w-full items-center justify-between"
+            className="-my-2.5 flex min-h-touch w-full items-center justify-between"
             onClick={() => setRules((r) => !r)}
             aria-expanded={rules}
           >

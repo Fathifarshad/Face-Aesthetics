@@ -4,8 +4,11 @@ import { Button, Chip, Header, LinkButton, Notice, Tag } from '../../components/
 import { burnSimulationLabel } from '../../components/simulationLabel';
 import { AGE_NORMS, AGE_OFFSETS, targetAgeOf, TARGET_AGE_MIN } from '../../data/ageNorms';
 import type { AgeTarget, ConcernId } from '../../data/types';
-import { audit, uid } from '../../db/db';
-import { replaceSimulation } from '../../db/images';
+import { audit, getSettings, uid } from '../../db/db';
+import { listConsents, replaceSimulation } from '../../db/images';
+import { renderProvider } from '../../render/mock';
+import { cloudRender, renderBlock, RenderRefusedError } from '../../render/provider';
+import { useConsents } from './useConsents';
 import { frontalPhoto } from '../../db/repo';
 import {
   getSimState,
@@ -129,6 +132,21 @@ export function SimulatePage() {
   // Save feedback sits next to the save button: a message at the top of the page is out of view on a phone.
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'notReady' | 'error'>('idle');
   const label = t.sim.label;
+  const clinic = useLive(() => getSettings(), []);
+  const consents = useConsents(data?.patient.id);
+  const [rendered, setRendered] = useState<{ url: string; mock: boolean } | null>(null);
+  const [renderState, setRenderState] = useState<'idle' | 'busy' | 'notReady' | 'error' | 'noConsent'>('idle');
+  useEffect(() => () => void (rendered && URL.revokeObjectURL(rendered.url)), [rendered]);
+  // A render in flight stops when the page closes; a shown result goes away once the switch or the consent does.
+  const renderAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => renderAbort.current?.abort(), []);
+  const renderBlockedNow = consents && clinic ? renderBlock(clinic.cloudRender, consents) : null;
+  useEffect(() => {
+    if (renderBlockedNow) {
+      renderAbort.current?.abort();
+      setRendered(null);
+    }
+  }, [renderBlockedNow]);
 
   const engine = useEngine(
     photo,
@@ -379,11 +397,11 @@ export function SimulatePage() {
     }
   };
 
-  /** False when nothing is rendered yet; throws when storing fails. */
-  const saveImage = async (): Promise<boolean> => {
+  /** The current "after" picture over the whole photo with the label burned in; null when nothing is rendered yet. */
+  const composeAfter = async (): Promise<Blob | null> => {
     const image = frames.current.last;
     const place = placement.current;
-    if (!photo || !image || !rect || !place) return false;
+    if (!photo || !image || !rect || !place) return null;
     const bmp = await createImageBitmap(photo.blob);
     const canvas = document.createElement('canvas');
     canvas.width = bmp.width;
@@ -403,8 +421,13 @@ export function SimulatePage() {
       rect.height / place.scale,
     );
     burnSimulationLabel(ctx, label);
-    const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/jpeg', 0.92));
-    if (!blob) return false;
+    return new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/jpeg', 0.92));
+  };
+
+  /** False when nothing is rendered yet; throws when storing fails. */
+  const saveImage = async (): Promise<boolean> => {
+    const blob = await composeAfter();
+    if (!photo || !blob) return false;
     await replaceSimulation({
       id: uid(),
       caseId,
@@ -422,6 +445,63 @@ export function SimulatePage() {
     setMessage(null);
     return true;
   };
+
+  /**
+   * Realistic render (PRD F4.8–F4.11) through the one gate in src/render/provider.ts. Consents are read again right
+   * before the call, so a revocation a moment ago counts. Phase 1 uses the mock: nothing leaves the device.
+   */
+  const realisticRender = async () => {
+    setRenderState('busy');
+    try {
+      const guide = await composeAfter();
+      const place = placement.current;
+      if (!photo || !guide || !rect || !place || !ready) return setRenderState('notReady');
+      const toPhoto = (p: { x: number; y: number }) => ({ x: place.x + (rect.x + p.x) / place.scale, y: place.y + (rect.y + p.y) / place.scale });
+      const regions = [
+        ...ready.outlines
+          .filter((o) => concernIds.includes(o.concernId) && settingOf(o.concernId).on)
+          .map((o) => ({ id: o.concernId as string, intensity: settingOf(o.concernId).value, polygon: o.points.map(toPhoto) })),
+        ...ready.zones
+          .filter((z) => shownSites.includes(z.site) && settingOf(z.site).on)
+          .map((z) => ({ id: z.site as string, intensity: settingOf(z.site).value, polygon: z.points.map(toPhoto) })),
+      ];
+      // Switch and consents are read again now, not taken from the page state.
+      const [settingsNow, live] = await Promise.all([getSettings(), listConsents(data.patient.id)]);
+      renderAbort.current?.abort();
+      const ctl = new AbortController();
+      renderAbort.current = ctl;
+      const out = await cloudRender(
+        renderProvider(),
+        { photo: photo.blob, guide, regions },
+        { enabled: settingsNow.cloudRender, consents: live },
+        ctl.signal,
+      );
+      if (ctl.signal.aborted) return;
+      // Every simulated image carries the label: the mock returns the labelled guide; any other result is labelled here.
+      const image = out.mock ? out.image : await labelled(out.image);
+      await audit(caseId, 'render.cloud', undefined, { provider: out.providerId, mock: out.mock, regions: regions.map((r) => r.id) });
+      setRendered({ url: URL.createObjectURL(image), mock: out.mock });
+      setRenderState('idle');
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return setRenderState('idle');
+      setRenderState(err instanceof RenderRefusedError && err.reason === 'noConsent' ? 'noConsent' : 'error');
+    }
+  };
+  /** Burns the simulation label into an image that came from outside the browser preview. */
+  const labelled = async (blob: Blob): Promise<Blob> => {
+    const bmp = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bmp.width;
+    canvas.height = bmp.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    bmp.close();
+    burnSimulationLabel(ctx, label);
+    const out = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/jpeg', 0.92));
+    if (!out) throw new Error('label');
+    return out;
+  };
+  const renderBlocked = consents ? renderBlock(!!clinic?.cloudRender, consents) : 'disabled';
 
   const maxPercent = Math.round(MAX_INTENSITY * 100);
   const pct = (v: number) => Math.round(v * 100);
@@ -504,7 +584,7 @@ export function SimulatePage() {
                   setMessage(null);
                   void setOption(caseId, id, o.id);
                 }}
-                className={`min-h-touch rounded-md border px-2.5 text-caption ${
+                className={`min-h-touch min-w-touch rounded-md border px-2.5 text-caption ${
                   o.id === option.id ? 'border-primary bg-primary-tint font-semibold text-primary-on-tint' : 'border-border text-ink'
                 }`}
               >
@@ -569,11 +649,13 @@ export function SimulatePage() {
               aria-checked={s.on}
               aria-label={name}
               onClick={() => toggle(id)}
-              className={`relative h-7 w-12 shrink-0 rounded-pill transition ${s.on ? 'bg-primary' : 'bg-track'}`}
+              className="-my-2 flex min-h-touch w-12 shrink-0 items-center"
             >
-              <span
-                className={`absolute top-1 h-5 w-5 rounded-pill bg-ink transition-all ${s.on ? 'start-6' : 'start-1'}`}
-              />
+              <span className={`relative h-7 w-12 rounded-pill transition ${s.on ? 'bg-primary' : 'bg-track'}`}>
+                <span
+                  className={`absolute top-1 h-5 w-5 rounded-pill bg-ink transition-all ${s.on ? 'start-6' : 'start-1'}`}
+                />
+              </span>
             </button>
             <span className={`min-w-0 flex-1 text-body ${s.on ? '' : 'text-muted'}`}>{name}</span>
             <bdi
@@ -988,6 +1070,38 @@ export function SimulatePage() {
                   {saveState === 'saved' ? t.sim.saved : saveState === 'error' ? t.sim.saveError : t.sim.notReady}
                 </Notice>
               </div>
+            )}
+            {clinic?.cloudRender && (
+              <section className="mt-4 rounded-md border border-border p-3" data-cloud-render={renderBlocked ?? 'ready'} aria-labelledby="cloud-render-title">
+                <h3 id="cloud-render-title" className="text-control font-semibold text-primary-on-tint">
+                  {t.sim.render.title}
+                </h3>
+                {renderBlocked === 'noConsent' || renderState === 'noConsent' ? (
+                  <div className="mt-2">
+                    <Notice tone="warn">{t.sim.render.noConsent}</Notice>
+                    <LinkButton to={`/doctor/patient/${data.patient.id}/consent`} variant="soft" className="mt-2 w-full">
+                      {t.sim.render.consentLink}
+                    </LinkButton>
+                  </div>
+                ) : (
+                  <Button className="mt-2 w-full" onClick={() => void realisticRender()} disabled={renderState === 'busy'}>
+                    {renderState === 'busy' ? t.sim.render.busy : t.sim.render.button}
+                  </Button>
+                )}
+                {(renderState === 'notReady' || renderState === 'error') && (
+                  <div className="mt-2" role="status">
+                    <Notice tone={renderState === 'error' ? 'danger' : 'warn'}>
+                      {renderState === 'error' ? t.sim.render.error : t.sim.render.notReady}
+                    </Notice>
+                  </div>
+                )}
+                {rendered && (
+                  <figure className="mt-2">
+                    <img src={rendered.url} alt={t.sim.render.title} className="w-full rounded-md" data-render-result={rendered.mock ? 'mock' : 'real'} />
+                    {rendered.mock && <figcaption className="mt-1 text-caption text-ink-2">{t.sim.render.mockNote}</figcaption>}
+                  </figure>
+                )}
+              </section>
             )}
             <p className="mt-3 text-caption text-muted">{t.sim.capNote(num(maxPercent))}</p>
             <p className="mt-1 text-caption text-muted">{t.sim.manualNote}</p>

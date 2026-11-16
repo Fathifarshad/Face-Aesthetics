@@ -83,6 +83,7 @@ export const DEFAULT_SETTINGS: ClinicSettings = {
   maxHighRiskPerSession: 1,
   retentionMonths: 24,
   aftercare: {},
+  cloudRender: false,
 };
 
 export async function getSettings(): Promise<ClinicSettings> {

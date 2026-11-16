@@ -79,3 +79,28 @@ export async function newCaseWithFrontal(page: Page, photo: string, sex: 'زن' 
   await expect(page.getByText(/1 از \d+ عکس لازم/).first()).toBeVisible();
   return /case\/([^/]+)\//.exec(page.url())![1]!;
 }
+
+/**
+ * Rule 8 runtime check (M10): records every request that leaves the app's own origin or carries a body. A photo can
+ * only leave in a request body or as a remote URL, so an empty list means no photo went to the network.
+ * Call before the flow; read the returned array at the end.
+ */
+export function watchNetwork(page: Page, own = 'http://localhost:5199'): string[] {
+  const offending: string[] = [];
+  // On the context, not the page: service-worker fetches and pop-ups are seen too.
+  page.context().on('request', (req) => {
+    const url = req.url();
+    if (url.startsWith('data:') || url.startsWith('blob:')) return;
+    const body = req.postDataBuffer();
+    if (new URL(url).origin !== own) offending.push(`${req.method()} ${url.slice(0, 120)} (other origin)`);
+    else if (req.method() !== 'GET' && req.method() !== 'HEAD') offending.push(`${req.method()} ${url.slice(0, 120)} (body ${body?.length ?? '?'} B)`);
+    else if (body && body.length > 0) offending.push(`${req.method()} ${url.slice(0, 120)} (body ${body.length} B)`);
+    // Even a same-origin GET can carry data in its address; the app's own asset URLs are short.
+    else if (url.length > 1024) offending.push(`${req.method()} ${url.slice(0, 120)}… (URL ${url.length} chars)`);
+  });
+  page.on('websocket', (ws) => {
+    // Vite's own HMR socket in dev is the only allowed one; it never carries app data.
+    if (new URL(ws.url()).origin.replace(/^ws/, 'http') !== own) offending.push(`WS ${ws.url()}`);
+  });
+  return offending;
+}

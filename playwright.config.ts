@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // The offline test needs the production build: playwright.pwa.config.ts (npm run test:pwa).
+  testIgnore: 'pwa.spec.ts',
   // Playwright empties its output folder on every run; keep it apart from the evidence images in test-results/<name>/.
   outputDir: 'test-results/playwright',
   timeout: 120_000,
