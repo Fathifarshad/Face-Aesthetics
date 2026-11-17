@@ -104,3 +104,20 @@ export function watchNetwork(page: Page, own = 'http://localhost:5199'): string[
   });
   return offending;
 }
+
+/** Signs the case on the report page (all four checks, a drawn signature) and waits for a fresh approval. */
+export async function signOff(page: Page, caseId: string): Promise<void> {
+  await page.goto(`/#/doctor/case/${caseId}/report`);
+  for (const label of ['همهٔ یافته‌ها بررسی شد', 'طرح درمان تأیید شد', 'منع مصرف‌ها بررسی شد', 'غربالگری بررسی شد'])
+    await page.getByRole('switch', { name: label }).click();
+  const pad = page.getByLabel('امضا', { exact: true });
+  await pad.scrollIntoViewIfNeeded();
+  const box = (await pad.boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 120, box.y + 30, { steps: 8 });
+  await page.mouse.move(box.x + 220, box.y + 90, { steps: 8 });
+  await page.mouse.up();
+  await page.getByRole('button', { name: 'امضا و تأیید' }).click();
+  await expect(page.locator('[data-approval="fresh"]')).toBeVisible();
+}

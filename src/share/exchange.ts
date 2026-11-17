@@ -13,7 +13,7 @@ import { fa } from '../i18n/fa';
 import { en } from '../i18n/en';
 import { chosenOptions, usable } from '../features/doctor/simDefaults';
 import { screen, screenedOf } from '../features/doctor/optionScreening';
-import { mergeMessages, type PatientPackage, type ReplyPackage } from './format';
+import { FORMAT_VERSION, PACKAGE_FORMAT, REPLY_FORMAT, mergeMessages, type PatientPackage, type ReplyPackage } from './format';
 
 export const blobToDataUrl = (b: Blob): Promise<string> =>
   new Promise((res, rej) => {
@@ -25,7 +25,10 @@ export const blobToDataUrl = (b: Blob): Promise<string> =>
 
 export const dataUrlToBlob = async (u: string): Promise<Blob> => (await fetch(u)).blob();
 
-/** Patient-facing summary of a signed case (plain wording, no measurements, no volumes). */
+/**
+ * Patient-facing summary of a signed case (PRD F10.3): plain wording, chosen options, sessions, aftercare, the doctor's
+ * note. Never grades, volume or dose ranges, MD Codes, screening results or cost (F10.6).
+ */
 export async function toPtCase(caseId: string): Promise<PtCase | null> {
   const c = await db.cases.get(caseId);
   const sign = await db.signoffs.get(caseId);
@@ -33,10 +36,12 @@ export async function toPtCase(caseId: string): Promise<PtCase | null> {
   // PRD F9.2 / hard rule: only content the doctor approved, unchanged since the sign-off, leaves the device.
   if (approvalOf(sign, await approvalStamp(caseId)) !== 'fresh') return null;
   const settings = await getSettings();
-  const findings = (await db.findings.where('caseId').equals(caseId).toArray())
-    .filter((f) => f.status !== 'rejected' && (f.severity ?? 0) >= 1 && CATALOG[f.key]?.graded)
-    .map((f) => ({ key: f.key, label: CATALOG[f.key]!.label, patient: CATALOG[f.key]!.patient, severity: f.severity ?? 0 }));
   const m6 = await m6Plan(caseId, c.intake);
+  const findings =
+    m6?.areas ??
+    (await db.findings.where('caseId').equals(caseId).toArray())
+      .filter((f) => f.status !== 'rejected' && (f.severity ?? 0) >= 1 && CATALOG[f.key]?.graded)
+      .map((f) => ({ key: f.key, label: CATALOG[f.key]!.label, patient: CATALOG[f.key]!.patient }));
   const planRow = await db.plans.get(caseId);
   const selections = planRow?.selections ?? {};
   const plan = Object.entries(selections)
@@ -70,6 +75,7 @@ export async function toPtCase(caseId: string): Promise<PtCase | null> {
       .filter((a) => a.text.trim()),
     signedAt: sign.signedAt,
     doctorName: sign.doctorName,
+    ...(planRow?.reportNote?.trim() ? { note: planRow.reportNote.trim() } : {}),
   };
 }
 
@@ -91,8 +97,8 @@ export async function buildPatientPackage(patientId: string): Promise<PatientPac
   const messages = await db.messages.where({ owner: 'doctor', patientCode: p.code }).toArray();
   await db.messages.where({ owner: 'doctor', patientCode: p.code }).modify({ sent: true });
   return {
-    format: 'tanasob/patient-package',
-    version: 1,
+    format: PACKAGE_FORMAT,
+    version: FORMAT_VERSION,
     exportedAt: Date.now(),
     code: p.code,
     patientName: p.displayName,
@@ -107,11 +113,11 @@ export async function buildReplyPackage(code: string): Promise<ReplyPackage> {
   const messages = (await db.messages.where({ owner: 'patient', patientCode: code }).toArray()).filter((m) => m.from === 'patient');
   const photos = await db.ptPhotos.where('code').equals(code).filter((p) => p.phase === 'progress' && !p.sent).toArray();
   const pkg: ReplyPackage = {
-    format: 'tanasob/patient-reply',
-    version: 1,
+    format: REPLY_FORMAT,
+    version: FORMAT_VERSION,
     exportedAt: Date.now(),
     code,
-    messages: messages.map(({ id, from, text, at }) => ({ id, from, text, at })),
+    messages: messages.map(({ id, from, text, at }) => ({ id: wireId(id), from, text, at })),
     photos: await Promise.all(photos.map(async (p) => ({ id: p.id, view: p.view, dataUrl: await blobToDataUrl(p.blob), takenAt: p.takenAt }))),
   };
   await db.messages.where({ owner: 'patient', patientCode: code }).modify({ sent: true });
@@ -119,13 +125,32 @@ export async function buildReplyPackage(code: string): Promise<ReplyPackage> {
   return pkg;
 }
 
-/** Client app: store / refresh the clinic record identified by the patient code. */
+const CLINIC_PHASES: readonly string[] = ['before', 'after', 'simulation'];
+
+/**
+ * Client app: store / refresh the clinic record identified by the patient code. The newest clinic file is the truth:
+ * photos the clinic sent before and left out now (consent revoked, case no longer signed) are removed from the phone
+ * (owner decision 2026-11-16); the patient's own progress photos stay. An older file than the stored one is refused.
+ */
 export async function importIntoClient(pkg: PatientPackage): Promise<PtRecord> {
-  const record: PtRecord = { code: pkg.code, patientName: pkg.patientName, clinic: pkg.clinic, cases: pkg.cases, updatedAt: Date.now() };
+  const prev = await db.ptRecords.get(pkg.code);
+  if (prev?.exportedAt && pkg.exportedAt < prev.exportedAt) throw new Error('older-package');
+  const record: PtRecord = {
+    code: pkg.code,
+    patientName: pkg.patientName,
+    clinic: pkg.clinic,
+    cases: pkg.cases,
+    updatedAt: Date.now(),
+    exportedAt: pkg.exportedAt,
+  };
   await db.ptRecords.put(record);
+  const keep = new Set(pkg.photos.map((p) => p.id));
+  const fromClinic = await db.ptPhotos.where('code').equals(pkg.code).filter((p) => p.phase !== 'progress' && !keep.has(p.id)).primaryKeys();
+  await db.ptPhotos.bulkDelete(fromClinic as string[]);
   const existing = new Set((await db.ptPhotos.where('code').equals(pkg.code).primaryKeys()) as string[]);
   for (const ph of pkg.photos) {
-    if (existing.has(ph.id)) continue;
+    // Only clinic phases: a 'progress' photo in a clinic file would escape the clean-up above.
+    if (existing.has(ph.id) || !CLINIC_PHASES.includes(ph.phase)) continue;
     await db.ptPhotos.put({
       id: ph.id,
       code: pkg.code,
@@ -138,7 +163,13 @@ export async function importIntoClient(pkg: PatientPackage): Promise<PtRecord> {
     });
   }
   const mine = await db.messages.where({ owner: 'patient', patientCode: pkg.code }).toArray();
-  const merged = mergeMessages(mine, pkg.messages.map((m) => ({ ...m, owner: 'patient' as const, patientCode: pkg.code, sent: true })));
+  // Rows from before the prefix (v1 kit) move to the client key, so a doctor on the same device keeps their own rows.
+  const legacy = mine.filter((m) => !m.id.startsWith(CLIENT_PREFIX));
+  const merged = mergeMessages(
+    mine.map((m) => ({ ...m, id: clientKey(wireId(m.id)) })),
+    pkg.messages.map((m) => ({ ...m, id: clientKey(m.id), owner: 'patient' as const, patientCode: pkg.code, sent: true })),
+  );
+  await db.messages.bulkDelete(legacy.map((m) => m.id));
   await db.messages.bulkPut(merged);
   return record;
 }
@@ -148,7 +179,8 @@ export async function importIntoDoctor(pkg: ReplyPackage): Promise<{ patientId: 
   const patient = await db.patients.where('code').equals(pkg.code).first();
   if (!patient) throw new Error('unknown-patient');
   const mine = await db.messages.where({ owner: 'doctor', patientCode: pkg.code }).toArray();
-  const incoming = pkg.messages.filter((m) => !mine.some((x) => x.id === m.id));
+  // A reply carries only the patient's own words; anything signed as the doctor is ignored.
+  const incoming = pkg.messages.filter((m) => m.from === 'patient' && !mine.some((x) => x.id === m.id));
   await db.messages.bulkPut(incoming.map((m) => ({ ...m, owner: 'doctor' as const, patientCode: pkg.code, sent: true })));
   const latest = (await db.cases.where('patientId').equals(patient.id).sortBy('createdAt')).at(-1);
   let added = 0;
@@ -205,6 +237,17 @@ export async function shareFile(file: File): Promise<'shared' | 'downloaded'> {
 
 export const newMessageId = uid;
 
+/**
+ * The doctor app and the client app share one `messages` table, and a message keeps its id in both (that id is what
+ * stops duplicates in the files). On one device (a doctor trying the client app) the two copies would overwrite each
+ * other, so the client app stores its rows under `pt:<id>` and the files carry the bare id.
+ */
+const CLIENT_PREFIX = 'pt:';
+const clientKey = (id: string) => CLIENT_PREFIX + id;
+const wireId = (id: string) => (id.startsWith(CLIENT_PREFIX) ? id.slice(CLIENT_PREFIX.length) : id);
+/** Id for a question the patient writes in the client app. */
+export const newClientMessageId = () => clientKey(uid());
+
 /** v1 session kinds of the client app for the PRD F5.5 stages. */
 const STAGE_KIND = { 1: 'toxin-energy', 2: 'structure', 3: 'detail', 4: 'series' } as const;
 
@@ -217,11 +260,17 @@ async function m6Plan(caseId: string, intake: Parameters<typeof screen>[1]) {
   const grades = await listGrades(caseId);
   const concerns = CONCERN_IDS.filter((id) => grades.some((g) => g.concernId === id && usable(g) && g.grade >= 1));
   if (!concerns.length) return null;
+  const areas = concerns.map((id) => ({
+    key: id,
+    label: { fa: fa.concerns[id], en: en.concerns[id] },
+    patient: { fa: fa.concernsPatient[id], en: en.concernsPatient[id] },
+  }));
   const sim = await getSimState(caseId);
   const chosen = chosenOptions(concerns, sim.options ?? {}, grades, (o) => screen(o, intake).blocks.length === 0);
   const picked = concerns.map((id) => chosen[id]).filter((o) => !!o);
   const title = (o: (typeof picked)[number]) => ({ fa: o.nameFa, en: o.nameEn });
   return {
+    areas,
     plan: picked.map((o) => ({
       findingKey: o.concernId,
       label: { fa: fa.concerns[o.concernId], en: en.concerns[o.concernId] },

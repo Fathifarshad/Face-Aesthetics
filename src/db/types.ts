@@ -186,12 +186,15 @@ export type PtCase = {
   services: string[];
   actualAge: number;
   targetAge: number;
-  findings: { key: string; label: Bi; patient: Bi; severity: number }[];
+  /** Areas to improve in plain words. Never the grade (PRD F10.6). */
+  findings: { key: string; label: Bi; patient: Bi }[];
   plan: { findingKey: string; label: Bi; options: { id: string; title: Bi; modality: string }[] }[];
   sessions: { index: number; kind: string; items: Bi[]; after: Bi | null }[];
   aftercare: { modality: string; text: string }[];
   signedAt: number;
   doctorName: string;
+  /** The doctor's note from the signed report (`plans.reportNote`, part of the approval stamp). Package v2. */
+  note?: string;
 };
 
 export type PtRecord = {
@@ -200,6 +203,8 @@ export type PtRecord = {
   clinic: { name: string; doctor: string; phone: string; address: string };
   cases: PtCase[];
   updatedAt: number;
+  /** `exportedAt` of the clinic file this record came from; an older file is refused (it could bring back revoked photos). */
+  exportedAt?: number;
 };
 
 export type PtPhoto = {

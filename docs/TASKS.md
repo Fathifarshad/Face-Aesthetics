@@ -5,9 +5,10 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-16: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set), M6 (knowledge base,
-sorting, option → image), M7 (estimates, tariff, MD Codes layer), M8 (gallery, consent), M9 (report) and M10 (render
-stub, PWA, privacy and accessibility) built, waiting for the owner's look. Next: M11.
+Status 2026-11-17: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set), M6 (knowledge base,
+sorting, option → image), M7 (estimates, tariff, MD Codes layer), M8 (gallery, consent), M9 (report), M10 (render
+stub, PWA, privacy and accessibility) and M11 (client app, package v2) built, waiting for the owner's look. All PRD
+milestones are built; next is the owner's review and the open items below.
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -210,9 +211,24 @@ MPL-2.0), built 2026-11-16.
 - [ ] (V) Owner look: admin switch and the render box on the simulation page; install on the phone
 
 ## M11 — Client app completion (PRD §5.10)
-- [~] Client app and file exchange from the v1 kit
-- [ ] New simulation, chosen options and consent-gated before/after photos in the package; package version bump, v1 still parsed
-- [ ] (V) Round trip doctor → client → doctor without duplicate messages; nothing from F10.6 in the package
+Plan approved by the owner 2026-11-16 («ادامه»), built 2026-11-17. Owner decisions in the plan: (a) a newer clinic
+file without photos (consent revoked, case no longer signed) removes the clinic's photos from the phone; the patient's
+own progress photos stay; (b) the doctor's report note is shown in the client app as «توضیح پزشک».
+- [x] Package v2 (`src/share/format.ts`): ids `neva/patient-package` and `neva/patient-reply`, version 2, files
+  `neva-<code>.json` / `neva-reply-<code>.json`. v1 files (`tanasob/…`, version 1) are still read and mapped to the v2
+  shape; the grade a v1 file carried is dropped on import
+- [x] Content (F10.3, `toPtCase`): areas in plain words from the confirmed grades (`concernsPatient` in both
+  dictionaries, no grade), the chosen option per area, sessions, aftercare, doctor's note, simulation with the label,
+  only for fresh sign-offs. Photos only through `canShare` (level 3)
+- [x] Client app: chosen treatment under each area, doctor's note, before/after compare per view, a notice when the
+  file has no photos, readable import errors; an older clinic file than the stored one is refused (`older-package`)
+- [x] Fixed on the way: doctor and client on one device overwrote each other's copy of a message (shared `messages`
+  table). The client app stores its rows as `pt:<id>`; files carry the bare id; v1 rows are moved on the next import.
+  A reply file's messages count only when written by the patient
+- [x] (V) Unit `share.test.ts` (v1 still read, grade dropped, v2 note); e2e `client.spec.ts` (package v2; whole-file
+  scan for grade, volume/dose, MD Codes, screening and cost; round trip doctor → client → doctor (imported twice) →
+  client with each message once; revocation empties the photos on the phone; older file refused; no network)
+- [ ] (V) Owner look: client app (plan, photos, chat) after importing a file from the doctor's patient page
 
 ## Open items that need a person
 - `TODO(clinical)`: every filler volume range, off-label toxin dose, onset/duration/downtime figure and the `allowed()` age table are drafts (PRD §7.2) until a senior physician confirms them
@@ -220,4 +236,4 @@ MPL-2.0), built 2026-11-16.
 - Legal review of the decision-support status before any real patient use
 - Trademark and domain check for the name نوا (NEVA)
 - Test photos for M1: 4–5 synthetic or own frontal photos in `test-assets/` (git-ignored); only one is there now
-- Known gap in the v1 code: the file-exchange format id is still `tanasob/…` (kept for compatibility; revisit in M11)
+- The IndexedDB name is still `tanasob` (renaming it would lose the data on devices already in use)

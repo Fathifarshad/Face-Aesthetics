@@ -12,6 +12,7 @@ import type { ClinicSettings } from '../../db/types';
 import { formatDate, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { buildPatientPackage, shareJson } from '../../share/exchange';
+import { packageFileName } from '../../share/format';
 import { useApp } from '../../store/app';
 import { CaseSteps } from './CaseSteps';
 import { useCase } from './useCase';
@@ -145,7 +146,7 @@ export function ReportPage() {
               <Button
                 variant="soft"
                 onClick={async () => {
-                  await shareJson(await buildPatientPackage(patient.id), `tanasob-${patient.code}.json`);
+                  await shareJson(await buildPatientPackage(patient.id), packageFileName(patient.code));
                   setNote(t.report.exported);
                 }}
               >

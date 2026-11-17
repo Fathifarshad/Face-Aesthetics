@@ -8,7 +8,7 @@ import { lock } from '../../db/vault';
 import { formatDate, useNum, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { importIntoDoctor } from '../../share/exchange';
-import { parseIncoming } from '../../share/format';
+import { REPLY_FORMAT, parseIncoming } from '../../share/format';
 import { useApp } from '../../store/app';
 
 export function PatientsPage() {
@@ -52,7 +52,7 @@ export function PatientsPage() {
   const importFile = async (f: File) => {
     try {
       const pkg = parseIncoming(await f.text());
-      if (pkg.format !== 'tanasob/patient-reply') throw new Error('unknown-format');
+      if (pkg.format !== REPLY_FORMAT) throw new Error('unknown-format');
       const r = await importIntoDoctor(pkg);
       setMsg({ tone: 'primary', text: `${t.patients.imported}: ${t.patient.messages} ${num(r.messages)} · ${t.capture.title} ${num(r.photos)}` });
       nav(`/doctor/patient/${r.patientId}`);

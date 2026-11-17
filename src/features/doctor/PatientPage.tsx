@@ -7,6 +7,7 @@ import { deletePatient } from '../../db/repo';
 import { formatDate, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { buildPatientPackage, shareJson } from '../../share/exchange';
+import { packageFileName } from '../../share/format';
 import { useApp } from '../../store/app';
 
 export function PatientPage() {
@@ -37,7 +38,7 @@ export function PatientPage() {
 
   const exportPkg = async () => {
     const pkg = await buildPatientPackage(p.id);
-    await shareJson(pkg, `tanasob-${p.code}.json`);
+    await shareJson(pkg, packageFileName(p.code));
     setNote(t.report.exported);
   };
 

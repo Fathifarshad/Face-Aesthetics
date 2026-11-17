@@ -7,7 +7,7 @@ import { normalizePatientCode } from '../../db/patientCode';
 import { formatDate, useT } from '../../i18n';
 import { useLive } from '../../lib/hooks';
 import { importIntoClient } from '../../share/exchange';
-import { parseIncoming } from '../../share/format';
+import { PACKAGE_FORMAT, parseIncoming } from '../../share/format';
 import { useApp } from '../../store/app';
 
 export function ClientHome() {
@@ -29,11 +29,12 @@ export function ClientHome() {
   const importFile = async (f: File) => {
     try {
       const pkg = parseIncoming(await f.text());
-      if (pkg.format !== 'tanasob/patient-package') throw new Error('unknown-format');
+      if (pkg.format !== PACKAGE_FORMAT) throw new Error('unknown-format');
       const r = await importIntoClient(pkg);
       nav(`/client/${r.code}`);
     } catch (e) {
-      setMsg(`${t.app.error}: ${(e as Error).message}`);
+      const code = (e as Error).message as keyof typeof t.client.importErrors;
+      setMsg(t.client.importErrors[code] ?? `${t.app.error}: ${code}`);
     }
   };
 

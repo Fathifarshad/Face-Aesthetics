@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync, mkdirSync } from 'node:fs';
-import { newCaseWithFrontal, setupVault, signConsent } from './helpers';
+import { newCaseWithFrontal, setupVault, signConsent, signOff } from './helpers';
 
 /**
  * M9 acceptance (docs/PRD.md §13): no report without the doctor's approval; the simulation label is on the image.
@@ -9,22 +9,6 @@ import { newCaseWithFrontal, setupVault, signConsent } from './helpers';
  */
 const PHOTO = 'test-assets/portrait.jpg';
 const OUT = 'test-results/report';
-
-async function signOff(page: Page, caseId: string): Promise<void> {
-  await page.goto(`/#/doctor/case/${caseId}/report`);
-  for (const label of ['همهٔ یافته‌ها بررسی شد', 'طرح درمان تأیید شد', 'منع مصرف‌ها بررسی شد', 'غربالگری بررسی شد'])
-    await page.getByRole('switch', { name: label }).click();
-  const pad = page.getByLabel('امضا', { exact: true });
-  await pad.scrollIntoViewIfNeeded();
-  const box = (await pad.boundingBox())!;
-  await page.mouse.move(box.x + 20, box.y + 60);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 120, box.y + 30, { steps: 8 });
-  await page.mouse.move(box.x + 220, box.y + 90, { steps: 8 });
-  await page.mouse.up();
-  await page.getByRole('button', { name: 'امضا و تأیید' }).click();
-  await expect(page.locator('[data-approval="fresh"]')).toBeVisible();
-}
 
 /**
  * The burned-in label bar at the bottom of the report's simulation image: a dark band (bg token at 72 %) with light

@@ -10,7 +10,8 @@ import { db, uid } from '../../db/db';
 import type { PtCase, PtPhoto, PtRecord } from '../../db/types';
 import { formatDate, useBi, useNum, useT } from '../../i18n';
 import { useLive, useObjectUrl } from '../../lib/hooks';
-import { buildReplyPackage, shareJson } from '../../share/exchange';
+import { buildReplyPackage, newClientMessageId, shareJson } from '../../share/exchange';
+import { replyFileName } from '../../share/format';
 import { useApp } from '../../store/app';
 
 type Tab = 'plan' | 'photos' | 'care' | 'chat';
@@ -78,12 +79,20 @@ function PlanView({ c }: { c: PtCase }) {
         <Tag>{c.doctorName}</Tag>
       </div>
       <h3 className="text-[13px] font-semibold text-ink-2">{t.client.areas}</h3>
-      <ul className="mb-3 mt-1 flex flex-col gap-1">
-        {c.findings.map((f) => (
-          <li key={f.key} className="text-[14px]">
-            <b>{bi(f.label)}</b> — <span className="text-ink-2">{bi(f.patient)}</span>
-          </li>
-        ))}
+      <ul className="mb-3 mt-1 flex flex-col gap-2">
+        {c.findings.map((f) => {
+          const chosen = c.plan.find((p) => p.findingKey === f.key)?.options ?? [];
+          return (
+            <li key={f.key} className="text-[14px]">
+              <b>{bi(f.label)}</b> — <span className="text-ink-2">{bi(f.patient)}</span>
+              {chosen.length > 0 && (
+                <div className="text-[13px] text-primary-on-tint">
+                  {t.client.chosen}: {chosen.map((o) => bi(o.title)).join('، ')}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
       <h3 className="text-[13px] font-semibold text-ink-2">{t.client.timeline}</h3>
       <ol className="mt-1 flex flex-col gap-1.5 border-s border-primary/40 ps-3">
@@ -95,6 +104,12 @@ function PlanView({ c }: { c: PtCase }) {
           </li>
         ))}
       </ol>
+      {c.note && (
+        <>
+          <h3 className="mt-3 text-[13px] font-semibold text-ink-2">{t.client.doctorNote}</h3>
+          <p className="mt-1 whitespace-pre-line text-[14px]">{c.note}</p>
+        </>
+      )}
       <p className="mt-3 text-[11px] text-muted">{t.report.disclaimer}</p>
     </article>
   );
@@ -103,12 +118,17 @@ function PlanView({ c }: { c: PtCase }) {
 function PhotosView({ rec, c, photos }: { rec: PtRecord; c: PtCase; photos: PtPhoto[] }) {
   const t = useT();
   const num = useNum();
+  const bi = useBi();
   const of = (phase: PtPhoto['phase'], view = 'frontal') =>
     photos.filter((p) => p.caseId === c.id && p.phase === phase && p.view === view).sort((a, b) => b.takenAt - a.takenAt)[0];
   const before = of('before');
   const sim = of('simulation');
-  const after = of('progress') ?? of('after');
   const views = requiredViews(c.services);
+  // Before/after pairs per view: the clinic's "after" photo, else the patient's own latest progress photo.
+  const pairs = [...new Set(photos.filter((p) => p.caseId === c.id && p.phase === 'before').map((p) => p.view))]
+    .map((v) => ({ v, before: of('before', v)!, after: of('after', v) ?? of('progress', v) }))
+    .filter((x): x is { v: string; before: PtPhoto; after: PtPhoto } => !!x.after);
+  const clinicPhotos = photos.some((p) => p.caseId === c.id && p.phase !== 'progress');
 
   const saveProgress = async (view: string, blob: Blob) => {
     await db.ptPhotos.add({ id: uid(), code: rec.code, caseId: c.id, phase: 'progress', view, blob, takenAt: Date.now(), sent: false });
@@ -122,11 +142,16 @@ function PhotosView({ rec, c, photos }: { rec: PtRecord; c: PtCase; photos: PtPh
           <p className="mt-1 text-[11px] text-muted">{t.age.simNote}</p>
         </Section>
       )}
-      {before && after && (
-        <Section title={t.report.compare}>
-          <CompareSlider left={before.blob} right={after.blob} leftLabel={t.capture.before} rightLabel={t.capture.after} />
-        </Section>
+      {!clinicPhotos && (
+        <div className="mb-3">
+          <Notice>{t.client.noPhotos}</Notice>
+        </div>
       )}
+      {pairs.map(({ v, before: b, after: a }) => (
+        <Section key={v} title={`${t.report.compare} · ${bi(viewById(v)?.label ?? { fa: v, en: v })}`}>
+          <CompareSlider left={b.blob} right={a.blob} leftLabel={t.capture.before} rightLabel={t.capture.after} />
+        </Section>
+      ))}
       <Section title={t.capture.before}>
         <div className="grid grid-cols-3 gap-2">
           {photos
@@ -213,14 +238,14 @@ function ChatView({ code, messages, queuedPhotos }: { code: string; messages: { 
         variant="soft"
         disabled={!text.trim()}
         onClick={async () => {
-          await db.messages.add({ id: uid(), owner: 'patient', patientCode: code, from: 'patient', text: text.trim(), at: Date.now(), sent: false });
+          await db.messages.add({ id: newClientMessageId(), owner: 'patient', patientCode: code, from: 'patient', text: text.trim(), at: Date.now(), sent: false });
           setText('');
         }}
       >
         <Send size={16} /> {t.client.addQuestion}
       </Button>
       <p className="mt-2 text-[12px] text-ink-2">{t.client.sendHint}</p>
-      <Button variant="primary" disabled={queued === 0} onClick={async () => shareJson(await buildReplyPackage(code), `tanasob-reply-${code}.json`)}>
+      <Button variant="primary" disabled={queued === 0} onClick={async () => shareJson(await buildReplyPackage(code), replyFileName(code))}>
         <Share2 size={18} /> {t.client.sendToClinic} ({num(queued)})
       </Button>
     </div>

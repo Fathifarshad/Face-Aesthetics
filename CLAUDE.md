@@ -5,7 +5,7 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options), M8 (consent levels, gallery, compare), M9 (report, approval stamp) and M10 (render stub, PWA offline, privacy and accessibility tests) built and waiting for the owner's look; M11 next. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options), M8 (consent levels, gallery, compare), M9 (report, approval stamp), M10 (render stub, PWA offline, privacy and accessibility tests) and M11 (client app, package v2) built and waiting for the owner's look. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
@@ -100,7 +100,9 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - Touch targets are at least 44 px (`e2e/a11y.spec.ts` checks it with axe-core); a small visual control sits inside a
   44 px button (see `Toggle`)
 - Default sliders: every graded change improves by at least one grade (PRD §0 item 6, `defaultIntensity` in `ageNorms.ts`)
-- The file-exchange format id is still `tanasob/…`; keep it parseable when it changes in M11
+- File exchange (F10): package v2 ids `neva/patient-package` / `neva/patient-reply` in `src/share/format.ts`; v1
+  (`tanasob/…`) files must stay readable (`parseIncoming` maps them). Nothing from F10.6 in a package (`e2e/client.spec.ts`
+  scans the whole file). Client-app message rows are stored as `pt:<id>` (`newClientMessageId`), files carry the bare id
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored
 
 ## Working economically (owner request 2026-11-16: fewer tokens, same quality)
