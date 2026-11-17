@@ -33,18 +33,12 @@ export const LM = {
   browL: [300, 293, 334, 296, 336],
 } as const;
 
-/** Lower face outline from right jaw angle through menton to left jaw angle (mesh silhouette). */
-export const JAW_CONTOUR = [172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397] as const;
-
 /** Face oval used for masks (mesh silhouette, clockwise from forehead top). */
 export const FACE_OVAL = [
   10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149,
   150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
 ] as const;
 
-export const LEFT_EYE_RING = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466] as const;
-export const RIGHT_EYE_RING = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246] as const;
-export const LIPS_OUTER = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185] as const;
 
 /** Points that should lie on the facial midline (spec §4 symmetry). */
 export const MIDLINE_POINTS = [

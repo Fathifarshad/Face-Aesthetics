@@ -25,7 +25,3 @@ export function useObjectUrl(blob: Blob | null | undefined): string | null {
   }, [blob]);
   return url;
 }
-
-export async function readFileText(file: File): Promise<string> {
-  return file.text();
-}

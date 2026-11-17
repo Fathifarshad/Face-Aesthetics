@@ -235,8 +235,6 @@ export async function shareFile(file: File): Promise<'shared' | 'downloaded'> {
   return 'downloaded';
 }
 
-export const newMessageId = uid;
-
 /**
  * The doctor app and the client app share one `messages` table, and a message keeps its id in both (that id is what
  * stops duplicates in the files). On one device (a doctor trying the client app) the two copies would overwrite each

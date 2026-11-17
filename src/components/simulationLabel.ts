@@ -21,6 +21,3 @@ export function burnSimulationLabel(ctx: CanvasRenderingContext2D, text: string)
   ctx.fillText(text, width / 2, height - bar / 2, width - font);
   ctx.restore();
 }
-
-/** Height of the label bar for a canvas of the given width, in canvas pixels. */
-export const simulationLabelHeight = (width: number): number => Math.round(Math.max(11, Math.round((width * 11) / 390)) * 2.2);

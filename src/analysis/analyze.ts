@@ -29,16 +29,3 @@ export function buildFindings(raw: Landmarks | null, sample: LuminanceSampler | 
   });
   return [...auto, ...graded];
 }
-
-/**
- * Plan-relevant severities: graded findings use their own grade; metric findings raise
- * the linked knowledge-base key when their (non-rejected) severity is higher.
- */
-export function planSeverities(findings: readonly Finding[]): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const f of findings) {
-    if (f.status === 'rejected' || f.severity === null) continue;
-    for (const k of f.planKeys) out[k] = Math.max(out[k] ?? 0, f.severity);
-  }
-  return out;
-}

@@ -1,5 +1,5 @@
-import { ageBandOf, bandIndex, CATALOG, type Bi } from '../analysis/catalog';
-import { TIERS, TREATMENTS, type Modality, type Stage, type Tier, type TreatmentOption } from './data/treatments';
+import type { Bi } from '../analysis/catalog';
+import { TREATMENTS, type Modality, type Stage, type Tier, type TreatmentOption } from './data/treatments';
 import type { Intake } from './intake';
 
 // ── Tier & age logic (docs/TREATMENTS.md §4) ───────────────────────────
@@ -10,21 +10,6 @@ export function tierFromGap(actualAge: number, targetAge: number): Tier {
   if (gap <= 3) return 'minimal';
   if (gap <= 8) return 'recommended';
   return 'comprehensive';
-}
-
-export const tierRank = (t: Tier): number => TIERS.indexOf(t);
-
-/** TODO(clinical): age-factor magnitudes are placeholders; direction follows TREATMENTS.md §4. */
-export const AGE_FACTOR = { olderBand: 1.25, sameOrYounger: 0.85 } as const;
-
-export function ageFactor(findingKey: string, targetAge: number): number {
-  const entry = CATALOG[findingKey];
-  if (!entry) return 1;
-  return bandIndex(entry.onsetBand) > bandIndex(ageBandOf(targetAge)) ? AGE_FACTOR.olderBand : AGE_FACTOR.sameOrYounger;
-}
-
-export function priorityScore(findingKey: string, severity: number, targetAge: number): number {
-  return severity * (CATALOG[findingKey]?.weight ?? 0.5) * ageFactor(findingKey, targetAge);
 }
 
 // ── Contraindications (docs/TREATMENTS.md §5) ──────────────────────────
@@ -88,48 +73,6 @@ export function softFlags(o: Screened, intake: Intake): FlagCode[] {
   )
     f.push('fitzpatrick');
   return f;
-}
-
-// ── Options per finding ────────────────────────────────────────────────
-
-export type OptionView = { option: TreatmentOption; flags: FlagCode[] };
-export type FindingPlan = {
-  findingKey: string;
-  severity: number;
-  priority: number;
-  options: OptionView[];
-  /** Options hidden by a hard contraindication (for the doctor's audit only). */
-  blocked: { option: TreatmentOption; reasons: BlockCode[] }[];
-};
-
-export function optionsForFinding(findingKey: string, tier: Tier, intake: Intake): Omit<FindingPlan, 'severity' | 'priority'> {
-  const options: OptionView[] = [];
-  const blocked: FindingPlan['blocked'] = [];
-  for (const o of TREATMENTS) {
-    if (!o.findingKeys.includes(findingKey) || tierRank(o.minTier) > tierRank(tier)) continue;
-    const reasons = hardBlocks(o, intake);
-    if (reasons.length) blocked.push({ option: o, reasons });
-    else options.push({ option: o, flags: softFlags(o, intake) });
-  }
-  return { findingKey, options: options.slice(0, 4), blocked };
-}
-
-/** Findings with severity ≥ 1, ranked by priority (highest first). */
-export function planFindings(
-  severities: Record<string, number>,
-  tier: Tier,
-  intake: Intake,
-  targetAge: number,
-): FindingPlan[] {
-  return Object.entries(severities)
-    .filter(([, s]) => s >= 1)
-    .map(([key, severity]) => ({
-      ...optionsForFinding(key, tier, intake),
-      severity,
-      priority: priorityScore(key, severity, targetAge),
-    }))
-    .filter((fp) => fp.options.length > 0 || fp.blocked.length > 0)
-    .sort((a, b) => b.priority - a.priority);
 }
 
 // ── Sequencing (docs/TREATMENTS.md §3) ─────────────────────────────────
@@ -205,26 +148,4 @@ export function buildSessions(optionIds: readonly string[], maxHighRiskPerSessio
   if (hasEnergy && chosen.some((o) => o.modality === 'HA')) warnings.push({ code: 'energy-before-ha' });
   if (chosen.some((o) => (o.modality === 'HA' || o.modality === 'toxin') && !o.volumeOrUnits)) warnings.push({ code: 'no-data-volume' });
   return { sessions, warnings };
-}
-
-/** Sum of clinic prices for the chosen options (missing prices count as 0 and are reported). */
-export function costEstimate(optionIds: readonly string[], prices: Record<string, number>): { total: number; missing: string[] } {
-  let total = 0;
-  const missing: string[] = [];
-  for (const id of new Set(optionIds)) {
-    const p = prices[id];
-    if (p === undefined || Number.isNaN(p)) missing.push(id);
-    else total += p;
-  }
-  return { total, missing };
-}
-
-/** Default selection: first (non-flagged when possible) option per finding. */
-export function defaultSelection(plans: readonly FindingPlan[]): Record<string, string[]> {
-  const sel: Record<string, string[]> = {};
-  for (const p of plans) {
-    const best = p.options.find((o) => o.flags.length === 0) ?? p.options[0];
-    sel[p.findingKey] = best ? [best.option.id] : [];
-  }
-  return sel;
 }

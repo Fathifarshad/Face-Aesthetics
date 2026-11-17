@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildFindings, planSeverities } from './analyze';
+import { buildFindings } from './analyze';
 import { IRIS_DIAMETER_MM, mmPerPx, rollCorrect, rollDeg } from './calibration';
 import { ageBandOf } from './catalog';
 import { syntheticFace, rotated } from './fixtures';
-import { angleAt, dist, fitVerticalLine, pointInPolygon, rotate, signedDistToLine } from './geometry';
+import { dist, fitVerticalLine, pointInPolygon, rotate } from './geometry';
 import {
   bizygomaticToBigonial,
   browHeightMm,
@@ -31,9 +31,7 @@ describe('geometry', () => {
     const r = rotate({ x: 10, y: 0 }, { x: 0, y: 0 }, 90);
     expect(r.x).toBeCloseTo(0);
     expect(r.y).toBeCloseTo(10);
-    expect(angleAt({ x: 1, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 1 })).toBeCloseTo(90);
     expect(dist({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5);
-    expect(signedDistToLine({ x: 1, y: 1 }, { x: 0, y: 0 }, { x: 2, y: 0 })).toBeCloseTo(2 / 2);
   });
   it('fits a vertical line', () => {
     const l = fitVerticalLine([
@@ -180,14 +178,9 @@ describe('proxies', () => {
 });
 
 describe('findings', () => {
-  it('builds metric + graded findings and merges plan severities', () => {
+  it('builds metric + graded findings', () => {
     const f = buildFindings(face, () => 150);
     expect(f.some((x) => x.source === 'clinician' && x.key === 'midface.volume' && x.confidence === 'manual')).toBe(true);
-    const graded = f.map((x) => (x.key === 'jowl' ? { ...x, severity: 3 as const } : x));
-    const sev = planSeverities(graded);
-    expect(sev['jowl']).toBe(3);
-    const rejected = graded.map((x) => (x.key === 'jowl' ? { ...x, status: 'rejected' as const } : x));
-    expect(planSeverities(rejected)['jowl']).toBeUndefined();
   });
   it('age bands', () => {
     expect([18, 29, 30, 45, 59, 60, 80].map(ageBandOf)).toEqual(['18-29', '18-29', '30-39', '40-49', '50-59', '60+', '60+']);

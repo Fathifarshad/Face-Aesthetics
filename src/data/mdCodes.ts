@@ -166,9 +166,6 @@ export const MOVED_TO_SITES: ReadonlySet<ConcernId> = new Set<ConcernId>(['tear-
  * senior physician enters the PMC8012343 warning list (PRD §7.2). // TODO(clinical)
  */
 export const WARNING_CODES: ReadonlySet<MdCode> = new Set<MdCode>(['G1', 'G2', 'N1', 'N2', 'N3', 'N4', 'N5', 'Tt1', 'Tt2', 'Tt3', 'T1', 'T2', 'NL1']);
-export const WARNING_STATUS = 'draft' as const;
-/** A family is a warning family when any of its codes is one. */
-export const familyWarns = (family: MdFamily) => codesOf(family).some((c) => WARNING_CODES.has(c));
 
 /** MD Codes families and codes named by an option (`Ck1`, `NL`, `Ck`): the codes they stand for, in table order. */
 export function codesNamed(names: readonly string[]): MdCode[] {

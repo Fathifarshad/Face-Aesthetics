@@ -5,8 +5,8 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options), M8 (consent levels, gallery, compare), M9 (report, approval stamp), M10 (render stub, PWA offline, privacy and accessibility tests) and M11 (client app, package v2) built; the owner approved all of them on 2026-11-17. The v1 kit code (analysis, capture, plan, old simulation, client app)
-is still in place and is replaced milestone by milestone — see docs/TASKS.md.
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options), M8 (consent levels, gallery, compare), M9 (report, approval stamp), M10 (render stub, PWA offline, privacy and accessibility tests) and M11 (client app, package v2) built; the owner approved all of them on 2026-11-17. Dead v1 code (old simulation engine, unused plan functions and
+UI strings) was removed on 2026-11-17; the v1 folders that remain are in use — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
 - docs/PRD.md — requirements F1–F10, milestones M0–M11. **§0 (owner decisions) overrides everything else**
@@ -54,7 +54,7 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - `src/features/doctor/`, `src/features/client/` — screens; `src/components/` — shared UI
 - `src/db/` — Dexie schema and repositories, `crypto.ts` (Web Crypto primitives), `vault.ts` (session key, lock), `images.ts` (encrypted image store)
 - `src/features/admin/` — the doctor's admin panel (`/#/admin`); `src/i18n/` — `fa.ts` (default) and `en.ts`, no hard-coded UI strings
-- v1 folders kept until replaced: `src/analysis/` (landmarks, proportions), `src/capture/`, `src/plan/`, `src/simulation/`, `src/share/`
+- v1 folders still in use (cleaned of dead code on 2026-11-17): `src/analysis/` (landmarks, proportions), `src/capture/`, `src/plan/` (intake, screening, sessions), `src/share/`. The old `src/simulation/` engine is gone; the image engine is `src/engine/` only
 
 ## Conventions that are easy to get wrong
 - Colour values live only in `src/styles.css` as RGB channels. In canvas or SVG use `cssToken()` / `svgToken()` from

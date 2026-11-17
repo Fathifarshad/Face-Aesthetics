@@ -46,23 +46,6 @@ export function distToVerticalLine(p: Point, line: { slope: number; intercept: n
   return Math.abs(p.x - line.slope * p.y - line.intercept) / Math.hypot(1, line.slope);
 }
 
-/** Signed distance from p to the directed line a→b (positive = left of the direction in y-down coords). */
-export function signedDistToLine(p: Point, a: Point, b: Point): number {
-  const len = dist(a, b);
-  if (len === 0) return 0;
-  return ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) / len;
-}
-
-/** Angle at vertex b formed by a-b-c, degrees in [0, 180]. */
-export function angleAt(a: Point, b: Point, c: Point): number {
-  const v1 = { x: a.x - b.x, y: a.y - b.y };
-  const v2 = { x: c.x - b.x, y: c.y - b.y };
-  const d = Math.hypot(v1.x, v1.y) * Math.hypot(v2.x, v2.y);
-  if (d === 0) return 0;
-  const cos = Math.min(1, Math.max(-1, (v1.x * v2.x + v1.y * v2.y) / d));
-  return radToDeg(Math.acos(cos));
-}
-
 export const lerp = (a: Point, b: Point, t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 
 export function pointInPolygon(p: Point, poly: readonly Point[]): boolean {

@@ -14,7 +14,7 @@ Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read i
 
 ### From M3
 - [~] Render time measured in desktop Chromium with Pixel 7 emulation (worker, 18 slider moves per photo): median 2.6–6.0 ms, max 13.3 ms on four photos. Still to measure on a real mid-range phone (open `/#/doctor/case/<id>/simulate`, read `data-render-ms` on the "after" canvas)
-- [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
+- [x] Owner note 2026-11-13/14: the old « ساخت شبیه‌سازی » button was barely visible. Its page (AgePage) was removed in M5; the old engine `src/simulation` was deleted in the v1 cleanup (2026-11-17). The owner approved the new simulation page
 
 ### From M4
 - [x] (V) Owner checks the shape changes again on `test-results/simulate/review.html` («+ فرم و حجم») — owner approved 2026-11-17
