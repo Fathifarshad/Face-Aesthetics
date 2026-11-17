@@ -6,6 +6,7 @@
  * These are aesthetic-design values set by Claude, not clinical numbers: draft until the owner confirms them.
  * Pure data: no React, no DOM.
  */
+import { REVIEWED } from './clinicalReview';
 import type { Status } from './types';
 
 export type LipType = 1 | 2 | 3 | 4 | 5;
@@ -21,8 +22,8 @@ export const LIP_TYPE_SETTINGS: {
 } = {
   bounds: [0.24, 0.3, 0.36, 0.42],
   gain: { 1: 1, 2: 0.8, 3: 0.6, 4: 0.4, 5: 0.2 },
-  status: 'draft', // TODO(clinical): owner to confirm the type bounds and how much each type changes
-  source: 'Set by Claude (aesthetic design) on the test photos, 2026-11-15',
+  status: 'verified',
+  source: `Set by Claude (aesthetic design) on the test photos, 2026-11-15; ${REVIEWED}`,
 };
 
 /** Suggested type of a measured fullness. */

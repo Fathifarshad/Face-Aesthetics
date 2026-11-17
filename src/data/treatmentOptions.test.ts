@@ -9,13 +9,15 @@ describe('knowledge base (PRD §6)', () => {
     expect(new Set(TREATMENT_OPTIONS.map((o) => o.id)).size).toBe(TREATMENT_OPTIONS.length);
   });
 
-  it('marks only the label toxin doses as verified; every option is a draft with a source', () => {
-    const verified = TREATMENT_OPTIONS.filter((o) => o.base?.status === 'verified').map((o) => o.concernId);
+  it('marks only the toxin doses of the label as label doses; every option is verified by the clinical sign-off, with a source', () => {
+    const verified = TREATMENT_OPTIONS.filter((o) => o.base?.label).map((o) => o.concernId);
     expect(verified.sort()).toEqual(['crows-feet', 'forehead-lines', 'glabellar-lines', 'neck']);
     for (const o of TREATMENT_OPTIONS) {
-      expect(o.status).toBe('draft');
+      expect(o.status).toBe('verified');
+      expect(o.source).toContain('reviewed and approved by');
+      if (o.base) expect(o.base.status).toBe('verified');
       expect(o.source).toContain('PRD');
-      if (o.base?.status === 'verified') expect(o.modality).toBe('toxin');
+      if (o.base?.label) expect(o.modality).toBe('toxin');
     }
   });
 

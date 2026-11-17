@@ -22,6 +22,8 @@ export const en: Dict = {
     client: 'Client app',
     clientDesc: 'My treatments, photos and simulation, aftercare, ask the doctor',
     privacy: 'All photos and data are stored on this device only.',
+    clinic: 'NEVA Aesthetic Clinic',
+    founders: 'Founders: Dr Farshad Fathi and Dr Naghmeh Nouri',
   },
   nav: {
     sections: 'App sections',
@@ -329,6 +331,7 @@ export const en: Dict = {
     total: 'Total',
     noSimulation: 'No simulation image has been saved.',
     draftNote: 'Numbers marked “unverified” are drafts not yet confirmed by a senior physician.',
+    reviewed: (by: string, date: string) => `The clinical values of this plan were reviewed and approved by ${by} (${date}).`,
     noItems: 'No treatment option chosen.',
   },
   compare: {
@@ -598,6 +601,8 @@ export const en: Dict = {
     units: { mL: 'mL', U: 'U', thread: 'threads', session: 'sessions' },
     labelDose: 'Label dose, OnabotulinumtoxinA only',
     supportFirst: 'Midface volume loss is grade 2 or more: support the cheek first, then the fold.',
+    reviewed: (by: string, date: string) =>
+      `The clinical values on this page (volumes and doses, timings, result rank, cost tier and image cap) were reviewed and approved by ${by} (${date}). Once the clinic tariff is entered, cost sorting uses it.`,
     draftNote:
       'Timings, result rank, cost tier and image cap are drafts until a senior physician confirms them. Once the clinic tariff is entered, cost sorting uses it.',
     grade: (n: string) => `Grade ${n}`,
@@ -642,7 +647,7 @@ export const en: Dict = {
     costMissing: (n: string) => `${n} options without cost (no tariff or estimate)`,
     noEstimate: (n: string) => `${n} options without an estimate: doctor to enter`,
     formula:
-      'Estimate = grade-3 base × grade factor × change intensity in the simulation, rounded to 0.1 mL and 2 U. Label doses are shown unchanged. All drafts until a senior physician confirms them.',
+      'Estimate = grade-3 base × grade factor × change intensity in the simulation, rounded to 0.1 mL and 2 U. Label doses are shown unchanged.',
     noTariff: 'No tariff entered; cost sorting uses the relative cost tier. Enter the tariff in the admin panel.',
     codeRange: (r: string) => `${r} mL`,
     warning: 'Warning code: cannula recommended',
@@ -778,7 +783,7 @@ export const en: Dict = {
     due: '“After” photo time',
     dueRow: (modality: string, from: string, to: string) => (from === to ? `${modality}: ${from}` : `${modality}: ${from} to ${to}`),
     dueNone: (modality: string) => `${modality}: set by the doctor`,
-    dueNote: 'Counted from the “before” photo date; source PRD §8 (draft).',
+    dueNote: 'Counted from the “before” photo date; source PRD §8.',
     dueEmpty: 'No treatment option chosen yet.',
     takeAfter: 'Take the after photos',
     compare: 'Compare',

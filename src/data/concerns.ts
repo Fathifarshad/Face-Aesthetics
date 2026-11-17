@@ -3,6 +3,7 @@
  * which the engine grades from the photo, and the reference scale named next to each (PRD F2.5).
  * Pure data: no React, no DOM.
  */
+import { REVIEWED } from './clinicalReview';
 import type { ConcernId, FindingSide, Status } from './types';
 
 /** Concerns with a separate right and left region (src/engine/regions.ts); the rest are one midline region. */
@@ -43,8 +44,8 @@ export const AUTO_GRADED: ReadonlySet<ConcernId> = new Set<ConcernId>([
  * reproduced. Official use needs a licence review (PRD §14, docs/TASKS.md). Skin quality has no 0–4 scale.
  */
 export const SCALES: { status: Status; source: string; names: Record<ConcernId, string | null> } = {
-  status: 'draft', // TODO(clinical): confirm the scale chosen for each concern
-  source: 'Scale names from the v1 kit catalogue (src/analysis/catalog.ts, docs/ANALYSIS_SPEC.md); PRD F2.5',
+  status: 'verified',
+  source: `Scale names from the v1 kit catalogue (src/analysis/catalog.ts, docs/ANALYSIS_SPEC.md); PRD F2.5; ${REVIEWED}`,
   names: {
     'forehead-lines': 'Merz Aesthetics Scales — Forehead Lines',
     'glabellar-lines': 'Merz Aesthetics Scales — Glabella Lines',

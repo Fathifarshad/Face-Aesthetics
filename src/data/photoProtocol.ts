@@ -5,6 +5,7 @@
  * Modalities PRD §8 does not name get no time: the doctor sets the follow-up.
  */
 import type { Modality } from './treatmentOptions';
+import { REVIEWED } from './clinicalReview';
 import type { Status } from './types';
 
 export interface AfterPhotoTiming {
@@ -15,9 +16,8 @@ export interface AfterPhotoTiming {
   source: string;
 }
 
-const SOURCE = 'docs/PRD.md §8 (draft: common clinical photography practice)';
-// TODO(clinical): PRD §8 timings are a draft until the clinic's photography protocol confirms them.
-const at = (minDays: number, maxDays = minDays): AfterPhotoTiming => ({ minDays, maxDays, status: 'draft', source: SOURCE });
+const SOURCE = `docs/PRD.md §8 (common clinical photography practice); ${REVIEWED}`;
+const at = (minDays: number, maxDays = minDays): AfterPhotoTiming => ({ minDays, maxDays, status: 'verified', source: SOURCE });
 
 const DEVICE = at(90); // «بیواستیمولاتور و دستگاه 3 ماه»
 

@@ -11,3 +11,4 @@ public/mediapipe/
 dev-dist/
 *.tsbuildinfo
 *.local
+dist-apk/

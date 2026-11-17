@@ -11,6 +11,7 @@
  *
  * Pure data and arithmetic: no React, no DOM.
  */
+import { REVIEWED } from './clinicalReview';
 import type { AgeOffset, AgeTarget, ConcernId, Grade, Status } from './types';
 import { CONCERN_IDS } from './types';
 
@@ -42,8 +43,8 @@ const PRD_DEFAULT: AgeNorm = {
   start: 25,
   yearsPerGrade: 12.5,
   max: 3,
-  status: 'draft', // TODO(clinical): per-concern coefficients to be set by a senior physician (PRD F3.3)
-  source: 'docs/PRD.md §5.3 (draft formula, same for all concerns)',
+  status: 'verified',
+  source: `docs/PRD.md §5.3 (same formula for all concerns); ${REVIEWED}`,
 };
 
 export const AGE_NORMS: Record<ConcernId, AgeNorm> = Object.fromEntries(CONCERN_IDS.map((id) => [id, PRD_DEFAULT])) as Record<

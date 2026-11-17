@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button, Chip, Header, LinkButton, Notice, Tag } from '../../components/ui';
 import { burnSimulationLabel } from '../../components/simulationLabel';
+import { reviewPending } from '../../data/clinicalReview';
 import { AGE_NORMS, AGE_OFFSETS, targetAgeOf, TARGET_AGE_MIN } from '../../data/ageNorms';
 import type { AgeTarget, ConcernId } from '../../data/types';
 import { audit, getSettings, uid } from '../../db/db';
@@ -682,7 +683,7 @@ export function SimulatePage() {
                   </bdi>
                 </Tag>
               )}
-              {s.on && (
+              {s.on && MD_CODE_INFO[id].status === 'draft' && (
                 <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.options.unverified}</span>
               )}
               {WARNING_CODES.has(id) && (
@@ -1044,7 +1045,9 @@ export function SimulatePage() {
                 </h3>
                 <p className="mb-1 text-caption text-muted">{t.sim.mdNote}</p>
                 <p className="mb-2 flex flex-wrap items-center gap-1.5 text-caption text-muted">
-                  <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.grading.unverified}</span>
+                  {reviewPending() && (
+                    <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.grading.unverified}</span>
+                  )}
                   <span dir="ltr">{t.sim.mdSource(MD_CODES_SOURCE)}</span>
                 </p>
                 {offFamilies.length > 0 && (

@@ -9,14 +9,14 @@ import { codeSettings, concernsShown, engineInput, familySettings } from './simD
 const on = (value: number, left = value): SimSetting => ({ on: true, value, left, mirror: value === left, last: 'R' });
 
 describe('MD Codes set', () => {
-  it('has the 51 codes of Table 3 in 13 families, each draft with an English and a Persian name', () => {
+  it('has the 51 codes of Table 3 in 13 families, each verified, with an English and a Persian name', () => {
     expect(MD_CODES).toHaveLength(51);
     expect(MD_FAMILIES).toHaveLength(13);
     const count = Object.fromEntries(MD_FAMILIES.map((f) => [f, codesOf(f).length]));
     expect(count).toEqual({ F: 3, T: 2, G: 2, E: 3, O: 3, Tt: 3, N: 5, Ck: 5, NL: 3, Lp: 8, M: 3, C: 6, Jw: 5 });
     for (const c of MD_CODES) {
       expect(c.startsWith(MD_CODE_INFO[c].family), c).toBe(true);
-      expect(MD_CODE_INFO[c].status).toBe('draft');
+      expect(MD_CODE_INFO[c].status).toBe('verified');
       expect(MD_CODE_INFO[c].nameEn.length, c).toBeGreaterThan(3);
       expect(MD_CODE_INFO[c].nameFa.length, c).toBeGreaterThan(2);
     }

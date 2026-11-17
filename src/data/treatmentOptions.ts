@@ -4,15 +4,17 @@
  *
  * Where each value comes from (nothing here is invented, docs/PRD.md §7):
  * - Options and their default order, MD Codes family, effect type and base estimate (for grade 3): PRD §6 table.
- *   Only the OnabotulinumtoxinA label doses are verified (PRD §7.1); every other base estimate is a draft (§7.2).
- * - Onset, durability and downtime: the draft timing table of PRD §7.2, per modality. Modalities that table does not
- *   cover (skin booster, polynucleotide, peel) have no timing (null) until a senior physician enters it.
+ *   The OnabotulinumtoxinA label doses come from the label (PRD §7.1); every other base estimate is PRD §7.2,
+ *   approved in the clinical sign-off of 2026-11-17 (`clinicalReview.ts`).
+ * - Onset, durability and downtime: the timing table of PRD §7.2, per modality. Modalities that table does not
+ *   cover (skin booster, polynucleotide, peel) have no timing (null); the app never fills one in.
  * - `efficacy` (result rank) follows the default order of PRD §6; `costTier` follows the modality; the image caps
  *   (`fx.maxStrength`) follow the modality, except the two PRD F5.3 examples. All three are owner decisions of
- *   2026-11-16 and stay `draft` (M7 replaces the cost tier with the clinic tariff).
+ *   2026-11-16, approved in the clinical sign-off (the clinic tariff replaces the cost tier when set).
  * - Risk tags: PRD F5.7 (vascular high-risk areas for injectables; high Fitzpatrick for energy-based devices).
  * Not an injection guide: no depth, angle, tool or technique (PRD §3, F6.2).
  */
+import { REVIEWED } from './clinicalReview';
 import type { ConcernId, Status, Unit } from './types';
 
 export type Modality =
@@ -42,6 +44,8 @@ export interface BaseEstimate extends Range {
   perSide: boolean;
   /** Label doses with a list of allowed totals (platysma 26, 31 or 36 U): shown as that list. */
   steps?: readonly number[];
+  /** OnabotulinumtoxinA label dose (PRD §7.1): shown as on the label and never scaled. */
+  label?: true;
   status: Status;
   source: string;
 }
@@ -74,9 +78,8 @@ export interface TreatmentOption {
 
 const SRC_TABLE = 'docs/PRD.md §6';
 const SRC_LABEL = 'FDA label, OnabotulinumtoxinA (docs/PRD.md §7.1)';
-const SRC_TIMING = 'docs/PRD.md §7.2 timing table (draft)';
+const SRC_TIMING = 'docs/PRD.md §7.2 timing table';
 
-// TODO(clinical): every timing below is the PRD §7.2 draft; a senior physician confirms or corrects it.
 type Timing = Pick<TreatmentOption, 'onsetDays' | 'durationMonths' | 'downtimeDays'>;
 const NO_TIMING: Timing = { onsetDays: null, durationMonths: null, downtimeDays: null };
 export const TIMING: Record<Modality, Timing> = {
@@ -139,8 +142,8 @@ type Row = {
 };
 
 const label = (min: number, max: number, unit: Unit, perSide: boolean, steps?: readonly number[]) =>
-  ({ min, max, unit, perSide, verified: true as const, ...(steps ? { steps } : {}) });
-const draft = (min: number, max: number, unit: Unit, perSide: boolean) => ({ min, max, unit, perSide });
+  ({ min, max, unit, perSide, label: true as const, ...(steps ? { steps } : {}) });
+const range = (min: number, max: number, unit: Unit, perSide: boolean) => ({ min, max, unit, perSide });
 
 /** PRD §6, row by row; options in the table's default order. */
 const TABLE: Record<ConcernId, { mdCodes: readonly string[]; options: readonly Row[] }> = {
@@ -171,14 +174,14 @@ const TABLE: Record<ConcernId, { mdCodes: readonly string[]; options: readonly R
     mdCodes: ['Tt', 'Ck3'],
     options: [
       { modality: 'filler', nameFa: 'حمایت گونه', nameEn: 'Cheek support', fx: 'S', mdCodes: ['Ck1', 'Ck2', 'Ck3'], support: true },
-      { modality: 'filler', nameFa: 'فیلر HA نرم', nameEn: 'Soft HA filler', fx: 'S', base: draft(0.2, 0.5, 'mL', true), mdCodes: ['Tt'] },
+      { modality: 'filler', nameFa: 'فیلر HA نرم', nameEn: 'Soft HA filler', fx: 'S', base: range(0.2, 0.5, 'mL', true), mdCodes: ['Tt'] },
       { modality: 'polynucleotide', nameFa: 'پلی‌نوکلئوتید', nameEn: 'Polynucleotide', fx: 'S' },
     ],
   },
   'midface-volume': {
     mdCodes: ['Ck1', 'Ck2', 'Ck3'],
     options: [
-      { modality: 'filler', nameFa: 'فیلر HA ساختاری', nameEn: 'Structural HA filler', fx: 'SW', base: draft(0.5, 1.5, 'mL', true) },
+      { modality: 'filler', nameFa: 'فیلر HA ساختاری', nameEn: 'Structural HA filler', fx: 'SW', base: range(0.5, 1.5, 'mL', true) },
       { modality: 'biostimulator', nameFa: 'بیواستیمولاتور', nameEn: 'Biostimulator', fx: 'SW' },
       { modality: 'thread', nameFa: 'نخ', nameEn: 'Threads', fx: 'W' },
     ],
@@ -187,29 +190,29 @@ const TABLE: Record<ConcernId, { mdCodes: readonly string[]; options: readonly R
     mdCodes: ['Ck', 'NL'],
     options: [
       { modality: 'filler', nameFa: 'حمایت گونه', nameEn: 'Cheek support', fx: 'SW', mdCodes: ['Ck1', 'Ck2', 'Ck3'], support: true },
-      { modality: 'filler', nameFa: 'فیلر مستقیم', nameEn: 'Direct filler', fx: 'SW', base: draft(0.3, 1.0, 'mL', true), mdCodes: ['NL'] },
+      { modality: 'filler', nameFa: 'فیلر مستقیم', nameEn: 'Direct filler', fx: 'SW', base: range(0.3, 1.0, 'mL', true), mdCodes: ['NL'] },
       { modality: 'thread', nameFa: 'نخ', nameEn: 'Threads', fx: 'SW' },
     ],
   },
   marionette: {
     mdCodes: ['M', 'C'],
     options: [
-      { modality: 'filler', nameFa: 'فیلر', nameEn: 'Filler', fx: 'SW', base: draft(0.3, 0.8, 'mL', true) },
-      { modality: 'toxin', nameFa: 'توکسین DAO', nameEn: 'DAO toxin', fx: 'SW', base: draft(2, 5, 'U', true), mdCodes: [] },
+      { modality: 'filler', nameFa: 'فیلر', nameEn: 'Filler', fx: 'SW', base: range(0.3, 0.8, 'mL', true) },
+      { modality: 'toxin', nameFa: 'توکسین DAO', nameEn: 'DAO toxin', fx: 'SW', base: range(2, 5, 'U', true), mdCodes: [] },
       { modality: 'thread', nameFa: 'نخ', nameEn: 'Threads', fx: 'SW' },
     ],
   },
   'lip-volume': {
     mdCodes: ['Lp'],
     options: [
-      { modality: 'filler', nameFa: 'فیلر HA', nameEn: 'HA filler', fx: 'W', base: draft(0.5, 1.0, 'mL', false) },
-      { modality: 'toxin', nameFa: 'لیپ‌فلیپ با توکسین', nameEn: 'Lip flip with toxin', fx: 'W', base: draft(2, 6, 'U', false), mdCodes: [] },
+      { modality: 'filler', nameFa: 'فیلر HA', nameEn: 'HA filler', fx: 'W', base: range(0.5, 1.0, 'mL', false) },
+      { modality: 'toxin', nameFa: 'لیپ‌فلیپ با توکسین', nameEn: 'Lip flip with toxin', fx: 'W', base: range(2, 6, 'U', false), mdCodes: [] },
     ],
   },
   'perioral-lines': {
     mdCodes: ['Lp'],
     options: [
-      { modality: 'filler', nameFa: 'فیلر ظریف', nameEn: 'Fine filler', fx: 'S', base: draft(0.2, 0.5, 'mL', false) },
+      { modality: 'filler', nameFa: 'فیلر ظریف', nameEn: 'Fine filler', fx: 'S', base: range(0.2, 0.5, 'mL', false) },
       { modality: 'toxin', nameFa: 'میکروتوکسین', nameEn: 'Micro-toxin', fx: 'S', mdCodes: [] },
       { modality: 'laser', nameFa: 'لیزر', nameEn: 'Laser', fx: 'S' },
     ],
@@ -217,14 +220,14 @@ const TABLE: Record<ConcernId, { mdCodes: readonly string[]; options: readonly R
   chin: {
     mdCodes: ['C'],
     options: [
-      { modality: 'filler', nameFa: 'فیلر HA', nameEn: 'HA filler', fx: 'SW', base: draft(1.0, 2.0, 'mL', false) },
-      { modality: 'toxin', nameFa: 'توکسین منتالیس', nameEn: 'Mentalis toxin', fx: 'S', base: draft(4, 10, 'U', false), mdCodes: [] },
+      { modality: 'filler', nameFa: 'فیلر HA', nameEn: 'HA filler', fx: 'SW', base: range(1.0, 2.0, 'mL', false) },
+      { modality: 'toxin', nameFa: 'توکسین منتالیس', nameEn: 'Mentalis toxin', fx: 'S', base: range(4, 10, 'U', false), mdCodes: [] },
     ],
   },
   jawline: {
     mdCodes: ['Jw'],
     options: [
-      { modality: 'filler', nameFa: 'فیلر', nameEn: 'Filler', fx: 'W', base: draft(1.0, 2.0, 'mL', true) },
+      { modality: 'filler', nameFa: 'فیلر', nameEn: 'Filler', fx: 'W', base: range(1.0, 2.0, 'mL', true) },
       { modality: 'thread', nameFa: 'نخ', nameEn: 'Threads', fx: 'W' },
       { modality: 'hifu', nameFa: 'HIFU یا RF', nameEn: 'HIFU or RF', fx: 'W' },
       { modality: 'biostimulator', nameFa: 'بیواستیمولاتور', nameEn: 'Biostimulator', fx: 'W' },
@@ -232,19 +235,19 @@ const TABLE: Record<ConcernId, { mdCodes: readonly string[]; options: readonly R
   },
   masseter: {
     mdCodes: [],
-    options: [{ modality: 'toxin', nameFa: 'توکسین ماستر', nameEn: 'Masseter toxin', fx: 'W', base: draft(20, 30, 'U', true) }],
+    options: [{ modality: 'toxin', nameFa: 'توکسین ماستر', nameEn: 'Masseter toxin', fx: 'W', base: range(20, 30, 'U', true) }],
   },
   temple: {
     mdCodes: ['T'],
     options: [
-      { modality: 'filler', nameFa: 'فیلر HA', nameEn: 'HA filler', fx: 'SW', base: draft(0.5, 1.0, 'mL', true) },
+      { modality: 'filler', nameFa: 'فیلر HA', nameEn: 'HA filler', fx: 'SW', base: range(0.5, 1.0, 'mL', true) },
       { modality: 'biostimulator', nameFa: 'بیواستیمولاتور', nameEn: 'Biostimulator', fx: 'SW' },
     ],
   },
   brow: {
     mdCodes: ['E'],
     options: [
-      { modality: 'toxin', nameFa: 'لیفت شیمیایی با توکسین', nameEn: 'Chemical brow lift with toxin', fx: 'W', base: draft(2, 4, 'U', true), mdCodes: [] },
+      { modality: 'toxin', nameFa: 'لیفت شیمیایی با توکسین', nameEn: 'Chemical brow lift with toxin', fx: 'W', base: range(2, 4, 'U', true), mdCodes: [] },
       { modality: 'filler', nameFa: 'فیلر', nameEn: 'Filler', fx: 'W' },
       { modality: 'thread', nameFa: 'نخ', nameEn: 'Threads', fx: 'W' },
     ],
@@ -260,7 +263,7 @@ const TABLE: Record<ConcernId, { mdCodes: readonly string[]; options: readonly R
   'skin-quality': {
     mdCodes: [],
     options: [
-      { modality: 'skinbooster', nameFa: 'اسکین‌بوستر', nameEn: 'Skin booster', fx: 'S', base: draft(2, 3, 'session', false) },
+      { modality: 'skinbooster', nameFa: 'اسکین‌بوستر', nameEn: 'Skin booster', fx: 'S', base: range(2, 3, 'session', false) },
       { modality: 'rf-microneedling', nameFa: 'RF میکرونیدلینگ', nameEn: 'RF microneedling', fx: 'S' },
       { modality: 'laser', nameFa: 'لیزر', nameEn: 'Laser', fx: 'S' },
       { modality: 'peel', nameFa: 'پیلینگ', nameEn: 'Peel', fx: 'S' },
@@ -280,8 +283,10 @@ export const TREATMENT_OPTIONS: readonly TreatmentOption[] = (Object.entries(TAB
             unit: o.base.unit,
             perSide: o.base.perSide,
             ...(o.base.steps ? { steps: o.base.steps } : {}),
-            status: 'verified' in o.base ? 'verified' : 'draft', // TODO(clinical): draft volumes and off-label doses
-            source: 'verified' in o.base ? SRC_LABEL : SRC_TABLE,
+            ...('label' in o.base ? { label: true as const } : {}),
+            // Label doses were verified from the start; every other volume and dose by the clinical sign-off.
+            status: 'verified',
+            source: 'label' in o.base ? SRC_LABEL : `${SRC_TABLE}; ${REVIEWED}`,
           }
         : null;
       const risks: OptionRisk[] = [];
@@ -303,9 +308,9 @@ export const TREATMENT_OPTIONS: readonly TreatmentOption[] = (Object.entries(TAB
         risks,
         contraindications: [],
         ...(o.support ? { support: true as const } : {}),
-        // Timing, result rank, cost tier and image cap are drafts for every option (PRD §7.2, owner 2026-11-16).
-        status: 'draft',
-        source: [SRC_TABLE, base?.status === 'verified' ? SRC_LABEL : null, timing.onsetDays ? SRC_TIMING : null]
+        // Timing, result rank, cost tier and image cap: PRD §7.2 and owner 2026-11-16, approved in the clinical sign-off.
+        status: 'verified',
+        source: [SRC_TABLE, REVIEWED, base?.label ? SRC_LABEL : null, timing.onsetDays ? SRC_TIMING : null]
           .filter(Boolean)
           .join('; '),
       };

@@ -92,7 +92,8 @@ test('report needs a fresh sign-off; items match the plan; label on the simulati
   await expect(row.locator('[data-cost]')).toHaveAttribute('data-cost', planCost!);
   await expect(page.locator('[data-total-cost]')).toHaveAttribute('data-total-cost', planCost!);
   await expect(row).toContainText('Lp');
-  await expect(row.locator('[data-draft]')).toBeVisible();
+  await expect(row.locator('[data-draft]')).toHaveCount(0);
+  await expect(page.locator('[data-clinical-review]')).toContainText('دکتر فرشاد فتحی و دکتر نغمه نوری');
   await expect(page.locator('[data-report-note]')).toHaveText('یادداشت آزمایشی پزشک');
   await expect(page.locator('[data-sim-image]')).toBeVisible();
   const band = await labelBand(page);

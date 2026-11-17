@@ -22,9 +22,9 @@ describe('allowed (PRD §5.3)', () => {
     expect(allowed(43.75)).toBeCloseTo(1.5, 10);
   });
 
-  it('every concern has coefficients, marked draft with a source', () => {
+  it('every concern has coefficients, verified by the clinical sign-off, with a source', () => {
     for (const id of CONCERN_IDS) {
-      expect(AGE_NORMS[id].status).toBe('draft');
+      expect(AGE_NORMS[id].status).toBe('verified');
       expect(AGE_NORMS[id].source).toMatch(/PRD/);
     }
   });
@@ -112,14 +112,14 @@ describe('default slider settings', () => {
 });
 
 describe('concern facts and grade thresholds', () => {
-  it('every auto-graded concern has ascending draft thresholds; manual ones have none', () => {
+  it('every auto-graded concern has ascending verified thresholds; manual ones have none', () => {
     for (const id of CONCERN_IDS) {
       const t = GRADE_THRESHOLDS[id];
       if (!AUTO_GRADED.has(id)) {
         expect(t, id).toBeUndefined();
         continue;
       }
-      expect(t!.status).toBe('draft');
+      expect(t!.status).toBe('verified');
       expect([...t!.bounds]).toEqual([...t!.bounds].sort((x, y) => x - y));
     }
   });
@@ -132,8 +132,8 @@ describe('concern facts and grade thresholds', () => {
     expect(gradeFromIndex(10, b)).toBe(4);
   });
 
-  it('bilateral concerns have two sides, the rest one; scales are draft', () => {
+  it('bilateral concerns have two sides, the rest one; scales are verified', () => {
     for (const id of CONCERN_IDS) expect(sidesOf(id)).toEqual(BILATERAL.has(id) ? ['R', 'L'] : ['both']);
-    expect(SCALES.status).toBe('draft');
+    expect(SCALES.status).toBe('verified');
   });
 });

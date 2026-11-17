@@ -1,13 +1,14 @@
-import type { ConcernId } from './types';
+import { REVIEWED } from './clinicalReview';
+import type { ConcernId, Status } from './types';
 
 /**
  * MD Codes of the simulation page's filler mode (docs/TASKS.md M5b, M5c; PRD F6). Only the code, its anatomical
  * name and an approximate zone are used; the source table's depth, tool and volume are not shown (PRD F6.2) and
- * nothing here is a clinical value. MD Codes™ is a trademark (PRD F6.4–F6.5); the licence review is still open.
+ * nothing here is a clinical value. MD Codes™ is a trademark (PRD F6.4–F6.5); the licence review is the clinic's own (owner 2026-11-17).
  *
  * Source of the 51 codes and their English names: de Maio M., Aesthetic Plast Surg 2020;45(2):690–709,
  * PMC8012343, Table 3, licence CC BY 4.0 (attribution required, shown on the page). The Persian names are
- * Claude's translation for a senior physician to check, so every code is `draft`. // TODO(clinical)
+ * Claude's translation, approved in the clinical sign-off of 2026-11-17 (`clinicalReview.ts`).
  */
 export const MD_FAMILIES = ['F', 'T', 'G', 'E', 'O', 'Tt', 'N', 'Ck', 'NL', 'Lp', 'M', 'C', 'Jw'] as const;
 export type MdFamily = (typeof MD_FAMILIES)[number];
@@ -31,7 +32,7 @@ export type MdCode = (typeof MD_CODES)[number];
 /** A slider of mode B: a family (opens into its codes) or one code. */
 export type MdKey = MdFamily | MdCode;
 
-export const MD_CODES_SOURCE = 'de Maio M., Aesthetic Plast Surg 2020;45(2):690–709, PMC8012343, Table 3 (CC BY 4.0)';
+export const MD_CODES_SOURCE = `de Maio M., Aesthetic Plast Surg 2020;45(2):690–709, PMC8012343, Table 3 (CC BY 4.0); ${REVIEWED}`;
 
 export interface MdFamilyInfo {
   nameFa: string;
@@ -56,7 +57,7 @@ export interface MdCodeInfo {
    * the one the owner reviewed; every other code starts off until the doctor switches it on. Interface choice.
    */
   starts: boolean;
-  status: 'draft';
+  status: Status;
 }
 
 export const MD_FAMILY_INFO: Record<MdFamily, MdFamilyInfo> = {
@@ -81,7 +82,7 @@ const code = (family: MdFamily, nameFa: string, nameEn: string, bilateral: boole
   nameEn,
   bilateral,
   starts,
-  status: 'draft',
+  status: 'verified',
 });
 
 export const MD_CODE_INFO: Record<MdCode, MdCodeInfo> = {
@@ -162,8 +163,8 @@ export const MOVED_TO_SITES: ReadonlySet<ConcernId> = new Set<ConcernId>(['tear-
 
 /**
  * Warning codes (PRD F6.2, F5.7 vascular high-risk areas): glabella, nose, tear trough, temple and upper
- * nasolabial fold. Shown in the risk colour with «کانولا توصیه می‌شود». The list is a draft from PRD F5.7 until a
- * senior physician enters the PMC8012343 warning list (PRD §7.2). // TODO(clinical)
+ * nasolabial fold. Shown in the risk colour with «کانولا توصیه می‌شود». The list comes from PRD F5.7 and is covered by
+ * the clinical sign-off of 2026-11-17 (`clinicalReview.ts`).
  */
 export const WARNING_CODES: ReadonlySet<MdCode> = new Set<MdCode>(['G1', 'G2', 'N1', 'N2', 'N3', 'N4', 'N5', 'Tt1', 'Tt2', 'Tt3', 'T1', 'T2', 'NL1']);
 

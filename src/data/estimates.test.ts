@@ -29,10 +29,10 @@ const both = (grade: G, intensity: number) => ({ both: { grade, intensity } });
 const sides = (grade: G, intensity: number) => ({ R: { grade, intensity }, L: { grade, intensity } });
 
 describe('estimateOption (PRD §5.7)', () => {
-  it('scales the draft base by grade factor and intensity, rounded to 0.1 mL', () => {
+  it('scales the base by grade factor and intensity, rounded to 0.1 mL', () => {
     // Midface structural filler 0.5–1.5 mL per side; grade 3 × 0.6 → 0.3–0.9.
     const e = ok(estimateOption(opt('midface-volume.1.filler'), sides(3, 0.6), undefined));
-    expect(e).toMatchObject({ min: 0.3, max: 0.9, unit: 'mL', perSide: true, status: 'draft', label: false });
+    expect(e).toMatchObject({ min: 0.3, max: 0.9, unit: 'mL', perSide: true, status: 'verified', label: false });
     expect(e.left).toBeUndefined();
     // Grade 4 → factor 1.25 × 0.5: 0.3125 → 0.3, 0.9375 → 0.9.
     expect(ok(estimateOption(opt('midface-volume.1.filler'), sides(4, 0.5), undefined))).toMatchObject({ min: 0.3, max: 0.9 });
@@ -79,8 +79,8 @@ describe('estimateOption (PRD §5.7)', () => {
     expect(e).toMatchObject({ min: 1, max: 2, overridden: true, note: 'x' });
   });
 
-  it('only toxin label doses are verified; rounding is exact', () => {
-    for (const o of TREATMENT_OPTIONS) if (o.base?.status === 'verified') expect(o.modality).toBe('toxin');
+  it('only toxin doses are label doses; rounding is exact', () => {
+    for (const o of TREATMENT_OPTIONS) if (o.base?.label) expect(o.modality).toBe('toxin');
     expect(roundTo(0.15000000002, 0.1)).toBe(0.2);
     expect(roundTo(9, 2)).toBe(10);
   });

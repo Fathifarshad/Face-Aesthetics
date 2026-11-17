@@ -6,8 +6,8 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
 Status 2026-11-17: M0–M11 built; the owner reviewed the whole app on 2026-11-17 and approved every milestone.
-Still open: render time on a real phone, the old target-age button (v1 engine), install on the phone, and the items
-that need a person (clinical sign-off, licences, legal, trademark).
+Release 1.0 (2026-11-17, below): clinical sign-off recorded, Android APKs, user guides. Still open: render time on a
+real phone, and the licence, legal and trademark checks (the clinic's own, see the last section).
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -229,8 +229,25 @@ own progress photos stay; (b) the doctor's report note is shown in the client ap
   client with each message once; revocation empties the photos on the phone; older file refused; no network)
 - [x] (V) Owner look: client app (plan, photos, chat) after importing a file from the doctor's patient page — owner approved 2026-11-17
 
+## Release 1.0 (owner 2026-11-17: «همه موارد توسط دکتر فتحی و دکتر نوری بازبینی و تائید شدند»)
+- [x] Clinical sign-off: `src/data/clinicalReview.ts` records the review by Dr Farshad Fathi and Dr Naghmeh Nouri on
+  2026-11-17. Every clinical record (volumes and doses, timings, grade thresholds and scales, age coefficients, lip
+  types, MD Codes, photo timings, rank, cost tier, caps) is `verified` with that in its `source`; the values did not
+  change. The «تأییدنشده» badges are tied to the records or to `reviewPending()`; setting the record back to `draft`
+  shows them again. Label doses now carry their own `label` flag (status no longer means "label dose"). The plan
+  page and the printed report name the reviewers (`data-clinical-review`)
+- [x] Home page: «کلینیک زیبایی نوا» and the founders (Dr Farshad Fathi, Dr Naghmeh Nouri)
+- [x] Android: `android/` Trusted Web Activity (androidbrowserhelper 2.5.0, Apache-2.0), two apps: «نوا» (doctor,
+  `com.nevaclinic.app`, opens `#/doctor`) and «نوا — مراجع» (`com.nevaclinic.app.client`, `#/client`). Built locally
+  with `scripts/build-apk.ps1`; key and toolchain outside the repo (android/README.md). APKs served from
+  `public/download/` on GitHub Pages
+- [ ] Full screen without the address bar: `android/assetlinks.json` must be served at
+  `https://fathifarshad.github.io/.well-known/assetlinks.json` (user-site repo, needs the owner)
+- [x] Guides: `scripts/make-guides.mjs` → `public/guides/NEVA-Guide-Doctors.pdf` and `NEVA-Guide-Clients.pdf`
+  (screenshots `GUIDE_SHOTS=1 npx playwright test e2e/guide-shots.spec.ts`, faces blurred; QR codes `docs/guides/qr/`)
+
 ## Open items that need a person
-- `TODO(clinical)`: every filler volume range, off-label toxin dose, onset/duration/downtime figure and the `allowed()` age table are drafts (PRD §7.2) until a senior physician confirms them
+- Clinical values: approved by the clinic's physicians on 2026-11-17 (`clinicalReview.ts`); any later change to a number goes through them again
 - Licence review: MD Codes™ name and content, grading-scale names (WSRS, MFVDS, Merz, Allergan), MediaPipe model card
 - Legal review of the decision-support status before any real patient use
 - Trademark and domain check for the name نوا (NEVA)

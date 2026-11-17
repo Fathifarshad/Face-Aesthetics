@@ -24,7 +24,9 @@ UI strings) was removed on 2026-11-17; the v1 folders that remain are in use —
 
 ## Hard rules (full list in prompts/SUPERPROMPT.md)
 - Never invent a clinical number. Volumes, doses, durations and grade thresholds come only from docs/PRD.md §6–7.
-  Clinical data carries `status: 'verified' | 'draft'` and `source`; drafts get `// TODO(clinical)` and the «تأییدنشده» badge
+  Clinical data carries `status: 'verified' | 'draft'` and `source`; drafts get `// TODO(clinical)` and the «تأییدنشده» badge.
+  The clinic's physicians approved every current value on 2026-11-17 (`src/data/clinicalReview.ts`); a new or changed
+  clinical number starts as `draft` again until they approve it
 - Estimates are ranges with a unit. Label doses are for OnabotulinumtoxinA only
 - Nothing enters a report or the client package without doctor approval
 - Not an injection guide: no depth, angle or step-by-step technique
@@ -45,7 +47,9 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - `npm run dev` · `npm run dev:https` (phone camera needs HTTPS)
 - `npm run check` — typecheck + lint + unit tests. Must be green before a milestone is marked done
 - `npm run test:e2e` — Playwright (dev server) then `npm run test:pwa` (production build, offline test); the flow tests need `test-assets/portrait.jpg` (git-ignored)
-- `npm run icons` — renders the PNG app icons from `public/icon.svg`
+- `npm run icons` — renders the PNG app icons (web and Android) from `public/icon.svg`
+- `powershell -File scripts/build-apk.ps1` — the two signed APKs into `dist-apk/` (android/README.md; key and toolchain outside the repo)
+- `node scripts/make-guides.mjs` — the PDF guides into `public/guides/` (screenshots first: `GUIDE_SHOTS=1 npx playwright test e2e/guide-shots.spec.ts`)
 
 ## Code layout
 - `src/app/` — app name, the five sections and their routes, doctor shell with the tab bar, source guard tests

@@ -2,25 +2,26 @@
  * Volume, dose and cost estimates of the plan (PRD F7, M7). Pure functions: no React, no DOM.
  *
  * Where each value comes from (nothing here is invented, docs/PRD.md §5.7, §7):
- * - Formula, grade factor and rounding steps: PRD §5.7 (draft) and F7.2. // TODO(clinical)
+ * - Formula, grade factor and rounding steps: PRD §5.7 and F7.2 (clinical sign-off 2026-11-17, `clinicalReview.ts`).
  * - Base estimates: the knowledge base (`treatmentOptions.ts`, PRD §6). Label doses (OnabotulinumtoxinA, PRD §7.1)
  *   are shown as on the label and never scaled: a scaled label dose would be a number no source gives.
  * - Toxin numbers only for OnabotulinumtoxinA; other brands get no automatic number (PRD §7.1, last paragraph).
  * - MD Codes per-code range: 0 to the bolus cap × slider; caps 0.3 mL per compartment, 0.5 mL for temple and
- *   mandible angle (PMID 32445044, PRD §7.1). The slider → volume mapping is an owner decision of 2026-11-16 and
- *   stays draft.
+ *   mandible angle (PMID 32445044, PRD §7.1). The slider → volume mapping is an owner decision of 2026-11-16,
+ *   approved with the clinical sign-off of 2026-11-17.
  * - Tariff, syringe size and vial units: the clinic's own settings (F7.4; defaults 1 mL and 100 U, owner 2026-11-16).
  */
+import { REVIEWED } from './clinicalReview';
 import type { MdCode } from './mdCodes';
 import type { Modality, Range, TreatmentOption } from './treatmentOptions';
 import type { ConcernId, Grade, Status, Unit } from './types';
 
-/** PRD §5.7, draft. // TODO(clinical) */
+/** PRD §5.7 (clinical sign-off 2026-11-17). */
 export const GRADE_FACTOR: Readonly<Record<Grade, number>> = { 0: 0, 1: 0.5, 2: 0.75, 3: 1.0, 4: 1.25 };
 /** PRD F7.2: filler 0.1 mL, toxin 2 U; threads and sessions are whole numbers. */
 export const ROUND_STEP: Readonly<Record<Unit, number>> = { mL: 0.1, U: 2, thread: 1, session: 1 };
 
-export const SRC_FORMULA = 'docs/PRD.md §5.7 (draft)';
+export const SRC_FORMULA = `docs/PRD.md §5.7; ${REVIEWED}`;
 export const SRC_BOLUS = 'PMID 32445044 (docs/PRD.md §7.1); slider mapping: owner decision 2026-11-16 (draft)';
 
 export type ToxinBrand = 'onabotulinumtoxinA' | 'other';
@@ -132,7 +133,7 @@ export function estimateOption(o: TreatmentOption, sides: Sides, brand: ToxinBra
   const list = [sides.both, sides.R, sides.L].filter((s): s is SideInput => !!s);
   if (!list.some((s) => s.grade > 0 && s.intensity > 0)) return { ok: false, missing: 'off' };
 
-  if (b.status === 'verified')
+  if (b.label)
     return {
       ok: true,
       est: {
@@ -153,7 +154,7 @@ export function estimateOption(o: TreatmentOption, sides: Sides, brand: ToxinBra
     const k = s ? GRADE_FACTOR[s.grade] * s.intensity : 0;
     return { min: roundTo(b.min * k, step), max: roundTo(b.max * k, step) };
   };
-  const common = { unit: b.unit, label: false, overridden: false, status: 'draft' as const, source: `${b.source}; ${SRC_FORMULA}` };
+  const common = { unit: b.unit, label: false, overridden: false, status: 'verified' as const, source: `${b.source}; ${SRC_FORMULA}` };
   if (b.perSide) {
     const right = scale(sides.both ?? sides.R);
     const left = scale(sides.both ?? sides.L);

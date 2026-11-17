@@ -154,10 +154,10 @@ test.describe('simulation page', () => {
     await page.getByRole('slider', { name: 'جابه‌جایی خط مقایسهٔ قبل و بعد' }).fill('20');
     await expect(after(page)).toHaveAttribute('style', /inset\(0px 0px 0px 20%\)/);
 
-    // M6 (PRD F5.3): choosing a treatment option re-renders at once and caps the slider; drafts carry the badge.
+    // M6 (PRD F5.3): choosing a treatment option re-renders at once and caps the slider; after the clinical sign-off no option carries the «تأییدنشده» badge.
     const forehead = page.locator('#change-forehead-lines');
     await expect(forehead.getByRole('radio', { name: 'توکسین فرونتالیس برای خطوط پیشانی' })).toHaveAttribute('aria-checked', 'true');
-    await expect(forehead.getByText('تأییدنشده')).toBeVisible();
+    await expect(forehead.getByText('تأییدنشده')).toHaveCount(0);
     await press(page, page.getByRole('button', { name: 'همه خاموش' }));
     await press(page, page.getByRole('switch', { name: 'خطوط پیشانی' }));
     await page.getByRole('slider', { name: 'شدت خطوط پیشانی', exact: true }).fill('85');
@@ -242,7 +242,7 @@ test.describe('simulation page', () => {
     const pictureA = await jpg(after(page));
 
     // Mode B: the cheek slider is gone, the Ck family starts at 60 %, smoothing sliders stay, the fixed text and the
-    // source with the «تأییدنشده» badge show. Codes are folded into their family until opened.
+    // source show (no «تأییدنشده» badge after the clinical sign-off). Codes are folded into their family until opened.
     await press(page, modeB);
     await expect(modeB).toHaveAttribute('aria-checked', 'true');
     await expect(disclaimer).toBeVisible();

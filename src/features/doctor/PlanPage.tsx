@@ -2,6 +2,7 @@ import { AlertTriangle, Siren } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BottomBar, Button, Chip, Field, Header, LinkButton, Notice, Page, Section, Tag } from '../../components/ui';
+import { CLINICAL_REVIEW, reviewPending } from '../../data/clinicalReview';
 import { defaultOrder, sessionsOf, sortOptions, SORT_KEYS, SUPPORT_FROM_GRADE, type SortKey } from '../../data/optionSort';
 import type { OpenRange, Range, TreatmentOption } from '../../data/treatmentOptions';
 import type { ConcernId } from '../../data/types';
@@ -13,7 +14,8 @@ import {
 import { db, getSettings } from '../../db/db';
 import { updateCase } from '../../db/repo';
 import { getSimState, listGrades, setEstimateOverride, setOption, setToxinBrand } from '../../db/simRepo';
-import { useBi, useNum, useT } from '../../i18n';
+import { formatDate, useBi, useNum, useT } from '../../i18n';
+import { useApp } from '../../store/app';
 import { useLive } from '../../lib/hooks';
 import { TIERS, type Tier } from '../../plan/data/treatments';
 import { tierFromGap } from '../../plan/engine';
@@ -41,6 +43,7 @@ export function PlanPage() {
   const t = useT();
   const num = useNum();
   const bi = useBi();
+  const lang = useApp((s) => s.lang);
   const nav = useNavigate();
   const data = useCase(caseId);
   const grades = useLive(() => listGrades(caseId), [caseId]);
@@ -153,7 +156,9 @@ export function PlanPage() {
                 </Chip>
               ))}
             </div>
-            <p className="mb-3 text-caption text-muted">{t.options.draftNote}</p>
+            <p className="mb-3 text-caption text-muted" data-clinical-review>
+              {reviewPending() ? t.options.draftNote : t.options.reviewed(bi(CLINICAL_REVIEW.by), formatDate(Date.parse(CLINICAL_REVIEW.date), lang))}
+            </p>
             {!hasTariff && <p className="mb-3 text-caption text-muted">{t.est.noTariff}</p>}
 
             {anyToxin && (
@@ -240,7 +245,7 @@ export function PlanPage() {
                               <dt className="text-muted">{t.options.base}</dt>
                               <dd className="text-ink-2">
                                 <bdi>{base(o)}</bdi>
-                                {o.base?.status === 'verified' && <span className="block text-[11px] text-muted">{t.options.labelDose}</span>}
+                                {o.base?.label && <span className="block text-[11px] text-muted">{t.options.labelDose}</span>}
                               </dd>
                               <dt className="text-muted">{t.est.title}</dt>
                               <dd className="text-ink-2" data-estimate={est.ok ? `${est.est.min}-${est.est.max}` : est.missing}>
@@ -407,9 +412,11 @@ export function PlanPage() {
                     <p className="mt-1 text-caption text-muted">{t.est.costMissing(num(totals.costMissing))}</p>
                   )}
                   <p className="mt-2 text-caption text-muted">
-                    <span className="me-1.5 inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">
-                      {t.options.unverified}
-                    </span>
+                    {reviewPending() && (
+                      <span className="me-1.5 inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">
+                        {t.options.unverified}
+                      </span>
+                    )}
                     {t.est.formula}
                   </p>
                 </div>

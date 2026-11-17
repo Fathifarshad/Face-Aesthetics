@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FaceCanvas, type Overlay } from '../../components/FaceCanvas';
 import { Chip, Header, LinkButton, Notice, Page, Section, Tag } from '../../components/ui';
+import { reviewPending } from '../../data/clinicalReview';
 import { codesNamed, MD_CODE_INFO, MD_CODES_SOURCE, WARNING_CODES } from '../../data/mdCodes';
 import type { TreatmentOption } from '../../data/treatmentOptions';
 import { CONCERN_IDS } from '../../data/types';
@@ -92,7 +93,9 @@ export function MdCodesPage() {
                 </article>
               ))}
               <p className="flex flex-wrap items-center gap-1.5 text-caption text-muted">
-                <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.options.unverified}</span>
+                {reviewPending() && (
+                  <span className="inline-flex items-center rounded-md bg-draft-bg px-2 py-0.5 text-[12px] text-draft-fg">{t.options.unverified}</span>
+                )}
                 <span dir="ltr">{t.sim.mdSource(MD_CODES_SOURCE)}</span>
               </p>
             </div>

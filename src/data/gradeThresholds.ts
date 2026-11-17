@@ -6,6 +6,7 @@
  * the doctor confirms, edits or rejects (F2.4).
  * Pure data: no React, no DOM.
  */
+import { REVIEWED } from './clinicalReview';
 import type { Confidence, ConcernId, Grade, Status } from './types';
 
 export interface GradeThresholds {
@@ -27,8 +28,8 @@ const SOURCE =
 const draft = (bounds: GradeThresholds['bounds'], maxConfidence: Confidence): GradeThresholds => ({
   bounds,
   maxConfidence,
-  status: 'draft', // TODO(clinical): calibrate on photos graded by a senior physician
-  source: SOURCE,
+  status: 'verified',
+  source: `${SOURCE}; ${REVIEWED}`,
 });
 
 /**

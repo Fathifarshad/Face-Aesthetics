@@ -126,7 +126,9 @@ test.describe('grading and age target', () => {
     const lipCard = page.locator('article[data-concern="lip-volume"]');
     await expect(lipCard).toBeVisible();
     await expect(page.locator('article[data-concern="neck"]')).toHaveCount(0);
-    await expect(lipCard.getByText('تأییدنشده').first()).toBeVisible();
+    // Clinical sign-off 2026-11-17: no «تأییدنشده» badge; the plan names the reviewing physicians.
+    await expect(lipCard.getByText('تأییدنشده')).toHaveCount(0);
+    await expect(page.locator('[data-clinical-review]')).toContainText('دکتر فرشاد فتحی و دکتر نغمه نوری');
     const nlCard = page.locator('article[data-concern="nasolabial-fold"]');
     const names = async () => nlCard.locator('[data-option] button[role=radio] span.font-semibold').allTextContents();
     expect((await names())[0]).toBe('فیلر مستقیم'); // midface not graded: no cheek support first (F5.6)

@@ -1,0 +1,64 @@
+// NEVA Android shell: a Trusted Web Activity that opens the PWA in Chrome, so the camera, file sharing, printing and
+// the offline cache work exactly as in the browser. Two apps from one source: doctor (opens #/doctor) and client (#/client).
+// Build: see android/README.md. The signing key never enters the repo; it is read from NEVA_KEYSTORE / NEVA_KEYSTORE_PASSWORD.
+plugins { id 'com.android.application' }
+
+def webOrigin = 'https://fathifarshad.github.io'
+def webApp = webOrigin + '/Face-Aesthetics/'
+
+android {
+    namespace 'com.nevaclinic.app'
+    compileSdk 35
+    buildToolsVersion '35.0.0'
+
+    defaultConfig {
+        applicationId 'com.nevaclinic.app'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    flavorDimensions = ['role']
+    productFlavors {
+        doctor {
+            dimension 'role'
+            resValue 'string', 'launchUrl', webApp + '#/doctor'
+            resValue 'string', 'providerAuthority', 'com.nevaclinic.app.fileprovider'
+        }
+        client {
+            dimension 'role'
+            applicationIdSuffix '.client'
+            resValue 'string', 'launchUrl', webApp + '#/client'
+            resValue 'string', 'providerAuthority', 'com.nevaclinic.app.client.fileprovider'
+        }
+    }
+
+    signingConfigs {
+        release {
+            def ks = System.getenv('NEVA_KEYSTORE')
+            if (ks) {
+                storeFile file(ks)
+                storeType 'pkcs12'
+                storePassword System.getenv('NEVA_KEYSTORE_PASSWORD')
+                keyAlias 'neva'
+                keyPassword System.getenv('NEVA_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Google's Trusted Web Activity launcher library, Apache-2.0.
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

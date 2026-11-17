@@ -18,6 +18,8 @@ export function HomePage() {
         <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" className="h-20 w-20 rounded-2xl shadow-[0_0_60px_-10px_rgb(var(--primary)/.6)]" />
         <h1 className="brand-text mt-5 text-[34px] font-bold leading-tight">{t.app.name}</h1>
         <p className="mt-2 text-ink-2">{t.app.tagline}</p>
+        <p className="mt-4 text-[13px] font-semibold text-primary-on-tint">{t.home.clinic}</p>
+        <p className="mt-1 text-[13px] text-ink-2">{t.home.founders}</p>
       </div>
       <div className="mt-10 flex flex-col gap-3">
         {cards.map(({ to, icon: Icon, title, desc }) => (

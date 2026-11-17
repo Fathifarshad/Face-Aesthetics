@@ -1,0 +1,18 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.nevaclinic.app",
+      "sha256_cert_fingerprints": ["E5:2B:7F:7F:D0:54:7D:82:60:D2:A4:B3:B8:CE:F9:5A:07:E7:6F:CE:3D:38:7B:20:D9:D7:2A:D7:E0:3A:37:48"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.nevaclinic.app.client",
+      "sha256_cert_fingerprints": ["E5:2B:7F:7F:D0:54:7D:82:60:D2:A4:B3:B8:CE:F9:5A:07:E7:6F:CE:3D:38:7B:20:D9:D7:2A:D7:E0:3A:37:48"]
+    }
+  }
+]

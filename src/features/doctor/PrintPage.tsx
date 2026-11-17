@@ -1,5 +1,6 @@
 import { Printer } from 'lucide-react';
 import { canShare } from '../../data/consentGate';
+import { CLINICAL_REVIEW, reviewPending } from '../../data/clinicalReview';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { CATALOG } from '../../analysis/catalog';
@@ -180,6 +181,11 @@ export function PrintPage() {
         {appendix && <Appendix findings={findings} lang={lang} />}
 
         <p className="mt-5 rounded border border-paper-border bg-paper-2 p-2 text-[11px] text-paper-muted">{t.report.disclaimer}</p>
+        {!reviewPending() && (
+          <p className="mt-1 text-[11px] text-paper-muted" data-clinical-review>
+            {t.report.reviewed(CLINICAL_REVIEW.by[lang], formatDate(Date.parse(CLINICAL_REVIEW.date), lang))}
+          </p>
+        )}
 
         <footer className="mt-4 flex items-end justify-between">
           <div className="text-[11px] text-paper-muted">

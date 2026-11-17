@@ -5,6 +5,7 @@ import { requiredViews } from '../../capture/services';
 import { viewById } from '../../capture/views';
 import { Button, Chip, Header, LinkButton, Notice, Page, Section, Tag } from '../../components/ui';
 import { canShare, exportPurposes, mustMaskEyes, photoUse } from '../../data/consentGate';
+import { reviewPending } from '../../data/clinicalReview';
 import { afterPhotoWindow } from '../../data/photoProtocol';
 import type { Modality, TreatmentOption } from '../../data/treatmentOptions';
 import { CONCERN_IDS, type PhotoUse } from '../../data/types';
@@ -115,7 +116,7 @@ export function GalleryPage() {
                   })}
                 </ul>
                 <p className="mt-2 flex items-center gap-2 text-[12px] text-ink-2">
-                  <Tag tone="warn">{t.options.unverified}</Tag> {t.gallery.dueNote}
+                  {reviewPending() && <Tag tone="warn">{t.options.unverified}</Tag>} {t.gallery.dueNote}
                 </p>
               </>
             )}
