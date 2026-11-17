@@ -5,10 +5,9 @@ Source: docs/PRD.md §13 (M0–M11) and prompts/SUPERPROMPT.md. One milestone at
 
 Legend: [ ] todo · [x] done and verified · [~] exists from the v1 kit, must be reworked to the v2 spec · (V) acceptance check
 
-Status 2026-11-17: M0–M3 done; M4, M5, M5b (MD Codes filler mode), M5c (full MD Codes set), M6 (knowledge base,
-sorting, option → image), M7 (estimates, tariff, MD Codes layer), M8 (gallery, consent), M9 (report), M10 (render
-stub, PWA, privacy and accessibility) and M11 (client app, package v2) built, waiting for the owner's look. All PRD
-milestones are built; next is the owner's review and the open items below.
+Status 2026-11-17: M0–M11 built; the owner reviewed the whole app on 2026-11-17 and approved every milestone.
+Still open: render time on a real phone, the old target-age button (v1 engine), install on the phone, and the items
+that need a person (clinical sign-off, licences, legal, trademark).
 Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read it only when you need the history.
 
 ## Open items from M3–M5
@@ -18,12 +17,12 @@ Finished work (v1 kit table, M0–M5 in full) is in `docs/TASKS-done.md`; read i
 - [ ] Owner note 2026-11-13/14: the effect of the old « ساخت شبیه‌سازی » button on the target-age page was barely visible. The old engine (`src/simulation`) is untouched and still used there; the new page is the replacement. Check visibility of the new effect on real photos at the default 60 % and decide whether the default or the cap should be higher
 
 ### From M4
-- [ ] (V) Owner checks the shape changes again on `test-results/simulate/review.html` («+ فرم و حجم»)
+- [x] (V) Owner checks the shape changes again on `test-results/simulate/review.html` («+ فرم و حجم») — owner approved 2026-11-17
 - [ ] (V) Re-render < 50 ms on a real mid-range phone: not measured yet (open `/#/doctor/case/<id>/simulate`, read `data-render-ms` on the "after" canvas). Desktop numbers in docs/TASKS-done.md (M4) leave ~2.5× headroom for smoothing moves
 - Note: the eye-bag bulge is not flattened; PRD §6 gives the under-eye concern S only. A warp for it would need an owner decision
 
 ### From M5
-- [ ] (V) Owner looks at the grading page and the age target on a real case
+- [x] (V) Owner looks at the grading page and the age target on a real case — owner approved 2026-11-17
 - Open: thresholds and age coefficients are drafts for a senior physician; the index is sensitive to lighting, a smile, hair and
   clothing (neck). Motion photos (PRD §8) are not used for grading yet
 
@@ -49,7 +48,7 @@ skin) stays in both modes.
   of its two strengths); `pipeline.ts` `SiteChange`, `operatorStrength`, site zones; `simStates.mode` and `siteOverrides`
   (no Dexie version change); page switch, MD Codes rows, shaded zones, F6.4 text. Unit tests: `warp.test.ts` (one mode per
   operator, no groove between filled neighbours, no fold in either mode), `mdMode.test.ts`. e2e: `simulate.spec.ts` (M5b)
-- [ ] (V) Owner look on `test-results/simulate/review.html` → «MD Codes (M5b)» (picture, zones, zoom) and on the page
+- [x] (V) Owner look on `test-results/simulate/review.html` → «MD Codes (M5b)» (picture, zones, zoom) and on the page — owner approved 2026-11-17
 
 ## M5c — Full MD Codes set (owner request 2026-11-16, built 2026-11-16)
 Owner: the MD Codes mode must have the standard codes, not one slider per family (Ck4–Ck5, C1–C6, T1–T2, Jw1–Jw5, …).
@@ -89,7 +88,7 @@ Plan approved 2026-11-16:
   temples every pixel is unchanged (face colour means equal to 0.1); the side-by-side view makes the second picture look
   lighter. The review page now has a difference map and an in-place before/after toggle, and `simulate.spec.ts` checks for
   every family on every photo that nothing changes outside its zones (+ 0.08 × width margin)
-- [ ] (V) Owner look on `test-results/simulate/review-m5c.html` (each family alone, zones, zoom) and on the page
+- [x] (V) Owner look on `test-results/simulate/review-m5c.html` (each family alone, zones, zoom) and on the page — owner approved 2026-11-17
 - Open: on a turned head (20261114_001749) Ck4 and Ck5 sit close together on the far side; zones follow the photo, so a
   frontal photo per PRD §8 keeps them apart. Persian names and the code placement need a senior physician
 - Owner decisions on the three questions:
@@ -114,7 +113,7 @@ All three stay `draft`; M7 replaces the cost tier with the clinic tariff.
 - [x] Plan page rebuilt on the new data; the v1 intake checks (pregnancy, infection, allergy block; the rest warn) are
   kept through `optionScreening.ts`. The client package sends the M6 plan for cases with confirmed grades (v1 plan otherwise)
 - [x] Tests: `treatmentOptions.test.ts`, `planOptions.test.ts`; e2e in `simulate.spec.ts`, `grading.spec.ts`, `smoke.spec.ts`
-- [ ] (V) Owner look: plan page (`/#/doctor/case/<id>/plan`) and the option chips on the simulation page
+- [x] (V) Owner look: plan page (`/#/doctor/case/<id>/plan`) and the option chips on the simulation page — owner approved 2026-11-17
 - Open: the plan tiers (F5.4) are stored but do not filter options yet; in MD Codes mode the site sliders ignore the
   chosen option (M7: the MD Codes layer only for filler options); the v1 cost section left the plan page (M7)
 
@@ -145,7 +144,7 @@ Owner decisions 2026-11-16 (plan approved with «ادامه», built 2026-11-16)
   and vials (rounded up), threads, sessions, cost
 - [x] (V) Unit tests `estimates.test.ts`, `planOptions.test.ts` (families off); e2e: brand, estimate, doctor edit and
   totals in `grading.spec.ts`, code range and warning codes in `simulate.spec.ts`
-- [ ] (V) Owner look: plan page (estimates, brand, «ویرایش پزشک», totals), admin pricing tab, mode-B code rows
+- [x] (V) Owner look: plan page (estimates, brand, «ویرایش پزشک», totals), admin pricing tab, mode-B code rows — owner approved 2026-11-17
 - Open: in mode B the plan still estimates from the mode-A concern sliders (code ranges are shown only beside the codes);
   estimates are not yet in the report or the client package (M9, M11; doctor approval first)
 
@@ -172,7 +171,7 @@ gives the patient their photos.
 - [x] (V) Unit: `consentGate.test.ts`, `align.test.ts`, `capture.test.ts`; e2e `gallery.spec.ts` (level 1 blocks
   capture; misframed after photo flagged; no file without level 3; internal only offers internal; masked export;
   revocation closes it; simulation vs real result)
-- [ ] (V) Owner look: consent cards (intake, gallery, patient page → «رضایت‌نامه‌ها»), gallery file, compare mode
+- [x] (V) Owner look: consent cards (intake, gallery, patient page → «رضایت‌نامه‌ها»), gallery file, compare mode — owner approved 2026-11-17
 - Open: level 2 is recorded only (used in M10). The client app does not yet show consented photos differently (M11).
   The report (M9) shows a line instead of photos without level 3
 
@@ -192,7 +191,7 @@ the sign-off makes it stale; (b) cost is always in the patient report, no cost c
 - [x] Fixed on the way: choosing a tier on the plan page dropped the toxin brand and the doctor's estimates
 - [x] (V) Unit `approval.test.ts`; e2e `report.spec.ts` (no report unsigned; same numbers as the plan page; label band
   on the report's simulation image; note printed; change after signing → stale, blocked, re-sign restores)
-- [ ] (V) Owner look: report page (note, stale warning) and the printed report (fa and en)
+- [x] (V) Owner look: report page (note, stale warning) and the printed report (fa and en) — owner approved 2026-11-17
 
 ## M10 — Cloud render stub, PWA, privacy review
 Plan approved by the owner 2026-11-16 («ادامه», including the test-only dependency `@axe-core/playwright` 4.14.0,
@@ -208,7 +207,7 @@ MPL-2.0), built 2026-11-16.
 - [x] (V) `e2e/privacy.spec.ts` (switch off → no button; level 1 only → refused; level 2 → mock result; revoked → refused;
   no request leaves the origin or carries a body; the watcher's own self-test); `watchNetwork` also in the main flow;
   `e2e/pwa.spec.ts` (manifest, cached model/WASM, offline analysis and simulation); `e2e/a11y.spec.ts`; unit `src/render/provider.test.ts`
-- [ ] (V) Owner look: admin switch and the render box on the simulation page; install on the phone
+- [x] (V) Owner look: admin switch and the render box on the simulation page; install on the phone — owner approved 2026-11-17 (phone install not reported yet)
 
 ## M11 — Client app completion (PRD §5.10)
 Plan approved by the owner 2026-11-16 («ادامه»), built 2026-11-17. Owner decisions in the plan: (a) a newer clinic
@@ -228,7 +227,7 @@ own progress photos stay; (b) the doctor's report note is shown in the client ap
 - [x] (V) Unit `share.test.ts` (v1 still read, grade dropped, v2 note); e2e `client.spec.ts` (package v2; whole-file
   scan for grade, volume/dose, MD Codes, screening and cost; round trip doctor → client → doctor (imported twice) →
   client with each message once; revocation empties the photos on the phone; older file refused; no network)
-- [ ] (V) Owner look: client app (plan, photos, chat) after importing a file from the doctor's patient page
+- [x] (V) Owner look: client app (plan, photos, chat) after importing a file from the doctor's patient page — owner approved 2026-11-17
 
 ## Open items that need a person
 - `TODO(clinical)`: every filler volume range, off-label toxin dose, onset/duration/downtime figure and the `allowed()` age table are drafts (PRD §7.2) until a senior physician confirms them

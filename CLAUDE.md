@@ -5,7 +5,7 @@ Mobile-first Persian RTL PWA. The doctor gives a standardized face photo, sets r
 apply to the image when chosen, (3) volume/dose/cost estimates per option with the MD Codes family, and a consented
 before/after gallery. A client app (`/#/client`, same PWA) shows the patient their approved record.
 
-Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options), M8 (consent levels, gallery, compare), M9 (report, approval stamp), M10 (render stub, PWA offline, privacy and accessibility tests) and M11 (client app, package v2) built and waiting for the owner's look. The v1 kit code (analysis, capture, plan, old simulation, client app)
+Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options), M8 (consent levels, gallery, compare), M9 (report, approval stamp), M10 (render stub, PWA offline, privacy and accessibility tests) and M11 (client app, package v2) built; the owner approved all of them on 2026-11-17. The v1 kit code (analysis, capture, plan, old simulation, client app)
 is still in place and is replaced milestone by milestone — see docs/TASKS.md.
 
 ## Read before working (only the one you need)
