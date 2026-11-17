@@ -5,3 +5,5 @@
 *.task binary
 *.cmd text eol=crlf
 *.ico binary
+*.apk binary
+*.pdf binary
