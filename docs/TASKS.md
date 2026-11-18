@@ -261,9 +261,13 @@ online one only when the doctor switches it on; eye-bag flattening has a switch 
   `ptPhotos`, `pt:` messages). Merge (`mergeBackup`): newer `updatedAt` wins (cases, findings, plans, grades,
   simStates, sign-offs by `signedAt`, clinic settings), unchanged rows (patients, photos, simulations, audit) are
   added when missing, nothing is deleted, a revoked consent never becomes active, a revocation in the file is applied.
-  Claude's own choices to confirm: a patient deleted on the device is not brought back (`deletePatient` keeps a
-  SHA-256 tag of the id under settings key `erased`), nor a patient whose code belongs to another patient there;
-  cases, findings and clinic settings now carry `updatedAt` (older rows fall back to `createdAt` / 0). The file leaves
+  Owner review 2026-11-17: restore has a review step («بررسی فایل») before anything is written — file date and
+  totals, each patient with a tick and a status (`reviewBackup`): new (ticked), already here (ticked, newer part
+  wins), deleted on this device (unticked; «بازگرداندن بیماران حذف‌شده» ticks them all; `deletePatient` keeps a
+  SHA-256 tag of the id under settings key `erased`), code taken by another patient here (ticked, restored with a new
+  code, messages follow; the client app then needs a new package). Patients only on this device are not touched; the
+  client app's data is not in the file (both stated on the review). Cases, findings and clinic settings now carry
+  `updatedAt` (older rows fall back to `createdAt` / 0). The file leaves
   only through the share sheet or a download the doctor starts. e2e: `e2e/backup.spec.ts`
 - [ ] R2 Camera: automatic capture at the best moment (face aligned, steady, sharp, well lit; full-resolution still)
 - [ ] R3 Eye-bag flattening: switch + slider, eyelid and eye unchanged; two new options start as `draft`

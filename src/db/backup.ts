@@ -1,6 +1,19 @@
 import { audit, db, type SettingRow } from './db';
 import { allConsentsPlain, allPhotosPlain, allSignoffsPlain, allSimulationsPlain, sealConsent, sealPhoto, sealSignoff, sealSimulation } from './images';
-import { backupFileName, mergeBackup, packBackup, unpackBackup, type BackupData, type LocalState, type MergeCounts } from './backupFile';
+import {
+  backupFileName,
+  defaultInclude,
+  mergeBackup,
+  packBackup,
+  reviewBackup,
+  unpackBackup,
+  type BackupData,
+  type LocalState,
+  type MergeCounts,
+  type PatientReview,
+  type RestoreChoice,
+} from './backupFile';
+import { newPatientCode } from './patientCode';
 
 /**
  * Backup and restore of the doctor's device (Release 1.1, R1). The file format and the merge rules are in
@@ -66,15 +79,44 @@ async function readLocal(): Promise<LocalState> {
   return { patients, cases, findings, plans, grades, simStates, signoffs, consents, messages, audit: auditRows, photoIds, simulationIds, clinic, erased };
 }
 
+/** A backup that was opened and checked against this device, waiting for the doctor's choice. Nothing written yet. */
+export type PreparedRestore = {
+  data: BackupData;
+  tags: Record<string, string>;
+  review: PatientReview[];
+  /** What the file holds, for the review screen. */
+  totals: { patients: number; cases: number; photos: number; createdAt: number };
+};
+
 /**
- * Merges a backup into the device (rules in `mergeBackup`). Throws WrongSecretError for a wrong password and
- * BackupFormatError for a file that is not an intact NEVA backup; nothing is written in either case.
+ * Step 1: decrypts the file and compares it with this device. Throws WrongSecretError for a wrong password and
+ * BackupFormatError for a file that is not an intact NEVA backup.
  */
-export async function restoreBackup(file: Blob, password: string): Promise<MergeCounts> {
-  const incoming = await unpackBackup(file, password);
+export async function prepareRestore(file: Blob, password: string): Promise<PreparedRestore> {
+  const data = await unpackBackup(file, password);
+  const tags = Object.fromEntries(await Promise.all(data.patients.map(async (p) => [p.id, await erasureTag(p.id)] as const)));
+  const review = reviewBackup(await readLocal(), data, tags);
+  return { data, tags, review, totals: { patients: data.patients.length, cases: data.cases.length, photos: data.photos.length, createdAt: data.createdAt } };
+}
+
+export { defaultInclude };
+
+/** Step 2: merges the patients the doctor kept ticked (rules in `mergeBackup`). */
+export async function applyRestore({ data: incoming, tags }: PreparedRestore, include: ReadonlySet<string>): Promise<MergeCounts> {
+  // Read again: the device may have changed while the review was open.
   const local = await readLocal();
-  const tags = Object.fromEntries(await Promise.all(incoming.patients.map(async (p) => [p.id, await erasureTag(p.id)] as const)));
-  const plan = mergeBackup(local, incoming, tags);
+  const review = reviewBackup(local, incoming, tags);
+  const taken = new Set(local.patients.map((p) => p.code));
+  const newCodes: Record<string, string> = {};
+  for (const r of review) {
+    if (r.status !== 'code-taken' || !include.has(r.id)) continue;
+    let code = newPatientCode();
+    while (taken.has(code)) code = newPatientCode();
+    taken.add(code);
+    newCodes[r.id] = code;
+  }
+  const choice: RestoreChoice = { include, newCodes };
+  const plan = mergeBackup(local, incoming, tags, choice);
   // Encrypt first: an IndexedDB transaction cannot wait for Web Crypto.
   const [photos, simulations, signoffs, consents] = await Promise.all([
     Promise.all(plan.photos.map(sealPhoto)),

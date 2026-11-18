@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Consent } from '../data/types';
-import { BackupFormatError, mergeBackup, packBackup, unpackBackup, type BackupData, type LocalState } from './backupFile';
+import { BackupFormatError, defaultInclude, mergeBackup, packBackup, reviewBackup, unpackBackup, type BackupData, type LocalState, type RestoreChoice } from './backupFile';
 import { WrongSecretError } from './crypto';
 import type { Case, Patient, Photo } from './types';
 
@@ -123,6 +123,10 @@ describe('backup file', () => {
   });
 });
 
+/** Merge with the review's default ticks, as the doctor would see them. */
+const merge = (local: LocalState, incoming: BackupData, tags: Record<string, string> = {}, choice?: Partial<RestoreChoice>) =>
+  mergeBackup(local, incoming, tags, { include: defaultInclude(reviewBackup(local, incoming, tags)), newCodes: {}, ...choice });
+
 describe('merge (restore merges, the newer record wins, nothing is deleted)', () => {
   it('adds what is missing and keeps what the device has', () => {
     const local: LocalState = { ...empty, patients: [patient('p1', 'AAA111')], cases: [{ id: 'c1', createdAt: 10, updatedAt: 90 }], photoIds: ['ph1'] };
@@ -131,7 +135,7 @@ describe('merge (restore merges, the newer record wins, nothing is deleted)', ()
       cases: [kase('c1', 'p1', 80), kase('c2', 'p2')],
       photos: [photo('ph1', 'c1'), photo('ph3', 'c2')],
     });
-    const plan = mergeBackup(local, incoming, {});
+    const plan = merge(local, incoming, {});
     expect(plan.patients.map((p) => p.id)).toEqual(['p2']);
     expect(plan.cases.map((c) => c.id)).toEqual(['c2']); // c1 on the device is newer
     expect(plan.photos.map((p) => p.id)).toEqual(['ph3']);
@@ -140,9 +144,9 @@ describe('merge (restore merges, the newer record wins, nothing is deleted)', ()
 
   it('takes the newer row from the backup', () => {
     const local: LocalState = { ...empty, patients: [patient('p1', 'AAA111')], cases: [{ id: 'c1', createdAt: 10 }], plans: [{ caseId: 'c1', updatedAt: 20 }] };
-    const plan = mergeBackup(
+    const plan = merge(
       local,
-      data({ cases: [kase('c1', 'p1', 30)], plans: [{ caseId: 'c1', tier: 'B', selections: {}, updatedAt: 40 } as never] }),
+      data({ patients: [patient('p1', 'AAA111')], cases: [kase('c1', 'p1', 30)], plans: [{ caseId: 'c1', tier: 'B', selections: {}, updatedAt: 40 } as never] }),
       {},
     );
     expect(plan.cases).toHaveLength(1);
@@ -152,22 +156,34 @@ describe('merge (restore merges, the newer record wins, nothing is deleted)', ()
 
   it('never makes a revoked consent active again, but applies a revocation from the backup', () => {
     const local: LocalState = { ...empty, patients: [patient('p1', 'AAA111')], consents: [{ id: 'k1', revokedAt: 9 }, { id: 'k2' }] };
-    const plan = mergeBackup(local, data({ consents: [consent('k1', 'p1'), consent('k2', 'p1', 7)] }), {});
+    const plan = merge(local, data({ patients: [patient('p1', 'AAA111')], consents: [consent('k1', 'p1'), consent('k2', 'p1', 7)] }), {});
     expect(plan.consents).toEqual([]);
     expect(plan.revoke).toEqual([{ id: 'k2', revokedAt: 7 }]);
   });
 
-  it('does not bring back a deleted patient or take over another patient’s code', () => {
-    const local: LocalState = { ...empty, patients: [patient('p9', 'BBB222')], erased: { 'tag-p1': 5 } };
-    const incoming = data({
-      patients: [patient('p1', 'AAA111'), patient('p2', 'BBB222')],
-      cases: [kase('c1', 'p1'), kase('c2', 'p2')],
-      photos: [photo('ph1', 'c1'), photo('ph2', 'c2')],
-      consents: [consent('k1', 'p1')],
-      messages: [{ id: 'm1', owner: 'doctor', patientCode: 'BBB222', from: 'patient', text: 'سلام', at: 1, sent: true }],
-      audit: [{ id: 3, caseId: 'c1', at: 1, action: 'case.create' }, { caseId: 'backup', at: 2, action: 'backup.export' }],
-    });
-    const plan = mergeBackup(local, incoming, { p1: 'tag-p1', p2: 'tag-p2' });
+  const conflict = data({
+    patients: [patient('p1', 'AAA111'), patient('p2', 'BBB222')],
+    cases: [kase('c1', 'p1'), kase('c2', 'p2')],
+    photos: [photo('ph1', 'c1'), photo('ph2', 'c2')],
+    consents: [consent('k1', 'p1')],
+    messages: [{ id: 'm1', owner: 'doctor', patientCode: 'BBB222', from: 'patient', text: 'سلام', at: 1, sent: true }],
+    audit: [{ id: 3, caseId: 'c1', at: 1, action: 'case.create' }, { caseId: 'backup', at: 2, action: 'backup.export' }],
+  });
+  const other = { ...patient('p9', 'BBB222'), displayName: 'بیمار دیگر' };
+  const withDeleted: LocalState = { ...empty, patients: [other], erased: { 'tag-p1': 5 } };
+  const tags = { p1: 'tag-p1', p2: 'tag-p2' };
+
+  it('shows the doctor where each patient stands before anything is written', () => {
+    const review = reviewBackup(withDeleted, conflict, tags);
+    expect(review.map((r) => [r.id, r.status, r.takenBy, r.cases, r.photos])).toEqual([
+      ['p1', 'erased', undefined, 1, 1],
+      ['p2', 'code-taken', 'بیمار دیگر', 1, 1],
+    ]);
+    expect([...defaultInclude(review)]).toEqual(['p2']);
+  });
+
+  it('leaves out an unticked patient with everything of theirs', () => {
+    const plan = merge(withDeleted, conflict, tags, { include: new Set() });
     expect(plan.patients).toEqual([]);
     expect(plan.cases).toEqual([]);
     expect(plan.photos).toEqual([]);
@@ -175,13 +191,36 @@ describe('merge (restore merges, the newer record wins, nothing is deleted)', ()
     expect(plan.messages).toEqual([]);
     expect(plan.audit).toEqual([{ caseId: 'backup', at: 2, action: 'backup.export' }]);
     expect(plan.counts.skippedPatients).toBe(2);
+    expect(plan.erased).toEqual({ 'tag-p1': 5 });
+  });
+
+  it('brings back a deleted patient when ticked, and clears the deletion tag', () => {
+    const plan = merge(withDeleted, conflict, tags, { include: new Set(['p1']) });
+    expect(plan.patients.map((p) => p.id)).toEqual(['p1']);
+    expect(plan.photos.map((p) => p.id)).toEqual(['ph1']);
+    expect(plan.consents.map((c) => c.id)).toEqual(['k1']);
+    expect(plan.erased).toEqual({});
+  });
+
+  it('gives a patient whose code is taken a new code, messages included, and never overwrites the other', () => {
+    const plan = merge(withDeleted, conflict, tags, { include: new Set(['p2']), newCodes: { p2: 'CCC333' } });
+    expect(plan.patients.map((p) => [p.id, p.code])).toEqual([['p2', 'CCC333']]);
+    expect(plan.messages.map((m) => m.patientCode)).toEqual(['CCC333']);
+    // Without a new code it stays out.
+    expect(merge(withDeleted, conflict, tags, { include: new Set(['p2']) }).patients).toEqual([]);
+  });
+
+  it('does not touch a patient who is already here when unticked', () => {
+    const local: LocalState = { ...empty, patients: [patient('p1', 'AAA111')], cases: [{ id: 'c1', createdAt: 10 }] };
+    const plan = merge(local, data({ patients: [patient('p1', 'AAA111')], cases: [kase('c1', 'p1', 99)] }), {}, { include: new Set() });
+    expect(plan.cases).toEqual([]);
   });
 
   it('keeps the newer clinic settings and joins the deletion tags', () => {
     const local: LocalState = { ...empty, clinic: { key: 'clinic', value: {}, updatedAt: 10 }, erased: { a: 1 } };
-    const older = mergeBackup(local, data({ clinic: { key: 'clinic', value: {}, updatedAt: 5 }, erased: { b: 2 } }), {});
+    const older = merge(local, data({ clinic: { key: 'clinic', value: {}, updatedAt: 5 }, erased: { b: 2 } }), {});
     expect(older.clinic).toBeNull();
     expect(older.erased).toEqual({ a: 1, b: 2 });
-    expect(mergeBackup(local, data({ clinic: { key: 'clinic', value: {}, updatedAt: 20 } }), {}).clinic?.updatedAt).toBe(20);
+    expect(merge(local, data({ clinic: { key: 'clinic', value: {}, updatedAt: 20 } }), {}).clinic?.updatedAt).toBe(20);
   });
 });

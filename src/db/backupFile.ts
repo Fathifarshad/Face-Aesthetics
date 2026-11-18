@@ -137,7 +137,7 @@ export async function unpackBackup(file: Blob, password: string): Promise<Backup
 
 /** What the device already holds, as far as the merge needs it. */
 export type LocalState = {
-  patients: Pick<Patient, 'id' | 'code'>[];
+  patients: Pick<Patient, 'id' | 'code' | 'displayName'>[];
   cases: Pick<Case, 'id' | 'createdAt' | 'updatedAt'>[];
   findings: Pick<FindingRow, 'id' | 'updatedAt'>[];
   plans: Pick<PlanRow, 'caseId' | 'updatedAt'>[];
@@ -152,6 +152,57 @@ export type LocalState = {
   clinic: SettingRow | null;
   erased: Record<string, number>;
 };
+
+/**
+ * Where a patient of the backup stands against this device, shown to the doctor before anything is written:
+ * - `new`: not on this device; restored by default
+ * - `here`: already on this device; the newer of each record is kept, by default
+ * - `erased`: deleted on this device after the backup; restored only when the doctor ticks it
+ * - `code-taken`: another patient here has the same patient code (two different people); restored with a new code,
+ *   so neither record overwrites the other. The client app of that patient needs a new package afterwards
+ */
+export type PatientStatus = 'new' | 'here' | 'erased' | 'code-taken';
+export type PatientReview = {
+  id: string;
+  name: string;
+  fileNo: string;
+  code: string;
+  status: PatientStatus;
+  /** For `code-taken`: the name of the patient on this device who has the code. */
+  takenBy?: string;
+  cases: number;
+  photos: number;
+};
+
+/** The doctor's choice after the review: patients to restore, and the new code of each `code-taken` one. */
+export type RestoreChoice = { include: ReadonlySet<string>; newCodes: Readonly<Record<string, string>> };
+
+function statusOf(local: LocalState, erased: Record<string, number>, p: Patient, tag: string | undefined): Pick<PatientReview, 'status' | 'takenBy'> {
+  if (local.patients.some((l) => l.id === p.id)) return { status: 'here' };
+  if (tag && erased[tag] !== undefined) return { status: 'erased' };
+  const owner = local.patients.find((l) => l.code === p.code);
+  return owner ? { status: 'code-taken', takenBy: owner.displayName } : { status: 'new' };
+}
+
+/** One line per patient of the backup, for the review before a restore. `tags` maps patient id → `erasureTag`. */
+export function reviewBackup(local: LocalState, incoming: BackupData, tags: Readonly<Record<string, string>>): PatientReview[] {
+  const erased = { ...incoming.erased, ...local.erased };
+  return incoming.patients.map((p) => {
+    const caseIds = new Set(incoming.cases.filter((c) => c.patientId === p.id).map((c) => c.id));
+    return {
+      id: p.id,
+      name: p.displayName,
+      fileNo: p.fileNo,
+      code: p.code,
+      ...statusOf(local, erased, p, tags[p.id]),
+      cases: caseIds.size,
+      photos: incoming.photos.filter((ph) => caseIds.has(ph.caseId)).length,
+    };
+  });
+}
+
+/** Ticked by default: everything except patients deleted on this device. */
+export const defaultInclude = (review: readonly PatientReview[]): Set<string> => new Set(review.filter((r) => r.status !== 'erased').map((r) => r.id));
 
 export type MergeCounts = { added: number; updated: number; skippedPatients: number };
 
@@ -170,35 +221,35 @@ const auditKey = (a: Pick<AuditEntry, 'caseId' | 'at' | 'action'>) => `${a.caseI
  * - Rows with a change time (cases, findings, plans, grades, simulation states, sign-offs): the later one wins; a tie keeps the device's.
  * - Rows that never change (patients, photos, simulation images, audit entries): added when missing.
  * - Consents: added when missing; a revocation in the backup is applied, a revoked consent is never made active again.
- * - A patient deleted on this device (or on the device of the backup) is not brought back, nor is a patient whose
- *   code belongs to another patient here; their cases, consents and messages stay out with them.
+ * - Only the patients in `choice.include` are restored, with all their cases, consents and messages; a `code-taken`
+ *   one gets `choice.newCodes[id]` (and is left out without one). Patients only on this device are not touched.
  * `tags` maps each patient id of the backup to its `erasureTag`.
  */
-export function mergeBackup(local: LocalState, incoming: BackupData, tags: Readonly<Record<string, string>>): MergePlan {
+export function mergeBackup(local: LocalState, incoming: BackupData, tags: Readonly<Record<string, string>>, choice: RestoreChoice): MergePlan {
   const counts: MergeCounts = { added: 0, updated: 0, skippedPatients: 0 };
   const erased = { ...incoming.erased, ...local.erased };
 
-  const localPatients = new Map(local.patients.map((p) => [p.id, p.code]));
-  const codes = new Map(local.patients.map((p) => [p.code, p.id]));
-  const skipPatients = new Set<string>();
+  const chosen = new Set<string>();
+  /** Old code → code on this device, for the messages of a patient who got a new code. */
+  const codeMap = new Map<string, string>();
   const patients: Patient[] = [];
   for (const p of incoming.patients) {
-    if (localPatients.has(p.id)) continue;
     const tag = tags[p.id];
-    const owner = codes.get(p.code);
-    if ((tag && erased[tag] !== undefined) || (owner !== undefined && owner !== p.id)) {
-      skipPatients.add(p.id);
+    const { status } = statusOf(local, erased, p, tag);
+    const code = status === 'code-taken' ? choice.newCodes[p.id] : p.code;
+    if (!choice.include.has(p.id) || !code) {
       counts.skippedPatients++;
       continue;
     }
-    patients.push(p);
-    codes.set(p.code, p.id);
+    chosen.add(p.id);
+    codeMap.set(p.code, code);
+    if (status === 'here') continue;
+    patients.push({ ...p, code });
+    if (tag) delete erased[tag];
   }
-  const knownPatients = new Set([...localPatients.keys(), ...patients.map((p) => p.id)]);
-  const skipCodes = new Set(incoming.patients.filter((p) => skipPatients.has(p.id)).map((p) => p.code));
+  counts.added += patients.length;
 
-  const keepCase = new Set(local.cases.map((c) => c.id));
-  for (const c of incoming.cases) if (knownPatients.has(c.patientId)) keepCase.add(c.id);
+  const keepCase = new Set(incoming.cases.filter((c) => chosen.has(c.patientId)).map((c) => c.id));
   const ofKeptCase = <T extends { caseId: string }>(rows: T[]) => rows.filter((r) => keepCase.has(r.caseId));
 
   /** Newer-wins for rows with a change time. */
@@ -216,8 +267,6 @@ export function mergeBackup(local: LocalState, incoming: BackupData, tags: Reado
     const set = new Set(have);
     return rows.filter((r) => !set.has(key(r)) && ++counts.added);
   }
-  counts.added += patients.length;
-
   const cases = newer(
     incoming.cases.filter((c) => keepCase.has(c.id)),
     local.cases.map((c) => ({ key: c.id, at: c.updatedAt ?? c.createdAt })),
@@ -236,7 +285,7 @@ export function mergeBackup(local: LocalState, incoming: BackupData, tags: Reado
   const consents: Consent[] = [];
   const revoke: MergePlan['revoke'] = [];
   for (const c of incoming.consents) {
-    if (!knownPatients.has(c.patientId)) continue;
+    if (!chosen.has(c.patientId)) continue;
     if (!localConsents.has(c.id)) {
       consents.push(c);
       counts.added++;
@@ -247,7 +296,9 @@ export function mergeBackup(local: LocalState, incoming: BackupData, tags: Reado
   }
 
   const localMessages = new Map(local.messages.map((m) => [m.id, m.sent]));
-  const ownMessages = incoming.messages.filter((m) => m.owner === 'doctor' && !skipCodes.has(m.patientCode));
+  const ownMessages = incoming.messages
+    .filter((m) => m.owner === 'doctor' && codeMap.has(m.patientCode))
+    .map((m) => ({ ...m, patientCode: codeMap.get(m.patientCode)! }));
   const messages = ownMessages.filter((m) => !localMessages.has(m.id) && ++counts.added);
   const markSent = ownMessages.filter((m) => m.sent && localMessages.get(m.id) === false).map((m) => m.id);
   counts.updated += markSent.length;
@@ -255,7 +306,7 @@ export function mergeBackup(local: LocalState, incoming: BackupData, tags: Reado
   // Audit entries are added when missing; they are history, not counted as records.
   const incomingCases = new Set(incoming.cases.map((c) => c.id));
   const keepAuditTarget = (target: string) =>
-    target.startsWith('patient:') ? knownPatients.has(target.slice('patient:'.length)) : !incomingCases.has(target) || keepCase.has(target);
+    target.startsWith('patient:') ? chosen.has(target.slice('patient:'.length)) : !incomingCases.has(target) || keepCase.has(target);
   const haveAudit = new Set(local.audit.map(auditKey));
   const audit = incoming.audit.filter((a) => keepAuditTarget(a.caseId) && !haveAudit.has(auditKey(a))).map(({ caseId, at, action, before, after }) => ({ caseId, at, action, before, after }));
 

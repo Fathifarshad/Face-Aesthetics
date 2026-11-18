@@ -4,7 +4,8 @@ import { newCaseWithFrontal, setupVault, watchNetwork } from './helpers';
 
 /**
  * Release 1.1 R1: backup in the admin panel, restore on a second device with another vault passphrase.
- * Restore merges (newer wins, nothing deleted) and does not bring back a patient deleted there. Synthetic data;
+ * Restore shows a review first, then merges (newer wins, nothing deleted); a patient deleted there comes back only
+ * when the doctor ticks it. Synthetic data;
  * the photo is a local test asset. Each browser context is a separate device (its own IndexedDB).
  */
 const PHOTO = 'test-assets/portrait.jpg';
@@ -20,8 +21,15 @@ async function restore(page: Page, path: string, password: string) {
   const form = page.locator('[data-backup="restore"]');
   await form.locator('input[type=file]').setInputFiles(path);
   await form.getByLabel('رمز فایل پشتیبان').fill(password);
-  await form.getByRole('button', { name: 'بازگردانی' }).click();
+  await form.getByRole('button', { name: 'بررسی فایل' }).click();
   return form;
+}
+
+/** The review list (step 2): nothing is written until the apply button. */
+const review = (page: Page) => page.locator('[data-backup="review"]');
+async function apply(page: Page) {
+  await review(page).getByRole('button', { name: /^بازگردانی \d+ بیمار انتخاب‌شده$/ }).click();
+  await expect(review(page)).toBeHidden({ timeout: 60_000 });
 }
 
 /** Decrypts the case's photos with the vault of this page, through the app's own module (dev server). */
@@ -73,7 +81,16 @@ test('backup → restore on another device, merge rules', async ({ page, browser
   let form = await restore(b, path, 'wrong-password');
   await expect(form.getByText('رمز فایل پشتیبان درست نیست.')).toBeVisible({ timeout: 30_000 });
   form = await restore(b, path, BACKUP_PASS);
-  await expect(form.getByText(/^بازگردانی انجام شد/)).toBeVisible({ timeout: 60_000 });
+  // Review first: the patient is new here and ticked; cancelling writes nothing.
+  await expect(review(b).locator('[data-review="new"]')).toContainText('بیمار آزمایشی', { timeout: 30_000 });
+  await expect(review(b).getByText(/1 بیمار، 1 جلسه، 1 عکس/)).toBeVisible();
+  await review(b).getByRole('button', { name: 'انصراف' }).click();
+  await b.goto('/#/doctor');
+  await expect(b.getByText('بیمار آزمایشی')).toHaveCount(0);
+  await openBackupTab(b);
+  form = await restore(b, path, BACKUP_PASS);
+  await apply(b);
+  await expect(form.getByText(/^بازگردانی انجام شد/)).toBeVisible();
 
   // The patient, the case and its photo are there, sealed with device B's key.
   await b.goto('/#/doctor');
@@ -82,12 +99,14 @@ test('backup → restore on another device, merge rules', async ({ page, browser
   await b.goto(`/#/doctor/case/${caseId}/capture`);
   await expect(b.getByText(/1 از \d+ عکس لازم/).first()).toBeVisible();
 
-  // A second restore of the same file changes nothing.
+  // A second restore of the same file: the patient is "already here" and nothing changes.
   await openBackupTab(b);
   form = await restore(b, path, BACKUP_PASS);
-  await expect(form.getByText('بازگردانی انجام شد: 0 رکورد افزوده و 0 رکورد به‌روز شد.')).toBeVisible({ timeout: 60_000 });
+  await expect(review(b).locator('[data-review="here"]')).toBeVisible({ timeout: 30_000 });
+  await apply(b);
+  await expect(form.getByText('بازگردانی انجام شد: 0 رکورد افزوده و 0 رکورد به‌روز شد.')).toBeVisible();
 
-  // A patient deleted on device B does not come back.
+  // A patient deleted on device B is shown unticked; it comes back only when the doctor ticks it.
   await b.goto('/#/doctor');
   await b.getByText('بیمار آزمایشی').first().click();
   await expect(b).toHaveURL(/patient\//);
@@ -96,9 +115,21 @@ test('backup → restore on another device, merge rules', async ({ page, browser
   await expect(b).toHaveURL(/#\/doctor$/);
   await openBackupTab(b);
   form = await restore(b, path, BACKUP_PASS);
-  await expect(form.getByText(/^1 بیمار برنگشت/)).toBeVisible({ timeout: 60_000 });
+  const deleted = review(b).locator('[data-review="erased"]');
+  await expect(deleted.getByRole('checkbox')).not.toBeChecked({ timeout: 30_000 });
+  await apply(b);
+  await expect(form.getByText(/^1 بیمار طبق انتخاب شما بازگردانی نشد/)).toBeVisible();
   await b.goto('/#/doctor');
   await expect(b.getByText('بیمار آزمایشی')).toHaveCount(0);
+  await openBackupTab(b);
+  form = await restore(b, path, BACKUP_PASS);
+  await review(b).getByRole('switch', { name: 'بازگرداندن بیماران حذف‌شده' }).click();
+  await expect(deleted.getByRole('checkbox')).toBeChecked();
+  await review(b).screenshot({ path: `${OUT}/review.png` });
+  await apply(b);
+  await b.goto('/#/doctor');
+  await expect(b.getByText('بیمار آزمایشی').first()).toBeVisible();
+  expect(await photoSizes(b, caseId)).toEqual(original);
 
   // Another file is refused.
   await openBackupTab(b);
