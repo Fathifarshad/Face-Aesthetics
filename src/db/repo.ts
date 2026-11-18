@@ -1,6 +1,7 @@
 import { buildFindings } from '../analysis/analyze';
 import { sampler, toGray } from '../capture/imageStats';
 import { emptyIntake } from '../plan/intake';
+import { ERASED_KEY, erasureTag } from './backup';
 import { audit, db, uid } from './db';
 import { listPhotos } from './images';
 import { newPatientCode } from './patientCode';
@@ -45,7 +46,7 @@ export async function updateCase(id: string, patch: Partial<Case> | ((c: Case) =
     const before = await db.cases.get(id);
     if (!before) return;
     const p = typeof patch === 'function' ? patch(before) : patch;
-    await db.cases.update(id, p);
+    await db.cases.update(id, { ...p, updatedAt: Date.now() });
     await audit(id, action, Object.fromEntries(Object.keys(p).map((k) => [k, before[k as keyof Case]])), p);
   });
 }
@@ -81,14 +82,16 @@ export async function recomputeFindings(caseId: string) {
 }
 
 export async function updateFinding(row: FindingRow, patch: Partial<FindingRow>) {
-  await db.findings.update(row.id, patch);
+  await db.findings.update(row.id, { ...patch, updatedAt: Date.now() });
   await audit(row.caseId, 'finding.update', { key: row.key, status: row.status, severity: row.severity }, { key: row.key, ...patch });
 }
 
 export async function deletePatient(patientId: string) {
   const p = await db.patients.get(patientId);
   const cases = await db.cases.where('patientId').equals(patientId).toArray();
-  await db.transaction('rw', [db.patients, db.cases, db.photos, db.findings, db.plans, db.simulations, db.signoffs, db.messages, db.audit, db.grades, db.simStates, db.consents], async () => {
+  // Hashed before the transaction (Web Crypto cannot run inside one); a backup restore will not bring the patient back (R1).
+  const tag = await erasureTag(patientId);
+  await db.transaction('rw', [db.patients, db.cases, db.photos, db.findings, db.plans, db.simulations, db.signoffs, db.messages, db.audit, db.grades, db.simStates, db.consents, db.settings], async () => {
     for (const c of cases) {
       await db.photos.where('caseId').equals(c.id).delete();
       await db.findings.where('caseId').equals(c.id).delete();
@@ -106,5 +109,7 @@ export async function deletePatient(patientId: string) {
     await db.consents.where('patientId').equals(patientId).delete();
     await db.audit.where('caseId').equals(`patient:${patientId}`).delete();
     await db.patients.delete(patientId);
+    const erased = ((await db.settings.get(ERASED_KEY))?.value as Record<string, number> | undefined) ?? {};
+    await db.settings.put({ key: ERASED_KEY, value: { ...erased, [tag]: Date.now() } });
   });
 }

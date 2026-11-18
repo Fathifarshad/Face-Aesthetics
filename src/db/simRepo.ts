@@ -107,7 +107,7 @@ export async function setRealAge(caseId: string, age: number): Promise<void> {
   await db.transaction('rw', [db.cases, db.audit], async () => {
     const c = await db.cases.get(caseId);
     if (!c) return;
-    await db.cases.update(caseId, { actualAge: age });
+    await db.cases.update(caseId, { actualAge: age, updatedAt: Date.now() });
     await audit(caseId, 'age.actual', { actualAge: c.actualAge }, { actualAge: age });
   });
   await syncCaseTarget(caseId);
@@ -118,7 +118,7 @@ async function syncCaseTarget(caseId: string) {
   if (!c) return;
   const { target } = await getSimState(caseId);
   const targetAge = targetAgeOf(c.actualAge, target);
-  await db.cases.update(caseId, { targetAge, tier: tierFromGap(c.actualAge, targetAge) });
+  await db.cases.update(caseId, { targetAge, tier: tierFromGap(c.actualAge, targetAge), updatedAt: Date.now() });
 }
 
 /** A change the doctor moved by hand: it no longer follows the age-appropriate default. Not audited per move. */

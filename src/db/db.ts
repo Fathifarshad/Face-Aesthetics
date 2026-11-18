@@ -19,6 +19,9 @@ import type {
   SimulationRow,
 } from './types';
 
+/** `updatedAt` lets a backup restore keep the newer clinic settings (R1). */
+export type SettingRow = { key: string; value: unknown; updatedAt?: number };
+
 class AppDB extends Dexie {
   patients!: Table<Patient, string>;
   cases!: Table<Case, string>;
@@ -29,7 +32,7 @@ class AppDB extends Dexie {
   signoffs!: Table<SignOffRow, string>;
   messages!: Table<Message, string>;
   audit!: Table<AuditEntry, number>;
-  settings!: Table<{ key: string; value: unknown }, string>;
+  settings!: Table<SettingRow, string>;
   ptRecords!: Table<PtRecord, string>;
   ptPhotos!: Table<PtPhoto, string>;
   grades!: Table<GradeRow, string>;
@@ -93,7 +96,7 @@ export async function getSettings(): Promise<ClinicSettings> {
   return { ...DEFAULT_SETTINGS, ...stored, tariff: { ...DEFAULT_TARIFF, ...stored.tariff } };
 }
 
-export const saveSettings = (s: ClinicSettings) => db.settings.put({ key: 'clinic', value: s });
+export const saveSettings = (s: ClinicSettings) => db.settings.put({ key: 'clinic', value: s, updatedAt: Date.now() });
 
 export const audit = (caseId: string, action: string, before?: unknown, after?: unknown) =>
   db.audit.add({ caseId, at: Date.now(), action, before, after });

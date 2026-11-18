@@ -154,6 +154,9 @@ export async function openBlob(id: string, sealed: Sealed): Promise<Blob> {
 
 export const forgetImage = (id: string): void => void cache.delete(id);
 
+/** Decrypts without touching the session cache (backup of every image, `src/db/images.ts`). */
+export const openUncached = (sealed: Sealed): Promise<Blob> => open(requireKey(), sealed);
+
 /** Encrypts images that were stored before the vault existed (v1 kit data). Safe to run again. */
 async function sealLegacyImages(): Promise<void> {
   type Legacy = { blob?: Blob; signature?: string };

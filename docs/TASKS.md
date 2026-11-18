@@ -252,7 +252,19 @@ own progress photos stay; (b) the doctor's report note is shown in the client ap
 Owner answers: restore merges (newer record wins, nothing deleted); final image both on the device and online, the
 online one only when the doctor switches it on; eye-bag flattening has a switch and is offered with all three options
 (slider, lower blepharoplasty as a surgical referral, tightening device); stores: Cafe Bazaar, Myket and Google Play.
-- [ ] R1 Backup and restore in the admin panel: one file encrypted with a password, restore merges
+- [x] R1 Backup and restore in the admin panel: one file encrypted with a password, restore merges (built 2026-11-17).
+  Admin → «داده‌ها» → «پشتیبان‌گیری و بازگردانی». File `neva-backup-YYYY-MM-DD.nevabak`: a JSON header line (format
+  `neva/backup` v1, the backup key wrapped with PBKDF2-SHA-256 600k from the backup password) + AES-GCM ciphertext of
+  every doctor-side row and image (`src/db/backupFile.ts`, pure, unit-tested; Dexie side `src/db/backup.ts`). Images
+  are decrypted with this device's key and sealed again with the restoring device's key, so a restore works on a
+  device with another vault passphrase. Not in a backup: the vault record, the client app's tables (`ptRecords`,
+  `ptPhotos`, `pt:` messages). Merge (`mergeBackup`): newer `updatedAt` wins (cases, findings, plans, grades,
+  simStates, sign-offs by `signedAt`, clinic settings), unchanged rows (patients, photos, simulations, audit) are
+  added when missing, nothing is deleted, a revoked consent never becomes active, a revocation in the file is applied.
+  Claude's own choices to confirm: a patient deleted on the device is not brought back (`deletePatient` keeps a
+  SHA-256 tag of the id under settings key `erased`), nor a patient whose code belongs to another patient there;
+  cases, findings and clinic settings now carry `updatedAt` (older rows fall back to `createdAt` / 0). The file leaves
+  only through the share sheet or a download the doctor starts. e2e: `e2e/backup.spec.ts`
 - [ ] R2 Camera: automatic capture at the best moment (face aligned, steady, sharp, well lit; full-resolution still)
 - [ ] R3 Eye-bag flattening: switch + slider, eyelid and eye unchanged; two new options start as `draft`
 - [ ] R4 Toxin option for MD Codes F, G, O (label doses already approved for forehead, glabella, crow's feet)

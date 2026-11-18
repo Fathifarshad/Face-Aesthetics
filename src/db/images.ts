@@ -1,7 +1,7 @@
 import { audit, db } from './db';
 import type { Consent } from '../data/types';
-import type { ConsentRow, Photo, PhotoPhase, PhotoRow, SignOff, Simulation, SimulationRow } from './types';
-import { forgetImage, openBlob, openString, sealBlob, sealString } from './vault';
+import type { ConsentRow, Photo, PhotoPhase, PhotoRow, SignOff, SignOffRow, Simulation, SimulationRow } from './types';
+import { forgetImage, openBlob, openString, openUncached, sealBlob, sealString } from './vault';
 
 /**
  * The only place images are read from or written to storage. Rows hold ciphertext (`sealed`); callers get
@@ -84,3 +84,30 @@ export async function revokeConsent(id: string): Promise<void> {
     await audit(`patient:${row.patientId}`, 'consent.revoke', { scope: row.scope }, { revokedAt: at });
   });
 }
+
+// ── Backup (R1, src/db/backup.ts): every image of the device in plain form, and sealing for a restore ──
+// Decrypted without the session cache, so a backup of many photos does not push out the images on screen.
+
+export async function allPhotosPlain(): Promise<Photo[]> {
+  const rows = await db.photos.toArray();
+  return Promise.all(rows.map(async ({ sealed, ...rest }) => ({ ...rest, blob: await openUncached(sealed) })));
+}
+
+export async function allSimulationsPlain(): Promise<Simulation[]> {
+  const rows = await db.simulations.toArray();
+  return Promise.all(rows.map(async ({ sealed, ...rest }) => ({ ...rest, blob: await openUncached(sealed) })));
+}
+
+export async function allSignoffsPlain(): Promise<SignOff[]> {
+  const rows = await db.signoffs.toArray();
+  return Promise.all(rows.map(async ({ sealedSignature, ...rest }) => ({ ...rest, signature: await openString(sealedSignature) })));
+}
+
+export async function allConsentsPlain(): Promise<Consent[]> {
+  const rows = await db.consents.toArray();
+  return Promise.all(rows.map(async ({ sealedSignature, ...rest }) => ({ ...rest, signature: await openString(sealedSignature) })));
+}
+
+export const sealSimulation = async ({ blob, ...rest }: Simulation): Promise<SimulationRow> => ({ ...rest, sealed: await sealBlob(blob) });
+export const sealSignoff = async ({ signature, ...rest }: SignOff): Promise<SignOffRow> => ({ ...rest, sealedSignature: await sealString(signature) });
+export const sealConsent = async ({ signature, ...rest }: Consent): Promise<ConsentRow> => ({ ...rest, sealedSignature: await sealString(signature) });

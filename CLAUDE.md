@@ -7,6 +7,7 @@ before/after gallery. A client app (`/#/client`, same PWA) shows the patient the
 
 Status: PRD 2.0 adopted on 2026-11-13; M0–M3 done; M4 (warp, mirror, tap-to-select), M5 (grading, age target), M5b (MD Codes filler mode), M5c (all 51 MD Codes), M6 (knowledge base, sorting, option → image), M7 (volume/dose/cost estimates, clinic tariff, MD Codes layer for filler options), M8 (consent levels, gallery, compare), M9 (report, approval stamp), M10 (render stub, PWA offline, privacy and accessibility tests) and M11 (client app, package v2) built; the owner approved all of them on 2026-11-17. Dead v1 code (old simulation engine, unused plan functions and
 UI strings) was removed on 2026-11-17; the v1 folders that remain are in use — see docs/TASKS.md.
+Release 1.0 is live; Release 1.1 (R1–R6 in docs/TASKS.md) is built one item at a time: R1 (backup and restore) built 2026-11-17.
 
 ## Read before working (only the one you need)
 - docs/PRD.md — requirements F1–F10, milestones M0–M11. **§0 (owner decisions) overrides everything else**
@@ -107,6 +108,8 @@ Report = print route + `window.print()` (keeps Persian shaping correct; do not u
 - File exchange (F10): package v2 ids `neva/patient-package` / `neva/patient-reply` in `src/share/format.ts`; v1
   (`tanasob/…`) files must stay readable (`parseIncoming` maps them). Nothing from F10.6 in a package (`e2e/client.spec.ts`
   scans the whole file). Client-app message rows are stored as `pt:<id>` (`newClientMessageId`), files carry the bare id
+- Backup (R1): `src/db/backupFile.ts` (format, merge rules) and `src/db/backup.ts` (Dexie). A new table or a new
+  changeable row must be added to `BackupData`, `LocalState` and `mergeBackup`, and must set `updatedAt` on every write
 - Never commit photos; `test-assets/` and `test-results/` are git-ignored
 
 ## Working economically (owner request 2026-11-16: fewer tokens, same quality)

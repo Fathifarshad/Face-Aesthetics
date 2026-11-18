@@ -40,6 +40,8 @@ export type Case = {
   consents: Consents;
   screening: { bddPositive: boolean | null; note: string };
   glogau: number | null;
+  /** Last change (R1 backup merge: the newer row wins). Absent on cases saved before Release 1.1 = `createdAt`. */
+  updatedAt?: number;
 };
 
 export type Photo = {
@@ -58,7 +60,7 @@ export type Photo = {
   takenAt: number;
 };
 
-export type FindingRow = Finding & { id: string; caseId: string };
+export type FindingRow = Finding & { id: string; caseId: string; updatedAt?: number };
 
 /** M5 grading (PRD F2): one row per concern and side. `index` is the engine's raw measure, null for manual grades. */
 export type GradeRow = DomainFinding & { id: string; caseId: string; index: number | null; photoId: string | null; updatedAt: number };
