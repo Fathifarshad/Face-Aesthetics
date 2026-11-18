@@ -269,7 +269,19 @@ online one only when the doctor switches it on; eye-bag flattening has a switch 
   client app's data is not in the file (both stated on the review). Cases, findings and clinic settings now carry
   `updatedAt` (older rows fall back to `createdAt` / 0). The file leaves
   only through the share sheet or a download the doctor starts. e2e: `e2e/backup.spec.ts`
-- [ ] R2 Camera: automatic capture at the best moment (face aligned, steady, sharp, well lit; full-resolution still)
+- [x] R2 Camera: automatic capture at the best moment (built 2026-11-17). Every analysed frame (~5/s) is checked in
+  this order and the hint names the first thing to fix: one face, pose (yaw, roll, pitch), face size (frontal),
+  framing against the "before" photo (after photos), light, even light (frontal), backlight, open eyes (blink: below
+  60 % of the widest opening seen, or under 0.06), steadiness (eye line moves < 3 % of the eye-corner distance
+  between frames), sharpness. Light, size, sharpness and backlight reuse `QC_THRESHOLDS`, so an auto photo also passes
+  the confirm step. All checks for 0.8 s → photo: the camera's own still (`ImageCapture.takePhoto`, flash off) when it
+  is larger than the video frame and arrives within 2.5 s, else the sharpest frame of the hold. Shutter sound (Web
+  Audio, no file), vibration, flash; the ring around the shutter shows the hold. Two switches on the camera screen,
+  both on by default and remembered on the device: «عکس خودکار» and «صدای شاتر» (owner: sound with a choice). The
+  manual shutter works as before. Pure logic `src/capture/autoCapture.ts` (unit-tested), still `src/capture/still.ts`,
+  sound `src/lib/shutterSound.ts`, UI `src/components/LiveCamera.tsx` (doctor and client app). Limits are technical,
+  not clinical. e2e: `e2e/camera.spec.ts` (fake camera from the test portrait via ffmpeg; skipped without ffmpeg).
+  Still open: try it on a real phone (front camera, takePhoto speed, sound in the Android app)
 - [ ] R3 Eye-bag flattening: switch + slider, eyelid and eye unchanged; two new options start as `draft`
 - [ ] R4 Toxin option for MD Codes F, G, O (label doses already approved for forehead, glabella, crow's feet)
 - [ ] R5 Final image: full-quality on-device result + optional online render (provider choice and licence review

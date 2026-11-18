@@ -31,7 +31,10 @@ export function nextCamera(deviceIds: readonly string[], tried: ReadonlySet<stri
 
 /** Map a getUserMedia failure to a message the doctor can act on. */
 export function cameraErrorKind(err: unknown): CameraErrorKind {
-  const name = err instanceof Error || (typeof err === 'object' && err !== null && 'name' in err) ? String((err as { name: unknown }).name) : '';
+  const name =
+    err instanceof Error || (typeof err === 'object' && err !== null && 'name' in err)
+      ? String((err as { name: unknown }).name)
+      : '';
   if (name === 'NotAllowedError' || name === 'SecurityError') return 'denied';
   if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'none';
   if (name === 'NotReadableError' || name === 'AbortError') return 'busy';
@@ -77,7 +80,30 @@ export function poseHint(
 }
 
 /** Face guide in video pixels: the oval a face should fill, hairline to chin (about two thirds of the frame height). */
-export function faceGuide(width: number, height: number, frontal: boolean): { cx: number; cy: number; rx: number; ry: number } {
+export function faceGuide(
+  width: number,
+  height: number,
+  frontal: boolean,
+): { cx: number; cy: number; rx: number; ry: number } {
   const ry = Math.min(height * 0.32, (width * 0.45) / (frontal ? 0.74 : 0.8));
   return { cx: width / 2, cy: height * 0.47, rx: ry * (frontal ? 0.74 : 0.8), ry };
+}
+
+export type CameraPref = 'autoCapture' | 'shutterSound';
+
+/** On/off choices on the camera screen, remembered on this device; both start on (owner, R2). */
+export function cameraPref(key: CameraPref): boolean {
+  try {
+    return localStorage.getItem(`neva.${key}`) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function setCameraPref(key: CameraPref, on: boolean): void {
+  try {
+    localStorage.setItem(`neva.${key}`, on ? 'on' : 'off');
+  } catch {
+    /* storage blocked: the choice lasts until the camera closes */
+  }
 }

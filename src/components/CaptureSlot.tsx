@@ -128,7 +128,7 @@ export function CaptureSlot({
         </div>
       )}
 
-      {camera && <LiveCamera view={view} ghost={ghost} onCapture={(b) => void handle(b)} onClose={() => setCamera(false)} />}
+      {camera && <LiveCamera view={view} ghost={ghost} reference={reference} onCapture={(b) => void handle(b)} onClose={() => setCamera(false)} />}
       {pending && (
         <ConfirmDialog
           view={view}
