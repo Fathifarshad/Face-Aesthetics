@@ -241,10 +241,25 @@ own progress photos stay; (b) the doctor's report note is shown in the client ap
   `com.nevaclinic.app`, opens `#/doctor`) and «نوا — مراجع» (`com.nevaclinic.app.client`, `#/client`). Built locally
   with `scripts/build-apk.ps1`; key and toolchain outside the repo (android/README.md). APKs served from
   `public/download/` on GitHub Pages
-- [ ] Full screen without the address bar: `android/assetlinks.json` must be served at
-  `https://fathifarshad.github.io/.well-known/assetlinks.json` (user-site repo, needs the owner)
+- [x] Full screen without the address bar: `android/assetlinks.json` is served at
+  `https://fathifarshad.github.io/.well-known/assetlinks.json` from the user-site repo
+  `Fathifarshad/fathifarshad.github.io` (`.nojekyll`, root redirects to the app); Google's Digital Asset Links API
+  lists both packages (2026-11-17). A new signing key (for example Play App Signing) must be added to both files
 - [x] Guides: `scripts/make-guides.mjs` → `public/guides/NEVA-Guide-Doctors.pdf` and `NEVA-Guide-Clients.pdf`
   (screenshots `GUIDE_SHOTS=1 npx playwright test e2e/guide-shots.spec.ts`, faces blurred; QR codes `docs/guides/qr/`)
+
+## Release 1.1 (owner 2026-11-17 approved seven items; one milestone at a time, plan → «ادامه» → build)
+Owner answers: restore merges (newer record wins, nothing deleted); final image both on the device and online, the
+online one only when the doctor switches it on; eye-bag flattening has a switch and is offered with all three options
+(slider, lower blepharoplasty as a surgical referral, tightening device); stores: Cafe Bazaar, Myket and Google Play.
+- [ ] R1 Backup and restore in the admin panel: one file encrypted with a password, restore merges
+- [ ] R2 Camera: automatic capture at the best moment (face aligned, steady, sharp, well lit; full-resolution still)
+- [ ] R3 Eye-bag flattening: switch + slider, eyelid and eye unchanged; two new options start as `draft`
+- [ ] R4 Toxin option for MD Codes F, G, O (label doses already approved for forehead, glabella, crow's feet)
+- [ ] R5 Final image: full-quality on-device result + optional online render (provider choice and licence review
+  first), client opinion through the reply file, doctor-only MD Codes overlay (all or one by one)
+- [ ] R6 Store release: AAB for Google Play, listings, screenshots, privacy policy for Cafe Bazaar, Myket and Google
+  Play (Google Play needs a developer account outside Iran; the owner registers)
 
 ## Open items that need a person
 - Clinical values: approved by the clinic's physicians on 2026-11-17 (`clinicalReview.ts`); any later change to a number goes through them again
